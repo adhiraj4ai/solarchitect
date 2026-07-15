@@ -58,9 +58,10 @@ clusters: []
 annotations: []
 `);
   // Focus the canvas, choose the note tool (keyboard 'n'), place it, exit edit mode.
-  await canvas().click({ position: { x: 250, y: 420 } });
+  // Use upper-middle coords, clear of tldraw's own UI (menus, toolbars, panels).
+  await canvas().click({ position: { x: 300, y: 170 } });
   await win.keyboard.press('n');
-  await canvas().click({ position: { x: 320, y: 300 } });
+  await canvas().click({ position: { x: 340, y: 230 } });
   await win.keyboard.press('Escape');
 
   await expect(editor()).toHaveValue(/kind: sticky/);

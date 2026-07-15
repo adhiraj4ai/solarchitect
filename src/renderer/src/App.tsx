@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CanvasView } from './canvas/CanvasView';
 import { NodePalette } from './canvas/NodePalette';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
@@ -10,8 +10,26 @@ import { useTemplates } from './hooks/useTemplates';
 import type { Diagram } from '@shared/ir/types';
 
 export default function App() {
-  const { yamlText, diagram, yamlError, canvasEditSeq, onCanvasEdit, onYamlEdit, loadDiagram } = useSyncEngine();
+  const { yamlText, diagram, yamlError, canvasEditSeq, canUndo, canRedo, onCanvasEdit, onYamlEdit, loadDiagram, undo, redo } =
+    useSyncEngine();
   const project = useProject(loadDiagram);
+
+  // Global undo/redo. Captured before tldraw and the textarea so a single
+  // shortcut drives the unified IR history regardless of what has focus.
+  // Global undo/redo. Captured before tldraw and the textarea so a single
+  // shortcut drives the unified IR history regardless of what has focus.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== 'z') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) redo();
+      else undo();
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
+  }, [undo, redo]);
   // Pass the stable setter directly — an inline wrapper would change every
   // render and retrigger useTemplates' load effect in a loop.
   const templates = useTemplates(project.projectDir, project.setIoError);
@@ -58,6 +76,14 @@ export default function App() {
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: 6, padding: '4px 8px', borderBottom: '1px solid #e2e8f0' }}>
+          <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} style={topBtn}>
+            Undo
+          </button>
+          <button data-testid="redo-btn" onClick={redo} disabled={!canRedo} style={topBtn}>
+            Redo
+          </button>
+        </div>
         <NodePalette />
         <div style={{ position: 'relative', flex: 1 }}>
           <CanvasView
@@ -120,6 +146,14 @@ export default function App() {
   );
 }
 
+const topBtn: React.CSSProperties = {
+  padding: '3px 12px',
+  fontSize: 12,
+  background: 'white',
+  border: '1px solid #cbd5e0',
+  borderRadius: 6,
+  cursor: 'pointer',
+};
 const modalBackdrop: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
