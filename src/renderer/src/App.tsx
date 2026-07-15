@@ -92,6 +92,7 @@ export default function App() {
             templates={templates.templates}
             onCanvasEdit={onCanvasEdit}
             onSaveTemplate={beginSaveTemplate}
+            onError={project.setIoError}
           />
         </div>
       </div>

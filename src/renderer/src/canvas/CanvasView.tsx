@@ -1,4 +1,4 @@
-import { Tldraw, react, createShapeId, type Editor, type TLShapePartial } from 'tldraw';
+import { Tldraw, react, createShapeId, exportToBlob, type Editor, type TLShapePartial } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -122,11 +122,13 @@ export function CanvasView({
   templates,
   onCanvasEdit,
   onSaveTemplate,
+  onError,
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
   onCanvasEdit: (next: Diagram) => void;
   onSaveTemplate: (subtree: Diagram) => void;
+  onError: (msg: string) => void;
 }) {
   const editorRef = useRef<Editor | null>(null);
   const diagramRef = useRef(diagram);
@@ -264,6 +266,29 @@ export function CanvasView({
     });
   }, []);
 
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
+  const handleExport = useCallback(async (format: 'png' | 'svg') => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      const ids = [...editor.getCurrentPageShapeIds()];
+      if (ids.length === 0) {
+        onErrorRef.current('Nothing to export — the canvas is empty.');
+        return;
+      }
+      const blob = await exportToBlob({ editor, ids, format });
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const base64 = btoa(binary);
+      await window.solarchitect.exportImage(base64, `diagram.${format}`);
+    } catch (e) {
+      onErrorRef.current(`Export failed: ${(e as Error).message}`);
+    }
+  }, []);
+
   const handleLabelChange = useCallback((label: string) => {
     if (!selectedEdgeIdRef.current) return;
     const edges = diagramRef.current.edges.map((e) =>
@@ -301,6 +326,12 @@ export function CanvasView({
         </button>
         <button data-testid="save-template-btn" onClick={handleSaveTemplate} style={toolbarBtn}>
           Save as Template
+        </button>
+        <button data-testid="export-png-btn" onClick={() => handleExport('png')} style={toolbarBtn}>
+          PNG
+        </button>
+        <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} style={toolbarBtn}>
+          SVG
         </button>
         {selectedEdgeId && (
           <input

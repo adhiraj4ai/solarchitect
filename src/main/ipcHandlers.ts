@@ -7,6 +7,7 @@ import {
   readTemplates,
   writeTemplates,
 } from './projectManager';
+import { writeExportedImage } from './exportService';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('project:openFolder', async () => {
@@ -28,4 +29,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('project:writeTemplates', (_e, projectDir: string, yamlText: string) =>
     writeTemplates(projectDir, yamlText),
   );
+  ipcMain.handle('project:exportImage', async (_e, base64Data: string, suggestedName: string) => {
+    const result = await dialog.showSaveDialog({ defaultPath: suggestedName });
+    if (result.canceled || !result.filePath) return null;
+    await writeExportedImage(result.filePath, Buffer.from(base64Data, 'base64'));
+    return result.filePath;
+  });
 }
