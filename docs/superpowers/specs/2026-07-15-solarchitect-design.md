@@ -59,7 +59,7 @@ Three layers: the canvas view (tldraw), the Diagram Model / IR (the single in-me
 
 ## Components
 
-- **Diagram Model (IR)** — in-memory tree: `nodes[]` (id, type e.g. `aws.compute.EC2`, label, x/y, clusterId), `edges[]` (from, to, direction, label), `clusters[]` (id, label, member ids, x/y/size), `annotations[]` (id, kind, x/y, content/style).
+- **Diagram Model (IR)** — in-memory tree: `nodes[]` (id, type e.g. `aws.compute.EC2`, label, x/y, clusterId), `edges[]` (from, to, direction, label), `clusters[]` (id, label, x/y, width/height), `annotations[]` (id, kind, x/y, content/style). Cluster membership lives on the node (each node's optional `clusterId`), not as a member-id list on the cluster — single source of truth, no bidirectional-consistency risk.
 - **YAML Serializer/Parser** — pure functions, `IR → YAML` and `YAML → IR | ParseError`. No side effects; independently unit-testable.
 - **tldraw Shape Adapters** — custom shape types for nodes/clusters (annotations use tldraw's native shapes), plus `IR → shape records` and `shape change → IR patch` mappers.
 - **Sync Engine** — coordinates both directions: canvas edit → IR patch → re-serialize → update code editor; YAML edit (debounced) → parse → on success, diff and patch tldraw shapes; on failure, leave IR/canvas untouched and surface the error inline.
