@@ -1,10 +1,10 @@
-import { Tldraw, createShapeId, type Editor, type TLShapePartial } from 'tldraw';
+import { Tldraw, react, createShapeId, type Editor, type TLShapePartial } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
 import { ClusterShapeUtil } from './ClusterShapeUtil';
-import { EdgeShapeUtil } from './EdgeShapeUtil';
+import { EdgeShapeUtil, type ArchEdgeShape } from './EdgeShapeUtil';
 import { NODE_TYPE_DND_MIME } from './NodePalette';
 import {
   nodesToShapes,
@@ -12,10 +12,12 @@ import {
   getArchNodeShapes,
   shapeToNode,
   clustersToShapes,
+  clusterToShape,
+  shapeToCluster,
   getArchClusterShapes,
-  clusterToShapePatch,
   edgeToShape,
   getArchEdgeShapes,
+  edgeShapesEqual,
 } from './shapeAdapters';
 import { diffById } from '@shared/sync/diff';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
@@ -32,59 +34,64 @@ function selectedNodes(editor: Editor): ArchNodeShape[] {
   return editor.getSelectedShapes().filter((s): s is ArchNodeShape => s.type === 'archNode');
 }
 
+/**
+ * Reconcile the tldraw canvas to match the IR. All mutations run inside
+ * mergeRemoteChanges so they're tagged 'remote' and don't re-fire the
+ * user-scoped store listener (which would otherwise loop or churn).
+ */
 function reconcile(editor: Editor, diagram: Diagram): void {
-  // Clusters (drawn behind nodes).
-  const currentClusters: DiagramCluster[] = getArchClusterShapes(editor).map((s) => ({
-    id: s.props.clusterId,
-    label: s.props.label,
-    x: s.x,
-    y: s.y,
-    width: s.props.w,
-    height: s.props.h,
-  }));
-  const clusterEq = (a: DiagramCluster, b: DiagramCluster) =>
-    a.label === b.label && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
-  const dc = diffById(currentClusters, diagram.clusters, clusterEq);
-  if (dc.removeIds.length) editor.deleteShapes(dc.removeIds.map((id) => createShapeId(id)));
-  if (dc.add.length) editor.createShapes(clustersToShapes(dc.add));
-  dc.update.forEach((c) => editor.updateShape(clusterToShapePatch(c)));
+  editor.store.mergeRemoteChanges(() => {
+    // Clusters (drawn behind everything).
+    const currentClusters: DiagramCluster[] = getArchClusterShapes(editor).map(shapeToCluster);
+    const clusterEq = (a: DiagramCluster, b: DiagramCluster) =>
+      a.label === b.label && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+    const dc = diffById(currentClusters, diagram.clusters, clusterEq);
+    if (dc.removeIds.length) editor.deleteShapes(dc.removeIds.map((id) => createShapeId(id)));
+    if (dc.add.length) editor.createShapes(clustersToShapes(dc.add));
+    dc.update.forEach((c) => editor.updateShape(clusterToShape(c)));
 
-  // Edges (derived shapes running between node centers).
-  const nodeById = new Map(diagram.nodes.map((n) => [n.id, n]));
-  const desiredEdges = diagram.edges
-    .map((e) => edgeToShape(e, nodeById))
-    .filter((s): s is TLShapePartial => s !== null);
-  const desiredEdgeById = new Map(desiredEdges.map((s) => [s.id, s]));
-  const currentEdges = getArchEdgeShapes(editor);
-  const currentEdgeIds = new Set(currentEdges.map((s) => s.id));
-  const edgesToRemove = currentEdges.filter((s) => !desiredEdgeById.has(s.id)).map((s) => s.id);
-  if (edgesToRemove.length) editor.deleteShapes(edgesToRemove);
-  const edgesToAdd = desiredEdges.filter((s) => !currentEdgeIds.has(s.id));
-  if (edgesToAdd.length) editor.createShapes(edgesToAdd);
-  for (const desired of desiredEdges) {
-    const cur = currentEdges.find((c) => c.id === desired.id);
-    if (!cur) continue;
-    const curKey = JSON.stringify({ x: cur.x, y: cur.y, props: cur.props });
-    const wantKey = JSON.stringify({ x: desired.x, y: desired.y, props: desired.props });
-    if (curKey !== wantKey) editor.updateShape(desired);
-  }
+    // Edges (derived shapes between node centers).
+    const nodeById = new Map(diagram.nodes.map((n) => [n.id, n]));
+    const desiredEdges = diagram.edges
+      .map((e) => edgeToShape(e, nodeById))
+      .filter((s): s is TLShapePartial => s !== null);
+    const desiredEdgeById = new Map(desiredEdges.map((s) => [s.id, s]));
+    const currentEdges = getArchEdgeShapes(editor);
+    const currentEdgeById = new Map(currentEdges.map((s) => [s.id, s]));
+    const edgesToRemove = currentEdges.filter((s) => !desiredEdgeById.has(s.id)).map((s) => s.id);
+    if (edgesToRemove.length) editor.deleteShapes(edgesToRemove);
+    for (const desired of desiredEdges) {
+      const cur = currentEdgeById.get(desired.id);
+      if (!cur) editor.createShapes([desired]);
+      else if (!edgeShapesEqual(cur, desired as ArchEdgeShape)) editor.updateShape(desired);
+    }
 
-  // Nodes (drawn on top).
-  const currentNodes = getArchNodeShapes(editor).map(shapeToNode);
-  const nodeEq = (a: DiagramNode, b: DiagramNode) =>
-    a.type === b.type && a.label === b.label && a.x === b.x && a.y === b.y;
-  const dn = diffById(currentNodes, diagram.nodes, nodeEq);
-  if (dn.removeIds.length) editor.deleteShapes(dn.removeIds.map((id) => createShapeId(id)));
-  if (dn.add.length) editor.createShapes(nodesToShapes(dn.add));
-  dn.update.forEach((n) =>
-    editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
-  );
+    // Nodes (drawn on top).
+    const currentNodes = getArchNodeShapes(editor).map(shapeToNode);
+    const nodeEq = (a: DiagramNode, b: DiagramNode) =>
+      a.type === b.type && a.label === b.label && a.x === b.x && a.y === b.y;
+    const dn = diffById(currentNodes, diagram.nodes, nodeEq);
+    if (dn.removeIds.length) editor.deleteShapes(dn.removeIds.map((id) => createShapeId(id)));
+    if (dn.add.length) editor.createShapes(nodesToShapes(dn.add));
+    dn.update.forEach((n) =>
+      editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
+    );
+
+    // Enforce paint order after any additions: clusters at back, nodes on top,
+    // edges in between. (New shapes otherwise land on top of their nodes.)
+    if (dc.add.length || dn.add.length || desiredEdges.some((s) => !currentEdgeById.has(s.id))) {
+      const clusterIds = getArchClusterShapes(editor).map((s) => s.id);
+      const nodeIds = getArchNodeShapes(editor).map((s) => s.id);
+      if (clusterIds.length) editor.sendToBack(clusterIds);
+      if (nodeIds.length) editor.bringToFront(nodeIds);
+    }
+  });
 }
 
 /** Rebuild a consistent IR from the current canvas shapes (after a user move/delete). */
 function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
-  const clusterShapes = getArchClusterShapes(editor);
-  const clusterIds = new Set(clusterShapes.map((s) => s.props.clusterId));
+  const clusters = getArchClusterShapes(editor).map(shapeToCluster);
+  const clusterIds = new Set(clusters.map((c) => c.id));
   const prevNodeById = new Map(prev.nodes.map((n) => [n.id, n]));
 
   const nodes = getArchNodeShapes(editor).map((s) => {
@@ -93,16 +100,7 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
     return prevClusterId && clusterIds.has(prevClusterId) ? { ...node, clusterId: prevClusterId } : node;
   });
   const nodeIds = new Set(nodes.map((n) => n.id));
-
-  const clusters = clusterShapes.map((s) => ({
-    id: s.props.clusterId,
-    label: s.props.label,
-    x: s.x,
-    y: s.y,
-    width: s.props.w,
-    height: s.props.h,
-  }));
-  // Drop edges whose endpoints were deleted; keep the rest (edges are IR-authoritative).
+  // Drop edges whose endpoints were deleted; edges are otherwise IR-authoritative.
   const edges = prev.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
 
   return { nodes, edges, clusters, annotations: prev.annotations };
@@ -120,6 +118,11 @@ export function CanvasView({
   diagramRef.current = diagram;
   const onCanvasEditRef = useRef(onCanvasEdit);
   onCanvasEditRef.current = onCanvasEdit;
+  const pendingSelectRef = useRef<string | null>(null);
+
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const selectedEdgeIdRef = useRef(selectedEdgeId);
+  selectedEdgeIdRef.current = selectedEdgeId;
 
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor;
@@ -129,11 +132,26 @@ export function CanvasView({
       source: 'user',
       scope: 'document',
     });
+
+    // Track whether the single selected shape is an edge (drives the label input).
+    react('selected-edge', () => {
+      const only = editor.getOnlySelectedShape();
+      setSelectedEdgeId(only?.type === 'archEdge' ? (only as ArchEdgeShape).props.edgeId : null);
+    });
   }, []);
 
   useEffect(() => {
     const editor = editorRef.current;
-    if (editor) reconcile(editor, diagram);
+    if (!editor) return;
+    reconcile(editor, diagram);
+    // Select a just-connected edge so its label input appears.
+    if (pendingSelectRef.current) {
+      const shapeId = createShapeId(pendingSelectRef.current);
+      if (editor.getShape(shapeId)) {
+        editor.select(shapeId);
+        pendingSelectRef.current = null;
+      }
+    }
   }, [diagram]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -183,16 +201,28 @@ export function CanvasView({
     const editor = editorRef.current;
     if (!editor) return;
     const selected = selectedNodes(editor);
-    if (selected.length < 2) return;
+    if (selected.length !== 2) return; // connect exactly two
     const [a, b] = selected;
-    const edge = {
-      id: shortId('edge'),
-      from: a.props.nodeId,
-      to: b.props.nodeId,
-      direction: 'forward' as const,
-    };
-    onCanvasEditRef.current({ ...diagramRef.current, edges: [...diagramRef.current.edges, edge] });
+    const edgeId = shortId('edge');
+    pendingSelectRef.current = edgeId;
+    onCanvasEditRef.current({
+      ...diagramRef.current,
+      edges: [
+        ...diagramRef.current.edges,
+        { id: edgeId, from: a.props.nodeId, to: b.props.nodeId, direction: 'forward' as const },
+      ],
+    });
   }, []);
+
+  const handleLabelChange = useCallback((label: string) => {
+    if (!selectedEdgeIdRef.current) return;
+    const edges = diagramRef.current.edges.map((e) =>
+      e.id === selectedEdgeIdRef.current ? { ...e, label } : e,
+    );
+    onCanvasEditRef.current({ ...diagramRef.current, edges });
+  }, []);
+
+  const selectedEdgeLabel = diagram.edges.find((e) => e.id === selectedEdgeId)?.label ?? '';
 
   return (
     <div
@@ -210,6 +240,7 @@ export function CanvasView({
           zIndex: 1000,
           display: 'flex',
           gap: 6,
+          alignItems: 'center',
         }}
       >
         <button data-testid="connect-btn" onClick={handleConnect} style={toolbarBtn}>
@@ -218,6 +249,16 @@ export function CanvasView({
         <button data-testid="group-btn" onClick={handleGroup} style={toolbarBtn}>
           Group
         </button>
+        {selectedEdgeId && (
+          <input
+            data-testid="edge-label-input"
+            aria-label="Edge label"
+            placeholder="edge label"
+            value={selectedEdgeLabel}
+            onChange={(e) => handleLabelChange(e.target.value)}
+            style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #cbd5e0', borderRadius: 6 }}
+          />
+        )}
       </div>
       <Tldraw assetUrls={assetUrls} shapeUtils={shapeUtils} onMount={handleMount} />
     </div>

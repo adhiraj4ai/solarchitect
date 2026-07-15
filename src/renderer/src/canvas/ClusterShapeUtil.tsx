@@ -22,8 +22,9 @@ export class ClusterShapeUtil extends ShapeUtil<ArchClusterShape> {
     return new Rectangle2d({ width: shape.props.w, height: shape.props.h, isFilled: false });
   }
 
-  // Clusters are backdrops: they shouldn't intercept clicks meant for the nodes inside.
-  override hideSelectionBoundsFg = () => false;
+  // Clusters are backdrops. isFilled:false (above) means only the border is
+  // hit-testable, so clicks in the interior fall through to the nodes inside;
+  // canBind:false keeps edges from binding to the cluster.
   override canBind = () => false;
 
   component(shape: ArchClusterShape) {

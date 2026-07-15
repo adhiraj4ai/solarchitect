@@ -40,17 +40,7 @@ export function nodeCenter(n: DiagramNode): { x: number; y: number } {
 
 // ---- Clusters ----
 
-export function clustersToShapes(clusters: DiagramCluster[]): TLShapePartial[] {
-  return clusters.map((c) => ({
-    id: createShapeId(c.id),
-    type: 'archCluster',
-    x: c.x,
-    y: c.y,
-    props: { clusterId: c.id, label: c.label, w: c.width, h: c.height },
-  }));
-}
-
-export function clusterToShapePatch(c: DiagramCluster): TLShapePartial {
+export function clusterToShape(c: DiagramCluster): TLShapePartial {
   return {
     id: createShapeId(c.id),
     type: 'archCluster',
@@ -60,8 +50,17 @@ export function clusterToShapePatch(c: DiagramCluster): TLShapePartial {
   };
 }
 
+export function clustersToShapes(clusters: DiagramCluster[]): TLShapePartial[] {
+  return clusters.map(clusterToShape);
+}
+
 export function getArchClusterShapes(editor: Editor): ArchClusterShape[] {
   return editor.getCurrentPageShapes().filter((s): s is ArchClusterShape => s.type === 'archCluster');
+}
+
+/** Read an IR cluster out of its tldraw shape. */
+export function shapeToCluster(s: ArchClusterShape): DiagramCluster {
+  return { id: s.props.clusterId, label: s.props.label, x: s.x, y: s.y, width: s.props.w, height: s.props.h };
 }
 
 // ---- Edges ----
@@ -94,4 +93,21 @@ export function edgeToShape(edge: DiagramEdge, nodeById: Map<string, DiagramNode
 
 export function getArchEdgeShapes(editor: Editor): ArchEdgeShape[] {
   return editor.getCurrentPageShapes().filter((s): s is ArchEdgeShape => s.type === 'archEdge');
+}
+
+type EdgeShapeLike = { x: number; y: number; props: ArchEdgeShape['props'] };
+
+/** Field-by-field equality of two edge shapes (avoids key-order-fragile JSON compares). */
+export function edgeShapesEqual(a: EdgeShapeLike, b: EdgeShapeLike): boolean {
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.props.edgeId === b.props.edgeId &&
+    a.props.label === b.props.label &&
+    a.props.direction === b.props.direction &&
+    a.props.x1 === b.props.x1 &&
+    a.props.y1 === b.props.y1 &&
+    a.props.x2 === b.props.x2 &&
+    a.props.y2 === b.props.y2
+  );
 }

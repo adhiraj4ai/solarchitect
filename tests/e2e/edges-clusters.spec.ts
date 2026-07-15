@@ -53,6 +53,21 @@ test('connecting two selected nodes adds an edge to the YAML', async () => {
   await expect(editor()).toHaveValue(/to: n2/);
 });
 
+test('an edge label can be set from the canvas', async () => {
+  await editor().fill(TWO_NODES);
+  await expect(canvas().getByText('WebTier')).toBeVisible();
+
+  await selectAllOnCanvas();
+  await win.locator('[data-testid="connect-btn"]').click();
+
+  // The new edge is auto-selected, so its label input appears.
+  const labelInput = win.locator('[data-testid="edge-label-input"]');
+  await expect(labelInput).toBeVisible();
+  await labelInput.fill('depends on');
+
+  await expect(editor()).toHaveValue(/label: depends on/);
+});
+
 test('grouping selected nodes adds a cluster and sets clusterId', async () => {
   await editor().fill(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toBeVisible();
