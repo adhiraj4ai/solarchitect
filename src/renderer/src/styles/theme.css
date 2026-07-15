@@ -26,14 +26,20 @@
   --danger-ink: #8f2018;
   --danger-soft: #fcecea;
 
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 
   --radius: 8px;
   --radius-sm: 6px;
   --shadow-1: 0 1px 2px rgba(16, 23, 34, 0.06);
   --shadow-2: 0 6px 20px -10px rgba(16, 23, 34, 0.28);
   --shadow-pop: 0 12px 34px -14px rgba(16, 23, 34, 0.4);
+
+  /* button surfaces — a hairline top-highlight reads like an engineered panel */
+  --btn-face: linear-gradient(180deg, #ffffff, #f6f9fd);
+  --btn-primary-face: linear-gradient(180deg, #3f6bd6, var(--blueprint));
+  --shadow-btn: 0 1px 1px rgba(16, 23, 34, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --shadow-btn-primary: 0 2px 5px -1px var(--blueprint-ring), inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 * { box-sizing: border-box; }
@@ -45,6 +51,8 @@ body {
   color: var(--ink);
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   font-size: 14px;
 }
 
@@ -76,8 +84,8 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
 }
-.brand { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 14px; letter-spacing: -0.01em; }
-.brand b { font-weight: 700; }
+.brand { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-weight: 400; font-size: 14px; letter-spacing: -0.02em; color: var(--slate); }
+.brand b { font-weight: 600; color: var(--ink); }
 .brand svg { display: block; }
 .app__bar .spacer { flex: 1; }
 .app__file {
@@ -112,14 +120,22 @@ button { font-family: inherit; }
 .topgroup { display: flex; gap: 4px; }
 .app__file .muted { color: var(--faint); }
 .app__file .state.ok { color: var(--slate); border-color: var(--line-strong); }
-.btn--on { border-color: var(--blueprint); color: var(--blueprint-ink); background: var(--blueprint-soft); }
+.btn--on {
+  border-color: var(--blueprint);
+  color: var(--blueprint-ink);
+  background: var(--blueprint-soft);
+  box-shadow: inset 0 1px 2px rgba(43, 87, 198, 0.12);
+}
+.btn--on:hover:not(:disabled) { background: var(--blueprint-soft); transform: none; }
 
 /* mode toggle */
 .segmented { display: inline-flex; padding: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
 .segmented__btn {
-  font-family: var(--mono); font-size: 12px; padding: 5px 12px;
+  font-family: var(--sans); font-weight: 500; font-size: 12.5px; padding: 5px 13px;
   border: none; background: transparent; color: var(--slate); border-radius: 6px; cursor: pointer;
+  transition: color 0.14s, background 0.14s;
 }
+.segmented__btn:hover { color: var(--ink); }
 .segmented__btn.on { background: var(--panel); color: var(--blueprint-ink); box-shadow: var(--shadow-1); }
 
 /* git row in the project section */
@@ -197,32 +213,70 @@ button { font-family: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 9px 5px; border: 1px solid transparent; border-radius: var(--radius-sm);
   background: var(--panel); cursor: grab; user-select: none;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
 }
-.lib-tile:hover { border-color: var(--blueprint); box-shadow: var(--shadow-1); }
-.lib-tile:active { cursor: grabbing; }
+.lib-tile:hover { border-color: var(--blueprint); box-shadow: var(--shadow-2); transform: translateY(-1px); }
+.lib-tile:active { cursor: grabbing; transform: translateY(0); }
 .lib-tile__icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; }
 .lib-tile__name { font-size: 10px; line-height: 1.2; text-align: center; color: var(--ink); word-break: break-word; }
 
 /* ---------------- buttons ---------------- */
+/* Controls speak in the UI voice (Plex Sans, medium), not the data voice. A
+   ghost tier for secondary actions, a filled blueprint tier for the primary
+   action, and a square icon tier for glyph-only controls. */
 .btn {
-  font-family: var(--mono);
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 12.5px;
   line-height: 1;
-  padding: 7px 12px;
+  letter-spacing: -0.005em;
+  padding: 7px 13px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
-  background: var(--panel);
+  background: var(--btn-face);
   color: var(--ink);
+  box-shadow: var(--shadow-btn);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition: border-color 0.14s, color 0.14s, transform 0.14s, box-shadow 0.14s;
   white-space: nowrap;
 }
-.btn:hover:not(:disabled) { border-color: var(--blueprint); color: var(--blueprint-ink); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn--primary { background: var(--blueprint); border-color: var(--blueprint); color: #fff; }
-.btn--primary:hover:not(:disabled) { background: var(--blueprint-ink); border-color: var(--blueprint-ink); color: #fff; }
-.btn--sm { padding: 5px 9px; font-size: 11px; }
+.btn:hover:not(:disabled) {
+  border-color: var(--blueprint);
+  color: var(--blueprint-ink);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px -3px var(--blueprint-ring), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.btn:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow-btn); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+.btn--primary {
+  background: var(--btn-primary-face);
+  border-color: var(--blueprint-ink);
+  color: #fff;
+  box-shadow: var(--shadow-btn-primary);
+}
+.btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4c76dc, var(--blueprint-ink));
+  border-color: var(--blueprint-ink);
+  color: #fff;
+  box-shadow: 0 4px 10px -2px var(--blueprint-ring), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn--sm { padding: 6px 10px; font-size: 11.5px; }
+
+/* glyph-only controls (undo/redo) — square, quiet, same family */
+.btn--icon {
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  line-height: 1;
+}
+.btn--sm.btn--icon { width: 26px; height: 26px; }
 
 /* ---------------- sidebar (project + templates) ---------------- */
 .sidebar {
@@ -232,17 +286,21 @@ button { font-family: inherit; }
   background: var(--panel-2);
   border-right: 1px solid var(--line);
 }
-.sidebar__head { padding: 14px 14px 12px; border-bottom: 1px solid var(--line); }
+.sidebar__head { padding: 15px 14px 13px; border-bottom: 1px solid var(--line); }
 .sidebar__project {
   font-family: var(--sans);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--ink);
   word-break: break-word;
-  margin: 6px 0 12px;
+  margin: 7px 0 13px;
 }
 .sidebar__project.empty { color: var(--faint); font-weight: 500; font-style: italic; }
-.sidebar__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* even two-up grid — no ragged wrap. Each row is its own grid, stacked. */
+.sidebar__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.sidebar__actions + .sidebar__actions { margin-top: 7px; }
+.sidebar__actions .btn { width: 100%; }
 
 .list { overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .list__empty { padding: 10px 14px; font-size: 12px; color: var(--faint); }
@@ -463,7 +521,7 @@ button { font-family: inherit; }
   box-shadow: var(--shadow-pop);
   padding: 18px;
 }
-.modal h2 { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+.modal h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .modal p { margin: 0 0 14px; font-size: 12.5px; color: var(--slate); }
 .modal__input {
   width: 100%;

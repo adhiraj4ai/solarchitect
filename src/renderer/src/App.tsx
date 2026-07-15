@@ -85,10 +85,10 @@ export default function App() {
         </div>
         <span className="topsep" />
         <div className="topgroup">
-          <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm" title="Undo (⌘Z)">
+          <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm btn--icon" title="Undo (⌘Z)">
             ↩
           </button>
-          <button data-testid="redo-btn" onClick={redo} disabled={!canRedo} className="btn btn--sm" title="Redo (⌘⇧Z)">
+          <button data-testid="redo-btn" onClick={redo} disabled={!canRedo} className="btn btn--sm btn--icon" title="Redo (⌘⇧Z)">
             ↪
           </button>
         </div>
