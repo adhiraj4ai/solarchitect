@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 import { AddressInfo } from 'node:net';
+import { registerIpcHandlers } from './ipcHandlers';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -57,6 +58,7 @@ function createWindow(rendererUrl: string): void {
 }
 
 app.whenReady().then(async () => {
+  registerIpcHandlers();
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'] ?? (await startRendererServer());
   createWindow(rendererUrl);
 

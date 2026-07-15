@@ -39,5 +39,15 @@ export function useSyncEngine() {
     setYamlText(text);
   }, []);
 
-  return { yamlText, diagram, yamlError, canvasEditSeq, onCanvasEdit, onYamlEdit };
+  // Replace the whole diagram, e.g. when opening a file. Treated like a canvas
+  // edit for the code view (canonical YAML re-serialized, editor pulls it in).
+  const loadDiagram = useCallback((next: Diagram) => {
+    engineRef.current!.load(next);
+    setDiagram(next);
+    setYamlText(engineRef.current!.getYamlText());
+    setYamlError(null);
+    setCanvasEditSeq((n) => n + 1);
+  }, []);
+
+  return { yamlText, diagram, yamlError, canvasEditSeq, onCanvasEdit, onYamlEdit, loadDiagram };
 }

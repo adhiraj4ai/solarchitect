@@ -19,6 +19,12 @@ export class SyncEngine {
     this.yamlText = serializeDiagram(initial);
   }
 
+  /** Replace the whole diagram (e.g. loading a file), re-serializing to canonical YAML. */
+  load(diagram: Diagram): void {
+    this.diagram = diagram;
+    this.yamlText = serializeDiagram(diagram);
+  }
+
   getYamlText(): string {
     return this.yamlText;
   }

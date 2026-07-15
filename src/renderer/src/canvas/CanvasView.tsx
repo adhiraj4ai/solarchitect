@@ -214,6 +214,10 @@ export function CanvasView({
     const [a, b] = selected;
     const edgeId = shortId('edge');
     pendingSelectRef.current = edgeId;
+    // Show the label input immediately (deterministic), rather than waiting on
+    // tldraw's selection reaction; the effect below also selects the shape on
+    // the canvas for the visual highlight.
+    setSelectedEdgeId(edgeId);
     onCanvasEditRef.current({
       ...diagramRef.current,
       edges: [

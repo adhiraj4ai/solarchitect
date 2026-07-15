@@ -35,10 +35,17 @@ clusters: []
 annotations: []
 `;
 
-// Focus the canvas and select every shape on it (tldraw select-all is Cmd+A on macOS).
-async function selectAllOnCanvas() {
-  await canvas().click({ position: { x: 250, y: 420 } });
-  await win.keyboard.press('Meta+a');
+// Select nodes by clicking their rendered labels (robust — no reliance on
+// select-all or clicking a guaranteed-empty pixel, which tldraw panels overlay).
+// Escape first clears any lingering selection from a prior test (shared app).
+async function selectNodes(...labels: string[]) {
+  await win.keyboard.press('Escape');
+  for (let i = 0; i < labels.length; i++) {
+    await canvas()
+      .getByText(labels[i], { exact: true })
+      .first()
+      .click(i === 0 ? {} : { modifiers: ['Shift'] });
+  }
 }
 
 test('connecting two selected nodes adds an edge to the YAML', async () => {
@@ -46,7 +53,7 @@ test('connecting two selected nodes adds an edge to the YAML', async () => {
   await expect(canvas().getByText('WebTier')).toBeVisible();
   await expect(canvas().getByText('DataTier')).toBeVisible();
 
-  await selectAllOnCanvas();
+  await selectNodes('WebTier', 'DataTier');
   await win.locator('[data-testid="connect-btn"]').click();
 
   await expect(editor()).toHaveValue(/from: n1/);
@@ -57,7 +64,7 @@ test('an edge label can be set from the canvas', async () => {
   await editor().fill(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toBeVisible();
 
-  await selectAllOnCanvas();
+  await selectNodes('WebTier', 'DataTier');
   await win.locator('[data-testid="connect-btn"]').click();
 
   // The new edge is auto-selected, so its label input appears.
@@ -72,7 +79,7 @@ test('grouping selected nodes adds a cluster and sets clusterId', async () => {
   await editor().fill(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toBeVisible();
 
-  await selectAllOnCanvas();
+  await selectNodes('WebTier', 'DataTier');
   await win.locator('[data-testid="group-btn"]').click();
 
   await expect(editor()).toHaveValue(/clusters:/);
