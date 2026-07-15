@@ -285,7 +285,7 @@ export function CanvasView({
       const base64 = btoa(binary);
       await window.solarchitect.exportImage(base64, `diagram.${format}`);
     } catch (e) {
-      onErrorRef.current(`Export failed: ${(e as Error).message}`);
+      onErrorRef.current(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   }, []);
 
@@ -328,10 +328,10 @@ export function CanvasView({
           Save as Template
         </button>
         <button data-testid="export-png-btn" onClick={() => handleExport('png')} style={toolbarBtn}>
-          PNG
+          Export PNG
         </button>
         <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} style={toolbarBtn}>
-          SVG
+          Export SVG
         </button>
         {selectedEdgeId && (
           <input
