@@ -1,7 +1,50 @@
 import { app, BrowserWindow } from 'electron';
-import { join } from 'node:path';
+import { createServer, type Server } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { join, extname, normalize } from 'node:path';
+import { AddressInfo } from 'node:net';
 
-function createWindow(): void {
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+};
+
+// Serve the packaged renderer from a loopback-only http server rather than file://.
+// Chromium only decodes SVGs (via img.decode()/createImageBitmap, which tldraw uses
+// to preload its icon sprite) over http(s) — never file:// or custom schemes — so
+// serving over 127.0.0.1 is the only scheme that renders tldraw without console
+// errors. Binding to loopback keeps the app fully local and offline.
+function startRendererServer(): Promise<string> {
+  const rendererRoot = join(__dirname, '../renderer');
+  const server: Server = createServer(async (req, res) => {
+    try {
+      const rawPath = decodeURIComponent((req.url ?? '/').split('?')[0]);
+      const relPath = normalize(rawPath === '/' ? '/index.html' : rawPath).replace(/^(\.\.[/\\])+/, '');
+      const filePath = join(rendererRoot, relPath);
+      const data = await readFile(filePath);
+      res.setHeader('content-type', MIME_TYPES[extname(filePath)] ?? 'application/octet-stream');
+      res.end(data);
+    } catch {
+      res.statusCode = 404;
+      res.end('Not found');
+    }
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      resolve(`http://127.0.0.1:${port}`);
+    });
+  });
+}
+
+function createWindow(rendererUrl: string): void {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -10,19 +53,15 @@ function createWindow(): void {
       sandbox: false,
     },
   });
-
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    win.loadURL(process.env['ELECTRON_RENDERER_URL']);
-  } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'));
-  }
+  win.loadURL(rendererUrl);
 }
 
-app.whenReady().then(() => {
-  createWindow();
+app.whenReady().then(async () => {
+  const rendererUrl = process.env['ELECTRON_RENDERER_URL'] ?? (await startRendererServer());
+  createWindow(rendererUrl);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(rendererUrl);
   });
 });
 
