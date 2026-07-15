@@ -17,14 +17,29 @@ test.afterAll(async () => {
 });
 
 const yaml = () => win.locator('textarea[aria-label="Diagram YAML"]');
+const search = () => win.locator('input[aria-label="Search shapes"]');
 
-test('the shell boots with an empty diagram and a full palette', async () => {
+test('the shell boots with an empty diagram and collapsed categories', async () => {
   await expect(yaml()).toHaveValue(/nodes: \[\]/);
+  // Categories are collapsed by default: the AWS group header shows, its tiles don't.
+  await expect(win.locator('[data-testid="lib-group-aws"]')).toBeVisible();
+  await expect(win.locator('text=EC2')).toHaveCount(0);
+});
+
+test('searching expands matching categories and reveals shapes', async () => {
+  await search().fill('EC2');
   await expect(win.locator('text=EC2')).toBeVisible();
-  await expect(win.locator('text=Compute Engine')).toBeVisible();
+  await search().fill('');
+  await expect(win.locator('text=EC2')).toHaveCount(0);
+});
+
+test('clicking a category header expands it', async () => {
+  await win.locator('[data-testid="lib-group-aws"]').click();
+  await expect(win.locator('text=EC2')).toBeVisible();
 });
 
 test('dragging a palette node onto the canvas adds it to the YAML', async () => {
+  // AWS is expanded from the previous test; EC2 tile is present.
   const dataTransfer = await win.evaluateHandle(() => new DataTransfer());
   await win.locator('text=EC2').first().dispatchEvent('dragstart', { dataTransfer });
 

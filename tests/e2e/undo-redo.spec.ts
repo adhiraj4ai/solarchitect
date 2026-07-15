@@ -31,6 +31,8 @@ test.beforeEach(async () => {
 
 test('undo and redo a canvas edit (dropped node)', async () => {
   const dt = await win.evaluateHandle(() => new DataTransfer());
+  // Categories collapse by default — search to reveal the EC2 tile.
+  await win.locator('input[aria-label="Search shapes"]').fill('EC2');
   await win.locator('text=EC2').first().dispatchEvent('dragstart', { dataTransfer: dt });
   const box = await canvas().boundingBox();
   if (!box) throw new Error('no box');

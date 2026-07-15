@@ -38,6 +38,18 @@ const PROVIDER_NAME: Record<Provider, string> = {
 
 export function ShapeLibrary() {
   const [query, setQuery] = useState('');
+  // Categories are collapsed by default so the long catalog stays scannable.
+  // A search auto-expands every matching group; manual toggles apply otherwise.
+  const [expanded, setExpanded] = useState<Set<Provider>>(new Set());
+  const searching = query.trim() !== '';
+
+  const toggle = (provider: Provider) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(provider)) next.delete(provider);
+      else next.add(provider);
+      return next;
+    });
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -69,31 +81,45 @@ export function ShapeLibrary() {
       </div>
       <div className="library__body">
         {groups.length === 0 && <div className="list__empty">No shapes match “{query}”.</div>}
-        {groups.map((g) => (
-          <section key={g.provider} className="lib-group">
-            <div className="lib-group__label">
-              <span className="lib-dot" style={{ background: PROVIDER_COLOR[g.provider] }} />
-              {PROVIDER_NAME[g.provider]}
-              <span className="lib-count">{g.nodes.length}</span>
-            </div>
-            <div className="lib-grid">
-              {g.nodes.map((def) => (
-                <div
-                  key={def.id}
-                  className="lib-tile"
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData(NODE_TYPE_DND_MIME, def.id)}
-                  title={`${def.displayName} — drag onto the canvas`}
-                >
-                  <span className="lib-tile__icon" style={{ background: PROVIDER_TINT[def.provider] }}>
-                    <NodeIcon type={def.id} size={22} />
-                  </span>
-                  <span className="lib-tile__name">{def.displayName}</span>
+        {groups.map((g) => {
+          const open = searching || expanded.has(g.provider);
+          return (
+            <section key={g.provider} className="lib-group">
+              <button
+                type="button"
+                className="lib-group__label"
+                data-testid={`lib-group-${g.provider}`}
+                aria-expanded={open}
+                onClick={() => toggle(g.provider)}
+              >
+                <span className={`lib-caret${open ? ' open' : ''}`} aria-hidden="true">
+                  ▸
+                </span>
+                <span className="lib-dot" style={{ background: PROVIDER_COLOR[g.provider] }} />
+                {PROVIDER_NAME[g.provider]}
+                <span className="lib-count">{g.nodes.length}</span>
+              </button>
+              {open && (
+                <div className="lib-grid">
+                  {g.nodes.map((def) => (
+                    <div
+                      key={def.id}
+                      className="lib-tile"
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData(NODE_TYPE_DND_MIME, def.id)}
+                      title={`${def.displayName} — drag onto the canvas`}
+                    >
+                      <span className="lib-tile__icon" style={{ background: PROVIDER_TINT[def.provider] }}>
+                        <NodeIcon type={def.id} size={22} />
+                      </span>
+                      <span className="lib-tile__name">{def.displayName}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        ))}
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );

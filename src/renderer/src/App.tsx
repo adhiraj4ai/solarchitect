@@ -185,31 +185,31 @@ export default function App() {
             onYamlEdit={onYamlEdit}
           />
         )}
-      </div>
 
-      <footer className="app__foot">
-        <div className="segmented" role="tablist" aria-label="View">
-          {(
-            [
-              ['visual', 'Visual'],
-              ['split', 'Split'],
-              ['code', 'Code'],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              role="tab"
-              data-testid={`view-${v}`}
-              aria-selected={view === v}
-              className={`segmented__btn${view === v ? ' on' : ''}`}
-              onClick={() => setView(v)}
-              title={`${label} view`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </footer>
+        <footer className="app__foot">
+          <div className="segmented" role="tablist" aria-label="View">
+            {(
+              [
+                ['visual', 'Visual'],
+                ['split', 'Split'],
+                ['code', 'Code'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                role="tab"
+                data-testid={`view-${v}`}
+                aria-selected={view === v}
+                className={`segmented__btn${view === v ? ' on' : ''}`}
+                onClick={() => setView(v)}
+                title={`${label} view`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </footer>
+      </div>
 
       {pendingTemplate && (
         <div className="modal__backdrop">
