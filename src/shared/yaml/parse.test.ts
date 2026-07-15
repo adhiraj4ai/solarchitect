@@ -6,7 +6,7 @@ describe('parseDiagram', () => {
     const result = parseDiagram('nodes: []\nedges: []\nclusters: []\nannotations: []\n');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.diagram).toEqual({ nodes: [], edges: [], clusters: [], annotations: [] });
+      expect(result.diagram).toEqual({ nodes: [], edges: [], clusters: [], annotations: [], frames: [] });
     }
   });
 
@@ -225,6 +225,33 @@ annotations: []
 `);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.message).toMatch(/arrow must be/i);
+  });
+
+  it('parses frames (print pages)', () => {
+    const result = parseDiagram(`nodes: []
+edges: []
+clusters: []
+annotations: []
+frames:
+  - id: f1
+    label: Overview
+    x: 0
+    y: 0
+    width: 1123
+    height: 794
+    preset: a4-landscape
+`);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.diagram.frames).toHaveLength(1);
+      expect(result.diagram.frames?.[0]).toMatchObject({ label: 'Overview', width: 1123, preset: 'a4-landscape' });
+    }
+  });
+
+  it('defaults frames to [] when the key is absent', () => {
+    const result = parseDiagram('nodes: []\nedges: []\nclusters: []\nannotations: []\n');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.diagram.frames).toEqual([]);
   });
 
   it('rejects a dangling edge reference', () => {

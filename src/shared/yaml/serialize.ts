@@ -40,6 +40,21 @@ export function serializeDiagram(diagram: Diagram): string {
       height: a.height,
       content: a.content,
     })),
+    // Frames only appear once at least one exists, so existing diagrams' YAML
+    // is unchanged.
+    ...(diagram.frames && diagram.frames.length
+      ? {
+          frames: diagram.frames.map((f) => ({
+            id: f.id,
+            label: f.label,
+            x: f.x,
+            y: f.y,
+            width: f.width,
+            height: f.height,
+            ...(f.preset ? { preset: f.preset } : {}),
+          })),
+        }
+      : {}),
   };
   return stringify(doc, { sortMapEntries: true });
 }

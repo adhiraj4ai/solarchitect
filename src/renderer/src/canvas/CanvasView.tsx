@@ -1,9 +1,10 @@
-import { Tldraw, react, createShapeId, exportToBlob, type Editor, type TLShapePartial } from 'tldraw';
+import { Tldraw, react, createShapeId, exportToBlob, Box, type Editor, type TLShapePartial } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
 import { ClusterShapeUtil, CLUSTER_COLOR_STYLE, type ArchClusterShape } from './ClusterShapeUtil';
+import { FrameShapeUtil, type ArchFrameShape } from './FrameShapeUtil';
 import { EdgeShapeUtil, type ArchEdgeShape } from './EdgeShapeUtil';
 import { NODE_TYPE_DND_MIME, TEMPLATE_DND_MIME } from './dnd';
 import {
@@ -15,6 +16,10 @@ import {
   clusterToShape,
   shapeToCluster,
   getArchClusterShapes,
+  framesToShapes,
+  frameToShape,
+  shapeToFrame,
+  getArchFrameShapes,
   edgeToShape,
   getArchEdgeShapes,
   edgeShapesEqual,
@@ -25,18 +30,20 @@ import { extractTemplate, instantiateTemplate } from '@shared/templates/template
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import { CLUSTER_COLORS } from '@shared/ir/types';
+import { FRAME_PRESETS, CUSTOM_FRAME } from '@shared/ir/frames';
 import { resolveNodePositions } from '@shared/ir/layout';
 import type {
   Diagram,
   DiagramNode,
   DiagramCluster,
   DiagramEdge,
+  DiagramFrame,
   EdgeShape as EdgeShapeKind,
   EdgeLineStyle,
 } from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
-const shapeUtils = [ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
+const shapeUtils = [FrameShapeUtil, ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
 export type Mode = 'architect' | 'whiteboard';
 
@@ -105,7 +112,17 @@ function selectedNodes(editor: Editor): ArchNodeShape[] {
  */
 function reconcile(editor: Editor, diagram: Diagram): void {
   editor.store.mergeRemoteChanges(() => {
-    // Clusters (drawn behind everything).
+    // Frames (print pages — drawn behind everything).
+    const frames = diagram.frames ?? [];
+    const currentFrames: DiagramFrame[] = getArchFrameShapes(editor).map(shapeToFrame);
+    const frameEq = (a: DiagramFrame, b: DiagramFrame) =>
+      a.label === b.label && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+    const df = diffById(currentFrames, frames, frameEq);
+    if (df.removeIds.length) editor.deleteShapes(df.removeIds.map((id) => createShapeId(id)));
+    if (df.add.length) editor.createShapes(framesToShapes(df.add));
+    df.update.forEach((f) => editor.updateShape(frameToShape(f)));
+
+    // Clusters (drawn behind everything but frames).
     const currentClusters: DiagramCluster[] = getArchClusterShapes(editor).map(shapeToCluster);
     const clusterEq = (a: DiagramCluster, b: DiagramCluster) =>
       a.label === b.label &&
@@ -157,12 +174,15 @@ function reconcile(editor: Editor, diagram: Diagram): void {
     if (da.add.length) editor.createShapes(da.add.map(annotationToShape));
     da.update.forEach((a) => editor.updateShape(annotationToShape(a)));
 
-    // Enforce paint order after any additions: clusters at back, nodes on top,
-    // edges in between. (New shapes otherwise land on top of their nodes.)
-    if (dc.add.length || dn.add.length || desiredEdges.some((s) => !currentEdgeById.has(s.id))) {
+    // Enforce paint order after any additions: frames at the very back, then
+    // clusters, then edges, then nodes on top. (New shapes otherwise land on
+    // top of their neighbours.)
+    if (df.add.length || dc.add.length || dn.add.length || desiredEdges.some((s) => !currentEdgeById.has(s.id))) {
       const clusterIds = getArchClusterShapes(editor).map((s) => s.id);
+      const frameIds = getArchFrameShapes(editor).map((s) => s.id);
       const nodeIds = getArchNodeShapes(editor).map((s) => s.id);
       if (clusterIds.length) editor.sendToBack(clusterIds);
+      if (frameIds.length) editor.sendToBack(frameIds); // frames end up behind clusters
       if (nodeIds.length) editor.bringToFront(nodeIds);
     }
   });
@@ -183,8 +203,9 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
   // Drop edges whose endpoints were deleted; edges are otherwise IR-authoritative.
   const edges = prev.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
   const annotations = getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s));
+  const frames = getArchFrameShapes(editor).map(shapeToFrame);
 
-  return { nodes, edges, clusters, annotations };
+  return { nodes, edges, clusters, annotations, frames };
 }
 
 export function CanvasView({
@@ -215,7 +236,10 @@ export function CanvasView({
 
   // The single selected object (drives the properties panel). Kept as kind+IR-id
   // so the panel can look the object up in the current diagram.
-  const [selection, setSelection] = useState<{ kind: 'node' | 'edge' | 'cluster'; id: string } | null>(null);
+  const [selection, setSelection] = useState<{ kind: 'node' | 'edge' | 'cluster' | 'frame'; id: string } | null>(
+    null,
+  );
+  const [frameMenuOpen, setFrameMenuOpen] = useState(false);
   const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
   const selectedEdgeIdRef = useRef<string | null>(null);
   selectedEdgeIdRef.current = selectedEdgeId;
@@ -309,6 +333,8 @@ export function CanvasView({
       else if (only?.type === 'archNode') setSelection({ kind: 'node', id: (only as ArchNodeShape).props.nodeId });
       else if (only?.type === 'archCluster')
         setSelection({ kind: 'cluster', id: (only as ArchClusterShape).props.clusterId });
+      else if (only?.type === 'archFrame')
+        setSelection({ kind: 'frame', id: (only as ArchFrameShape).props.frameId });
       else setSelection(null);
     });
   }, []);
@@ -353,6 +379,7 @@ export function CanvasView({
         edges: [...cur.edges, ...inst.edges],
         clusters: [...cur.clusters, ...inst.clusters],
         annotations: cur.annotations,
+        frames: cur.frames,
       });
       return;
     }
@@ -475,6 +502,53 @@ export function CanvasView({
     const clusters = diagramRef.current.clusters.map((c) => (c.id === id ? { ...c, ...patch } : c));
     onCanvasEditRef.current({ ...diagramRef.current, clusters });
   }, []);
+  const patchFrame = useCallback((id: string, patch: Partial<DiagramFrame>) => {
+    const frames = (diagramRef.current.frames ?? []).map((f) => (f.id === id ? { ...f, ...patch } : f));
+    onCanvasEditRef.current({ ...diagramRef.current, frames });
+  }, []);
+
+  // Add a frame from a preset (or a default custom size), placed at the current
+  // viewport's top-left so it lands in view.
+  const handleAddFrame = useCallback((presetId: string) => {
+    const editor = editorRef.current;
+    const preset = FRAME_PRESETS.find((p) => p.id === presetId);
+    const width = preset?.width ?? CUSTOM_FRAME.width;
+    const height = preset?.height ?? CUSTOM_FRAME.height;
+    const tl = editor ? editor.screenToPage({ x: 0, y: 0 }) : { x: 0, y: 0 };
+    const frame: DiagramFrame = {
+      id: shortId('frame'),
+      label: preset?.label ?? 'Page',
+      x: Math.round(tl.x + 60),
+      y: Math.round(tl.y + 60),
+      width,
+      height,
+      preset: preset?.id ?? 'custom',
+    };
+    const cur = diagramRef.current;
+    onCanvasEditRef.current({ ...cur, frames: [...(cur.frames ?? []), frame] });
+  }, []);
+
+  // Export just one frame's region as an image (the "print" path).
+  const handleExportFrame = useCallback(async (frame: DiagramFrame, format: 'png' | 'svg') => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      const ids = [...editor.getCurrentPageShapeIds()];
+      if (ids.length === 0) {
+        onErrorRef.current('Nothing to export — the canvas is empty.');
+        return;
+      }
+      const bounds = new Box(frame.x, frame.y, frame.width, frame.height);
+      const blob = await exportToBlob({ editor, ids, format, opts: { bounds, background: true, padding: 0 } });
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const safe = frame.label.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase() || 'frame';
+      await window.solarchitect.exportImage(btoa(binary), `${safe}.${format}`);
+    } catch (e) {
+      onErrorRef.current(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, []);
 
   const selectedEdge = diagram.edges.find((e) => e.id === selectedEdgeId);
   const selectedEdgeLabel = selectedEdge?.label ?? '';
@@ -484,6 +558,8 @@ export function CanvasView({
   const selectedNode = selection?.kind === 'node' ? diagram.nodes.find((n) => n.id === selection.id) : undefined;
   const selectedCluster =
     selection?.kind === 'cluster' ? diagram.clusters.find((c) => c.id === selection.id) : undefined;
+  const selectedFrame =
+    selection?.kind === 'frame' ? (diagram.frames ?? []).find((f) => f.id === selection.id) : undefined;
 
   return (
     <div
@@ -511,6 +587,50 @@ export function CanvasView({
               Save as Template
             </button>
             <span className="sep" />
+            <div className="frame-menu">
+              <button
+                data-testid="add-frame-btn"
+                className="btn btn--sm"
+                aria-expanded={frameMenuOpen}
+                onClick={() => setFrameMenuOpen((v) => !v)}
+              >
+                Frame ▾
+              </button>
+              {frameMenuOpen && (
+                <div className="frame-menu__list" role="menu">
+                  {FRAME_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      role="menuitem"
+                      data-testid={`add-frame-${p.id}`}
+                      className="frame-menu__item"
+                      onClick={() => {
+                        handleAddFrame(p.id);
+                        setFrameMenuOpen(false);
+                      }}
+                    >
+                      <span>{p.label}</span>
+                      <span className="frame-menu__dim">
+                        {p.width}×{p.height}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    role="menuitem"
+                    data-testid="add-frame-custom"
+                    className="frame-menu__item"
+                    onClick={() => {
+                      handleAddFrame('custom');
+                      setFrameMenuOpen(false);
+                    }}
+                  >
+                    <span>Custom</span>
+                    <span className="frame-menu__dim">resize</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <span className="sep" />
           </>
         )}
         <button data-testid="export-png-btn" onClick={() => handleExport('png')} className="btn btn--sm">
@@ -521,8 +641,45 @@ export function CanvasView({
         </button>
       </div>
 
-      {mode === 'architect' && (selectedEdge || selectedNode || selectedCluster) && (
+      {mode === 'architect' && (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
         <aside className="props-panel" data-testid="props-panel" aria-label="Properties">
+          {selectedFrame && (
+            <>
+              <div className="props-panel__title">Page</div>
+              <label className="props-field">
+                <span className="props-field__label">Label</span>
+                <input
+                  data-testid="prop-frame-label"
+                  className="props-input"
+                  value={selectedFrame.label}
+                  onChange={(e) => patchFrame(selectedFrame.id, { label: e.target.value })}
+                />
+              </label>
+              <div className="props-field__hint">
+                {Math.round(selectedFrame.width)}×{Math.round(selectedFrame.height)} px · drag handles to resize
+              </div>
+              <div className="props-field">
+                <span className="props-field__label">Export page</span>
+                <div className="props-btn-row">
+                  <button
+                    data-testid="frame-export-png"
+                    className="btn btn--sm"
+                    onClick={() => handleExportFrame(selectedFrame, 'png')}
+                  >
+                    PNG
+                  </button>
+                  <button
+                    data-testid="frame-export-svg"
+                    className="btn btn--sm"
+                    onClick={() => handleExportFrame(selectedFrame, 'svg')}
+                  >
+                    SVG
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
           {selectedNode && (
             <>
               <div className="props-panel__title">Component</div>

@@ -1,8 +1,9 @@
 import { createShapeId, type Editor, type TLShapePartial } from 'tldraw';
 import { NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
 import type { ArchClusterShape } from './ClusterShapeUtil';
+import type { ArchFrameShape } from './FrameShapeUtil';
 import type { ArchEdgeShape } from './EdgeShapeUtil';
-import type { DiagramNode, DiagramCluster, DiagramEdge } from '@shared/ir/types';
+import type { DiagramNode, DiagramCluster, DiagramEdge, DiagramFrame } from '@shared/ir/types';
 
 // ---- Nodes ----
 
@@ -68,6 +69,38 @@ export function shapeToCluster(s: ArchClusterShape): DiagramCluster {
     width: s.props.w,
     height: s.props.h,
     ...(s.props.color && s.props.color !== 'blueprint' ? { color: s.props.color } : {}),
+  };
+}
+
+// ---- Frames ----
+
+export function frameToShape(f: DiagramFrame): TLShapePartial {
+  return {
+    id: createShapeId(f.id),
+    type: 'archFrame',
+    x: f.x,
+    y: f.y,
+    props: { frameId: f.id, label: f.label, preset: f.preset ?? 'custom', w: f.width, h: f.height },
+  };
+}
+
+export function framesToShapes(frames: DiagramFrame[]): TLShapePartial[] {
+  return frames.map(frameToShape);
+}
+
+export function getArchFrameShapes(editor: Editor): ArchFrameShape[] {
+  return editor.getCurrentPageShapes().filter((s): s is ArchFrameShape => s.type === 'archFrame');
+}
+
+export function shapeToFrame(s: ArchFrameShape): DiagramFrame {
+  return {
+    id: s.props.frameId,
+    label: s.props.label,
+    x: s.x,
+    y: s.y,
+    width: s.props.w,
+    height: s.props.h,
+    ...(s.props.preset && s.props.preset !== 'custom' ? { preset: s.props.preset } : {}),
   };
 }
 

@@ -507,6 +507,43 @@ button { font-family: inherit; }
 .swatch:hover { transform: translateY(-1px); }
 .swatch.on { border-color: var(--ink); }
 
+.props-btn-row { display: flex; gap: 6px; }
+.props-btn-row .btn { flex: 1; }
+
+/* frame (page) dropdown in the canvas toolbar */
+.frame-menu { position: relative; display: inline-flex; }
+.frame-menu__list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1200;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+}
+.frame-menu__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 9px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.frame-menu__item:hover { background: var(--blueprint-soft); color: var(--blueprint-ink); }
+.frame-menu__dim { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+
 .edge-shapes { display: inline-flex; gap: 2px; padding: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
 .edge-shape-btn {
   display: grid; place-items: center; width: 26px; height: 24px;

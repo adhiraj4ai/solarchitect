@@ -46,6 +46,19 @@ export interface DiagramCluster {
   color?: ClusterColor;
 }
 
+/** A print page / artboard on the canvas. Content that falls within its bounds
+ *  can be exported as one image. `preset` records the size preset chosen (or
+ *  'custom'), purely for display. */
+export interface DiagramFrame {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  preset?: string;
+}
+
 export type AnnotationKind = 'sticky' | 'shape' | 'text';
 
 export interface DiagramAnnotation {
@@ -63,8 +76,11 @@ export interface Diagram {
   edges: DiagramEdge[];
   clusters: DiagramCluster[];
   annotations: DiagramAnnotation[];
+  /** Print pages / artboards. Optional for backward compatibility; treated as
+   *  [] when absent. */
+  frames?: DiagramFrame[];
 }
 
 export function emptyDiagram(): Diagram {
-  return { nodes: [], edges: [], clusters: [], annotations: [] };
+  return { nodes: [], edges: [], clusters: [], annotations: [], frames: [] };
 }

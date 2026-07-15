@@ -1,7 +1,14 @@
 import { parse as parseYaml } from 'yaml';
 import { isValidNodeType } from '../ir/taxonomy';
 import { CLUSTER_COLORS } from '../ir/types';
-import type { Diagram, DiagramNode, DiagramEdge, DiagramCluster, DiagramAnnotation } from '../ir/types';
+import type {
+  Diagram,
+  DiagramNode,
+  DiagramEdge,
+  DiagramCluster,
+  DiagramAnnotation,
+  DiagramFrame,
+} from '../ir/types';
 
 export interface ParseError {
   message: string;
@@ -141,7 +148,20 @@ export function parseDiagram(yamlText: string): ParseResult {
       };
     });
 
-    return { ok: true, diagram: { nodes, edges, clusters, annotations } };
+    const frames: DiagramFrame[] = asList(doc.frames, 'frames').map((item, i) => {
+      const f = asMapping(item, `frames[${i}]`);
+      return {
+        id: f.id as string,
+        label: f.label as string,
+        x: f.x as number,
+        y: f.y as number,
+        width: f.width as number,
+        height: f.height as number,
+        ...(f.preset ? { preset: f.preset as string } : {}),
+      };
+    });
+
+    return { ok: true, diagram: { nodes, edges, clusters, annotations, frames } };
   } catch (e) {
     if (e instanceof ValidationError) return { ok: false, error: { message: e.message, path: e.path } };
     return { ok: false, error: { message: `Invalid diagram: ${(e as Error).message}`, path: '' } };
