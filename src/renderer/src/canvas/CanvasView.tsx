@@ -19,6 +19,13 @@ import {
   getArchEdgeShapes,
   edgeShapesEqual,
 } from './shapeAdapters';
+import {
+  getAnnotationShapes,
+  annotationToShape,
+  shapeToAnnotation,
+  annotationEq,
+  annotationUpdateProps,
+} from './annotationAdapters';
 import { diffById } from '@shared/sync/diff';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import type { Diagram, DiagramNode, DiagramCluster } from '@shared/ir/types';
@@ -77,6 +84,13 @@ function reconcile(editor: Editor, diagram: Diagram): void {
       editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
     );
 
+    // Annotations (tldraw-native note/geo/text shapes).
+    const currentAnnotations = getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s));
+    const da = diffById(currentAnnotations, diagram.annotations, annotationEq);
+    if (da.removeIds.length) editor.deleteShapes(da.removeIds.map((id) => createShapeId(id)));
+    if (da.add.length) editor.createShapes(da.add.map(annotationToShape));
+    da.update.forEach((a) => editor.updateShape(annotationUpdateProps(a)));
+
     // Enforce paint order after any additions: clusters at back, nodes on top,
     // edges in between. (New shapes otherwise land on top of their nodes.)
     if (dc.add.length || dn.add.length || desiredEdges.some((s) => !currentEdgeById.has(s.id))) {
@@ -102,8 +116,9 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
   const nodeIds = new Set(nodes.map((n) => n.id));
   // Drop edges whose endpoints were deleted; edges are otherwise IR-authoritative.
   const edges = prev.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+  const annotations = getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s));
 
-  return { nodes, edges, clusters, annotations: prev.annotations };
+  return { nodes, edges, clusters, annotations };
 }
 
 export function CanvasView({

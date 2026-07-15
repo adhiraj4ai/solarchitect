@@ -168,6 +168,66 @@ describe('SyncEngine clusters', () => {
   });
 });
 
+describe('SyncEngine annotations', () => {
+  it('adds, updates, and removes annotations of all three kinds', () => {
+    const engine = new SyncEngine(emptyDiagram());
+
+    engine.applyCanvasPatch({
+      ...emptyDiagram(),
+      annotations: [
+        { id: 'a1', kind: 'sticky', x: 10, y: 10, width: 160, height: 100, content: 'note text' },
+        { id: 'a2', kind: 'shape', x: 200, y: 10, width: 120, height: 80, content: 'box' },
+        { id: 'a3', kind: 'text', x: 400, y: 10, width: 90, height: 24, content: 'caption' },
+      ],
+    });
+    const yaml = engine.getYamlText();
+    expect(yaml).toContain('kind: sticky');
+    expect(yaml).toContain('kind: shape');
+    expect(yaml).toContain('kind: text');
+    expect(yaml).toContain('content: note text');
+
+    // Update content of the sticky.
+    engine.applyCanvasPatch({
+      ...emptyDiagram(),
+      annotations: [{ id: 'a1', kind: 'sticky', x: 10, y: 10, width: 160, height: 100, content: 'edited' }],
+    });
+    expect(engine.getDiagram().annotations).toHaveLength(1);
+    expect(engine.getYamlText()).toContain('content: edited');
+
+    // Remove.
+    engine.applyCanvasPatch(emptyDiagram());
+    expect(engine.getDiagram().annotations).toHaveLength(0);
+  });
+
+  it('round-trips an annotation typed in YAML', () => {
+    const engine = new SyncEngine(emptyDiagram());
+    const result = engine.applyYamlEdit(`nodes: []
+edges: []
+clusters: []
+annotations:
+  - id: a1
+    kind: sticky
+    x: 5
+    y: 6
+    width: 150
+    height: 90
+    content: hello
+`);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.diagram.annotations[0]).toEqual({
+        id: 'a1',
+        kind: 'sticky',
+        x: 5,
+        y: 6,
+        width: 150,
+        height: 90,
+        content: 'hello',
+      });
+    }
+  });
+});
+
 function serializeWithEdge(from: string, to: string): string {
   return `nodes:
   - id: n1
