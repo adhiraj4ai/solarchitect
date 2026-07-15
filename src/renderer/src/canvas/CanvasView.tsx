@@ -24,12 +24,27 @@ import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
-import type { Diagram, DiagramNode, DiagramCluster } from '@shared/ir/types';
+import type { Diagram, DiagramNode, DiagramCluster, EdgeShape as EdgeShapeKind } from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
 export type Mode = 'architect' | 'whiteboard';
+
+/** Tiny preview of each edge routing style for the toolbar picker. */
+function EdgeShapeGlyph({ kind }: { kind: EdgeShapeKind }) {
+  const d =
+    kind === 'curved'
+      ? 'M2 14 C7 14 9 4 14 4'
+      : kind === 'bent'
+        ? 'M2 14 L8 14 L8 4 L14 4'
+        : 'M2 14 L14 4';
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
 
 // Architect mode is a structured system-design surface: no freehand tools, no
 // style panel — you place nodes from the library and connect them. Whiteboard
@@ -387,7 +402,17 @@ export function CanvasView({
     onCanvasEditRef.current({ ...diagramRef.current, edges });
   }, []);
 
-  const selectedEdgeLabel = diagram.edges.find((e) => e.id === selectedEdgeId)?.label ?? '';
+  const handleEdgeShape = useCallback((edgeShape: EdgeShapeKind) => {
+    if (!selectedEdgeIdRef.current) return;
+    const edges = diagramRef.current.edges.map((e) =>
+      e.id === selectedEdgeIdRef.current ? { ...e, shape: edgeShape } : e,
+    );
+    onCanvasEditRef.current({ ...diagramRef.current, edges });
+  }, []);
+
+  const selectedEdge = diagram.edges.find((e) => e.id === selectedEdgeId);
+  const selectedEdgeLabel = selectedEdge?.label ?? '';
+  const selectedEdgeShape = selectedEdge?.shape ?? 'straight';
 
   return (
     <div
@@ -424,14 +449,29 @@ export function CanvasView({
           Export SVG
         </button>
         {selectedEdgeId && (
-          <input
-            data-testid="edge-label-input"
-            aria-label="Edge label"
-            className="edge-label"
-            placeholder="edge label"
-            value={selectedEdgeLabel}
-            onChange={(e) => handleLabelChange(e.target.value)}
-          />
+          <>
+            <input
+              data-testid="edge-label-input"
+              aria-label="Edge label"
+              className="edge-label"
+              placeholder="edge label"
+              value={selectedEdgeLabel}
+              onChange={(e) => handleLabelChange(e.target.value)}
+            />
+            <span className="edge-shapes" role="group" aria-label="Edge routing">
+              {(['straight', 'curved', 'bent'] as const).map((k) => (
+                <button
+                  key={k}
+                  data-testid={`edge-shape-${k}`}
+                  className={`edge-shape-btn${selectedEdgeShape === k ? ' on' : ''}`}
+                  title={`${k[0].toUpperCase()}${k.slice(1)} routing`}
+                  onClick={() => handleEdgeShape(k)}
+                >
+                  <EdgeShapeGlyph kind={k} />
+                </button>
+              ))}
+            </span>
+          </>
         )}
       </div>
       <Tldraw

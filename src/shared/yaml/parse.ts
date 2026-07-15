@@ -86,12 +86,17 @@ export function parseDiagram(yamlText: string): ParseResult {
           `edges[${i}]`,
         );
       }
+      const shape = e.shape as DiagramEdge['shape'];
+      if (shape && shape !== 'straight' && shape !== 'curved' && shape !== 'bent') {
+        throw new ValidationError(`Edge shape must be straight, curved, or bent (got "${shape}")`, `edges[${i}].shape`);
+      }
       edges.push({
         id: e.id as string,
         from: e.from as string,
         to: e.to as string,
         direction: (e.direction as DiagramEdge['direction']) ?? 'forward',
         ...(e.label ? { label: e.label as string } : {}),
+        ...(shape ? { shape } : {}),
       });
     });
 

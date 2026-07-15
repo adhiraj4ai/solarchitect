@@ -60,6 +60,20 @@ test('connecting two selected nodes adds an edge to the YAML', async () => {
   await expect(editor()).toHaveValue(/to: n2/);
 });
 
+test('an edge routing style (bent/curved) can be set from the canvas', async () => {
+  await editor().fill(TWO_NODES);
+  await expect(canvas().getByText('WebTier')).toHaveCount(1);
+
+  await selectNodes('WebTier', 'DataTier');
+  await win.locator('[data-testid="connect-btn"]').click(); // new edge is auto-selected
+
+  // The routing picker appears; switch the edge to bent, then curved.
+  await win.locator('[data-testid="edge-shape-bent"]').click();
+  await expect(editor()).toHaveValue(/shape: bent/);
+  await win.locator('[data-testid="edge-shape-curved"]').click();
+  await expect(editor()).toHaveValue(/shape: curved/);
+});
+
 test('an edge label can be set from the canvas', async () => {
   await editor().fill(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toBeVisible();

@@ -377,6 +377,13 @@ button { font-family: inherit; }
   min-width: 120px;
 }
 .edge-label::placeholder { color: var(--slate); }
+.edge-shapes { display: inline-flex; gap: 2px; padding: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
+.edge-shape-btn {
+  display: grid; place-items: center; width: 26px; height: 24px;
+  border: none; background: transparent; color: var(--slate); border-radius: 6px; cursor: pointer;
+}
+.edge-shape-btn:hover { color: var(--blueprint-ink); }
+.edge-shape-btn.on { background: var(--panel); color: var(--blueprint-ink); box-shadow: var(--shadow-1); }
 
 /* ---------------- code editor ---------------- */
 .code { display: flex; flex-direction: column; height: 100%; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }

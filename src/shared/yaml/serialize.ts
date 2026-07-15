@@ -17,6 +17,7 @@ export function serializeDiagram(diagram: Diagram): string {
       to: e.to,
       direction: e.direction,
       ...(e.label ? { label: e.label } : {}),
+      ...(e.shape && e.shape !== 'straight' ? { shape: e.shape } : {}),
     })),
     clusters: diagram.clusters.map((c) => ({
       id: c.id,

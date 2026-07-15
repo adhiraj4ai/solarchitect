@@ -7,12 +7,16 @@ export interface DiagramNode {
   clusterId?: string;
 }
 
+/** How an edge is routed between its two nodes. Absent means 'straight'. */
+export type EdgeShape = 'straight' | 'curved' | 'bent';
+
 export interface DiagramEdge {
   id: string;
   from: string; // DiagramNode.id
   to: string; // DiagramNode.id
   direction: 'forward' | 'bidirectional';
   label?: string;
+  shape?: EdgeShape;
 }
 
 export interface DiagramCluster {

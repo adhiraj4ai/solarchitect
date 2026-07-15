@@ -83,6 +83,7 @@ export function edgeToShape(edge: DiagramEdge, nodeById: Map<string, DiagramNode
       edgeId: edge.id,
       label: edge.label ?? '',
       direction: edge.direction,
+      shape: edge.shape ?? 'straight',
       x1: a.x - originX,
       y1: a.y - originY,
       x2: b.x - originX,
@@ -105,6 +106,7 @@ export function edgeShapesEqual(a: EdgeShapeLike, b: EdgeShapeLike): boolean {
     a.props.edgeId === b.props.edgeId &&
     a.props.label === b.props.label &&
     a.props.direction === b.props.direction &&
+    a.props.shape === b.props.shape &&
     a.props.x1 === b.props.x1 &&
     a.props.y1 === b.props.y1 &&
     a.props.x2 === b.props.x2 &&

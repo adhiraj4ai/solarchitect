@@ -113,6 +113,51 @@ annotations: []
     expect(result.ok).toBe(true);
   });
 
+  it('parses and round-trips an edge routing shape', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+  - id: n2
+    type: aws.database.RDS
+    label: B
+    x: 200
+    y: 0
+edges:
+  - id: e1
+    from: n1
+    to: n2
+    direction: forward
+    shape: bent
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.diagram.edges[0].shape).toBe('bent');
+  });
+
+  it('rejects an invalid edge shape', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+edges:
+  - id: e1
+    from: n1
+    to: n1
+    direction: forward
+    shape: zigzag
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toMatch(/shape must be/i);
+  });
+
   it('rejects a dangling edge reference', () => {
     const result = parseDiagram(`
 nodes:
