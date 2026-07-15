@@ -10,6 +10,8 @@ describe('taxonomy', () => {
     expect(isValidNodeType('cloudflare.network.DNS')).toBe(true);
     expect(isValidNodeType('digitalocean.compute.Droplet')).toBe(true);
     expect(isValidNodeType('saas.communication.Slack')).toBe(true);
+    expect(isValidNodeType('onprem.database.PostgreSQL')).toBe(true);
+    expect(isValidNodeType('onprem.queue.Kafka')).toBe(true);
   });
 
   it('rejects an unknown node type', () => {
@@ -18,6 +20,8 @@ describe('taxonomy', () => {
 
   it('covers all curated providers', () => {
     const providers = new Set(NODE_TAXONOMY.map((n) => n.provider));
-    expect(providers).toEqual(new Set(['aws', 'azure', 'gcp', 'kubernetes', 'cloudflare', 'digitalocean', 'saas', 'generic']));
+    expect(providers).toEqual(
+      new Set(['aws', 'azure', 'gcp', 'kubernetes', 'onprem', 'cloudflare', 'digitalocean', 'saas', 'generic']),
+    );
   });
 });

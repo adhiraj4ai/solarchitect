@@ -7,6 +7,7 @@ export const PROVIDER_COLOR: Record<Provider, string> = {
   azure: '#1275C6',
   gcp: '#1A73E8',
   kubernetes: '#3660C4',
+  onprem: '#3A7D44',
   cloudflare: '#F38020',
   digitalocean: '#0080FF',
   saas: '#A855F7',
@@ -18,6 +19,7 @@ export const PROVIDER_TINT: Record<Provider, string> = {
   azure: 'rgba(18, 117, 198, 0.12)',
   gcp: 'rgba(26, 115, 232, 0.12)',
   kubernetes: 'rgba(54, 96, 196, 0.12)',
+  onprem: 'rgba(58, 125, 68, 0.12)',
   cloudflare: 'rgba(243, 128, 32, 0.12)',
   digitalocean: 'rgba(0, 128, 255, 0.12)',
   saas: 'rgba(168, 85, 247, 0.12)',
@@ -359,6 +361,38 @@ const GLYPHS: Record<string, ReactElement> = {
   bell: (
     <>
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
+    </>
+  ),
+  proxy: (
+    <>
+      <path d="M12 3v18" />
+      <path d="M8.5 8l-4 4 4 4M15.5 8l4 4-4 4" />
+    </>
+  ),
+  stream: (
+    <>
+      <path d="M4 8h11M4 12h15M4 16h9" />
+      <path d="M17 6l3 2-3 2M15 14l3 2-3 2" />
+    </>
+  ),
+  dashboard: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M6 15.5l3-3 3 2 3-4" />
+    </>
+  ),
+  logs: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 9h8M8 12h8M8 15h5" />
+    </>
+  ),
+  ci: (
+    <>
+      <path d="M20 12a8 8 0 1 1-2.4-5.7" />
+      <path d="M20 4v3.5h-3.5" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
     </>
   ),
 };

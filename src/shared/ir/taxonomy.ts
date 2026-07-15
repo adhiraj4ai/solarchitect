@@ -1,4 +1,13 @@
-export type Provider = 'aws' | 'azure' | 'gcp' | 'kubernetes' | 'cloudflare' | 'digitalocean' | 'saas' | 'generic';
+export type Provider =
+  | 'aws'
+  | 'azure'
+  | 'gcp'
+  | 'kubernetes'
+  | 'onprem'
+  | 'cloudflare'
+  | 'digitalocean'
+  | 'saas'
+  | 'generic';
 
 export interface NodeTypeDefinition {
   id: string;
@@ -141,6 +150,36 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'saas.auth.Auth0', provider: 'saas', displayName: 'Auth0', category: 'Security', glyph: 'shield' },
   { id: 'saas.communication.Twilio', provider: 'saas', displayName: 'Twilio', category: 'Communication', glyph: 'message' },
   { id: 'saas.communication.SendGrid', provider: 'saas', displayName: 'SendGrid', category: 'Communication', glyph: 'mail' },
+
+  // ---- On-prem / self-hosted (the mingrammer `onprem` catalog) ----
+  { id: 'onprem.compute.Server', provider: 'onprem', displayName: 'Server', category: 'Compute', glyph: 'server' },
+  { id: 'onprem.container.Docker', provider: 'onprem', displayName: 'Docker', category: 'Containers', glyph: 'container' },
+  { id: 'onprem.container.Kubernetes', provider: 'onprem', displayName: 'Kubernetes', category: 'Containers', glyph: 'kubernetes' },
+  { id: 'onprem.network.Nginx', provider: 'onprem', displayName: 'Nginx', category: 'Network', glyph: 'proxy' },
+  { id: 'onprem.network.Apache', provider: 'onprem', displayName: 'Apache HTTP', category: 'Network', glyph: 'proxy' },
+  { id: 'onprem.network.HAProxy', provider: 'onprem', displayName: 'HAProxy', category: 'Network', glyph: 'loadbalancer' },
+  { id: 'onprem.network.Traefik', provider: 'onprem', displayName: 'Traefik', category: 'Network', glyph: 'proxy' },
+  { id: 'onprem.database.PostgreSQL', provider: 'onprem', displayName: 'PostgreSQL', category: 'Database', glyph: 'database' },
+  { id: 'onprem.database.MySQL', provider: 'onprem', displayName: 'MySQL', category: 'Database', glyph: 'database' },
+  { id: 'onprem.database.MongoDB', provider: 'onprem', displayName: 'MongoDB', category: 'Database', glyph: 'nosql' },
+  { id: 'onprem.database.Cassandra', provider: 'onprem', displayName: 'Cassandra', category: 'Database', glyph: 'nosql' },
+  { id: 'onprem.inmemory.Redis', provider: 'onprem', displayName: 'Redis', category: 'Cache', glyph: 'cache' },
+  { id: 'onprem.queue.Kafka', provider: 'onprem', displayName: 'Kafka', category: 'Queue', glyph: 'stream' },
+  { id: 'onprem.queue.RabbitMQ', provider: 'onprem', displayName: 'RabbitMQ', category: 'Queue', glyph: 'queue' },
+  { id: 'onprem.monitoring.Prometheus', provider: 'onprem', displayName: 'Prometheus', category: 'Monitoring', glyph: 'gauge' },
+  { id: 'onprem.monitoring.Grafana', provider: 'onprem', displayName: 'Grafana', category: 'Monitoring', glyph: 'dashboard' },
+  { id: 'onprem.logging.Fluentd', provider: 'onprem', displayName: 'Fluentd', category: 'Logging', glyph: 'logs' },
+  { id: 'onprem.logging.Loki', provider: 'onprem', displayName: 'Loki', category: 'Logging', glyph: 'logs' },
+  { id: 'onprem.search.Elasticsearch', provider: 'onprem', displayName: 'Elasticsearch', category: 'Search', glyph: 'search' },
+  { id: 'onprem.tracing.Jaeger', provider: 'onprem', displayName: 'Jaeger', category: 'Tracing', glyph: 'graph' },
+  { id: 'onprem.ci.Jenkins', provider: 'onprem', displayName: 'Jenkins', category: 'CI/CD', glyph: 'ci' },
+  { id: 'onprem.ci.GitLab', provider: 'onprem', displayName: 'GitLab', category: 'CI/CD', glyph: 'ci' },
+  { id: 'onprem.vcs.Git', provider: 'onprem', displayName: 'Git', category: 'VCS', glyph: 'github' },
+  { id: 'onprem.iac.Terraform', provider: 'onprem', displayName: 'Terraform', category: 'IaC', glyph: 'iac' },
+  { id: 'onprem.iac.Ansible', provider: 'onprem', displayName: 'Ansible', category: 'IaC', glyph: 'iac' },
+  { id: 'onprem.gitops.ArgoCD', provider: 'onprem', displayName: 'Argo CD', category: 'GitOps', glyph: 'steps' },
+  { id: 'onprem.workflow.Airflow', provider: 'onprem', displayName: 'Airflow', category: 'Workflow', glyph: 'steps' },
+  { id: 'onprem.client.User', provider: 'onprem', displayName: 'User', category: 'Client', glyph: 'user' },
 
   // ---- Generic ----
   { id: 'generic.compute.Server', provider: 'generic', displayName: 'Server', category: 'Compute', glyph: 'server' },
