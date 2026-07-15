@@ -24,7 +24,14 @@ import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
-import type { Diagram, DiagramNode, DiagramCluster, EdgeShape as EdgeShapeKind } from '@shared/ir/types';
+import type {
+  Diagram,
+  DiagramNode,
+  DiagramCluster,
+  DiagramEdge,
+  EdgeShape as EdgeShapeKind,
+  EdgeLineStyle,
+} from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
@@ -42,6 +49,26 @@ function EdgeShapeGlyph({ kind }: { kind: EdgeShapeKind }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={d} />
+    </svg>
+  );
+}
+
+/** Tiny preview of each line stroke style. */
+function LineStyleGlyph({ kind }: { kind: EdgeLineStyle }) {
+  const dash = kind === 'dashed' ? '5 3' : kind === 'dotted' ? '1 3' : undefined;
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <line x1="2" y1="8" x2="14" y2="8" strokeDasharray={dash} />
+    </svg>
+  );
+}
+
+/** Arrowhead on/off preview. */
+function ArrowGlyph({ on }: { on: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="2" y1="8" x2={on ? '11' : '14'} y2="8" />
+      {on && <path d="M10 4.5 L14 8 L10 11.5" />}
     </svg>
   );
 }
@@ -400,25 +427,31 @@ export function CanvasView({
     }
   }, []);
 
-  const handleLabelChange = useCallback((label: string) => {
+  // Apply a partial change to the currently selected edge and sync it out.
+  const patchSelectedEdge = useCallback((patch: Partial<DiagramEdge>) => {
     if (!selectedEdgeIdRef.current) return;
     const edges = diagramRef.current.edges.map((e) =>
-      e.id === selectedEdgeIdRef.current ? { ...e, label } : e,
+      e.id === selectedEdgeIdRef.current ? { ...e, ...patch } : e,
     );
     onCanvasEditRef.current({ ...diagramRef.current, edges });
   }, []);
 
-  const handleEdgeShape = useCallback((edgeShape: EdgeShapeKind) => {
-    if (!selectedEdgeIdRef.current) return;
-    const edges = diagramRef.current.edges.map((e) =>
-      e.id === selectedEdgeIdRef.current ? { ...e, shape: edgeShape } : e,
-    );
-    onCanvasEditRef.current({ ...diagramRef.current, edges });
-  }, []);
+  const handleLabelChange = useCallback((label: string) => patchSelectedEdge({ label }), [patchSelectedEdge]);
+  const handleEdgeShape = useCallback(
+    (shape: EdgeShapeKind) => patchSelectedEdge({ shape }),
+    [patchSelectedEdge],
+  );
+  const handleEdgeLineStyle = useCallback(
+    (lineStyle: EdgeLineStyle) => patchSelectedEdge({ lineStyle }),
+    [patchSelectedEdge],
+  );
+  const handleEdgeArrow = useCallback((arrow: boolean) => patchSelectedEdge({ arrow }), [patchSelectedEdge]);
 
   const selectedEdge = diagram.edges.find((e) => e.id === selectedEdgeId);
   const selectedEdgeLabel = selectedEdge?.label ?? '';
   const selectedEdgeShape = selectedEdge?.shape ?? 'straight';
+  const selectedEdgeLineStyle = selectedEdge?.lineStyle ?? 'solid';
+  const selectedEdgeArrow = selectedEdge?.arrow ?? true;
 
   return (
     <div
@@ -477,6 +510,30 @@ export function CanvasView({
                   <EdgeShapeGlyph kind={k} />
                 </button>
               ))}
+            </span>
+            <span className="edge-shapes" role="group" aria-label="Line style">
+              {(['solid', 'dashed', 'dotted'] as const).map((k) => (
+                <button
+                  key={k}
+                  data-testid={`edge-line-${k}`}
+                  className={`edge-shape-btn${selectedEdgeLineStyle === k ? ' on' : ''}`}
+                  title={`${k[0].toUpperCase()}${k.slice(1)} line`}
+                  onClick={() => handleEdgeLineStyle(k)}
+                >
+                  <LineStyleGlyph kind={k} />
+                </button>
+              ))}
+            </span>
+            <span className="edge-shapes" role="group" aria-label="Arrowhead">
+              <button
+                data-testid="edge-arrow-toggle"
+                className={`edge-shape-btn${selectedEdgeArrow ? ' on' : ''}`}
+                aria-pressed={selectedEdgeArrow}
+                title={selectedEdgeArrow ? 'Arrowhead shown — click to hide' : 'No arrowhead — click to show'}
+                onClick={() => handleEdgeArrow(!selectedEdgeArrow)}
+              >
+                <ArrowGlyph on={selectedEdgeArrow} />
+              </button>
             </span>
           </>
         )}

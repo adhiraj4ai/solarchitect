@@ -1,5 +1,5 @@
 import { ShapeUtil, Polyline2d, HTMLContainer, T, Vec, type TLBaseShape } from 'tldraw';
-import type { EdgeShape as EdgeShapeKind } from '@shared/ir/types';
+import type { EdgeShape as EdgeShapeKind, EdgeLineStyle } from '@shared/ir/types';
 
 // Endpoints are stored local to the shape's (x,y) origin, which the reconciler
 // sets to the min corner of the two node centers.
@@ -10,12 +10,21 @@ export type ArchEdgeShape = TLBaseShape<
     label: string;
     direction: 'forward' | 'bidirectional';
     shape: EdgeShapeKind;
+    lineStyle: EdgeLineStyle;
+    arrow: boolean;
     x1: number;
     y1: number;
     x2: number;
     y2: number;
   }
 >;
+
+/** SVG stroke-dasharray for a line style (scaled to a 2px stroke). */
+function dashArray(style: EdgeLineStyle): string | undefined {
+  if (style === 'dashed') return '7 5';
+  if (style === 'dotted') return '1 4';
+  return undefined;
+}
 
 const CORNER = 14; // rounded-corner radius for bent routing
 
@@ -66,6 +75,8 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     label: T.string,
     direction: T.literalEnum('forward', 'bidirectional'),
     shape: T.literalEnum('straight', 'curved', 'bent'),
+    lineStyle: T.literalEnum('solid', 'dashed', 'dotted'),
+    arrow: T.boolean,
     x1: T.number,
     y1: T.number,
     x2: T.number,
@@ -73,7 +84,18 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   };
 
   getDefaultProps(): ArchEdgeShape['props'] {
-    return { edgeId: '', label: '', direction: 'forward', shape: 'straight', x1: 0, y1: 0, x2: 100, y2: 0 };
+    return {
+      edgeId: '',
+      label: '',
+      direction: 'forward',
+      shape: 'straight',
+      lineStyle: 'solid',
+      arrow: true,
+      x1: 0,
+      y1: 0,
+      x2: 100,
+      y2: 0,
+    };
   }
 
   getGeometry(shape: ArchEdgeShape) {
@@ -85,7 +107,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   override canBind = () => false;
 
   component(shape: ArchEdgeShape) {
-    const { x1, y1, x2, y2, label, direction, shape: kind, edgeId } = shape.props;
+    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, edgeId } = shape.props;
     const minX = Math.min(x1, x2);
     const minY = Math.min(y1, y2);
     const startId = `arrow-start-${edgeId}`;
@@ -109,8 +131,10 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             fill="none"
             stroke="var(--slate, #5a6675)"
             strokeWidth={2}
-            markerEnd={`url(#${endId})`}
-            markerStart={direction === 'bidirectional' ? `url(#${startId})` : undefined}
+            strokeLinecap={lineStyle === 'dotted' ? 'round' : 'butt'}
+            strokeDasharray={dashArray(lineStyle)}
+            markerEnd={arrow ? `url(#${endId})` : undefined}
+            markerStart={arrow && direction === 'bidirectional' ? `url(#${startId})` : undefined}
           />
         </svg>
         {label && (

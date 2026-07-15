@@ -158,6 +158,75 @@ annotations: []
     if (!result.ok) expect(result.error.message).toMatch(/shape must be/i);
   });
 
+  it('parses edge line style and arrow flag', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+  - id: n2
+    type: aws.database.RDS
+    label: B
+    x: 200
+    y: 0
+edges:
+  - id: e1
+    from: n1
+    to: n2
+    direction: forward
+    lineStyle: dashed
+    arrow: false
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.diagram.edges[0].lineStyle).toBe('dashed');
+      expect(result.diagram.edges[0].arrow).toBe(false);
+    }
+  });
+
+  it('rejects an invalid edge line style', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+edges:
+  - id: e1
+    from: n1
+    to: n1
+    direction: forward
+    lineStyle: squiggly
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toMatch(/lineStyle must be/i);
+  });
+
+  it('rejects a non-boolean edge arrow', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+edges:
+  - id: e1
+    from: n1
+    to: n1
+    direction: forward
+    arrow: maybe
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toMatch(/arrow must be/i);
+  });
+
   it('rejects a dangling edge reference', () => {
     const result = parseDiagram(`
 nodes:

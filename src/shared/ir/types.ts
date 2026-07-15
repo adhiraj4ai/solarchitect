@@ -10,6 +10,9 @@ export interface DiagramNode {
 /** How an edge is routed between its two nodes. Absent means 'straight'. */
 export type EdgeShape = 'straight' | 'curved' | 'bent';
 
+/** Stroke style of the relationship line. Absent means 'solid'. */
+export type EdgeLineStyle = 'solid' | 'dashed' | 'dotted';
+
 export interface DiagramEdge {
   id: string;
   from: string; // DiagramNode.id
@@ -17,6 +20,10 @@ export interface DiagramEdge {
   direction: 'forward' | 'bidirectional';
   label?: string;
   shape?: EdgeShape;
+  /** Line stroke style. Absent means 'solid'. */
+  lineStyle?: EdgeLineStyle;
+  /** Whether to draw arrowheads at all. Absent means true (arrow shown). */
+  arrow?: boolean;
 }
 
 export interface DiagramCluster {
