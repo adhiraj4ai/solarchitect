@@ -1,6 +1,6 @@
 import { parse as parseYaml } from 'yaml';
 import { isValidNodeType } from '../ir/taxonomy';
-import { CLUSTER_COLORS } from '../ir/types';
+import { ACCENT_COLORS } from '../ir/types';
 import type {
   Diagram,
   DiagramNode,
@@ -54,9 +54,9 @@ export function parseDiagram(yamlText: string): ParseResult {
     const clusters: DiagramCluster[] = asList(doc.clusters, 'clusters').map((item, i) => {
       const c = asMapping(item, `clusters[${i}]`);
       const color = c.color as DiagramCluster['color'];
-      if (color && !CLUSTER_COLORS.includes(color)) {
+      if (color && !ACCENT_COLORS.includes(color)) {
         throw new ValidationError(
-          `Cluster color must be one of ${CLUSTER_COLORS.join(', ')} (got "${color}")`,
+          `Cluster color must be one of ${ACCENT_COLORS.join(', ')} (got "${color}")`,
           `clusters[${i}].color`,
         );
       }
@@ -88,6 +88,13 @@ export function parseDiagram(yamlText: string): ParseResult {
       if (n.y !== undefined && n.y !== null && typeof n.y !== 'number') {
         throw new ValidationError(`Node y must be a number (got "${n.y}")`, `nodes[${i}].y`);
       }
+      const nodeColor = n.color as DiagramNode['color'];
+      if (nodeColor && !ACCENT_COLORS.includes(nodeColor)) {
+        throw new ValidationError(
+          `Node color must be one of ${ACCENT_COLORS.join(', ')} (got "${nodeColor}")`,
+          `nodes[${i}].color`,
+        );
+      }
       nodeIds.add(n.id as string);
       // x/y are optional — coordinate-free nodes are auto-laid-out downstream.
       nodes.push({
@@ -97,6 +104,7 @@ export function parseDiagram(yamlText: string): ParseResult {
         ...(typeof n.x === 'number' ? { x: n.x } : {}),
         ...(typeof n.y === 'number' ? { y: n.y } : {}),
         ...(n.clusterId ? { clusterId: n.clusterId as string } : {}),
+        ...(nodeColor ? { color: nodeColor } : {}),
       });
     });
 

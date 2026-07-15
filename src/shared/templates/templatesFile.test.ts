@@ -9,6 +9,7 @@ const templates: NamedTemplate[] = [
       nodes: [{ id: 'n1', type: 'aws.compute.EC2', label: 'Web', x: 0, y: 0, clusterId: 'c1' }],
       edges: [],
       clusters: [{ id: 'c1', label: 'VPC', x: -10, y: -10, width: 200, height: 120 }],
+      frames: [],
       annotations: [],
     },
   },

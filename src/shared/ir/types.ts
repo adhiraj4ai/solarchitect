@@ -8,6 +8,8 @@ export interface DiagramNode {
   x?: number;
   y?: number;
   clusterId?: string;
+  /** User-assigned accent color. Absent means the node renders black & white. */
+  color?: AccentColor;
 }
 
 /** How an edge is routed between its two nodes. Absent means 'straight'. */
@@ -29,11 +31,15 @@ export interface DiagramEdge {
   arrow?: boolean;
 }
 
-/** Named cluster accent colors (kept as a small vocabulary so YAML stays
- *  readable and the palette stays on-brand). Absent means 'blueprint'. */
-export type ClusterColor = 'blueprint' | 'slate' | 'green' | 'amber' | 'violet' | 'red';
+/** The shared accent-color vocabulary, used for both node and cluster colors.
+ *  Kept small so YAML stays readable and the palette stays on-brand. */
+export type AccentColor = 'blueprint' | 'slate' | 'green' | 'amber' | 'violet' | 'red';
 
-export const CLUSTER_COLORS: ClusterColor[] = ['blueprint', 'slate', 'green', 'amber', 'violet', 'red'];
+export const ACCENT_COLORS: AccentColor[] = ['blueprint', 'slate', 'green', 'amber', 'violet', 'red'];
+
+/** @deprecated Alias of AccentColor — clusters and nodes share one palette. */
+export type ClusterColor = AccentColor;
+export const CLUSTER_COLORS = ACCENT_COLORS;
 
 export interface DiagramCluster {
   id: string;

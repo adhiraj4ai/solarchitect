@@ -254,6 +254,20 @@ frames:
     if (result.ok) expect(result.diagram.frames).toEqual([]);
   });
 
+  it('parses and rejects node color', () => {
+    const ok = parseDiagram(
+      'nodes:\n  - id: a\n    type: aws.compute.EC2\n    label: A\n    color: green\nedges: []\nclusters: []\nannotations: []\n',
+    );
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.diagram.nodes[0].color).toBe('green');
+
+    const bad = parseDiagram(
+      'nodes:\n  - id: a\n    type: aws.compute.EC2\n    label: A\n    color: neon\nedges: []\nclusters: []\nannotations: []\n',
+    );
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error.message).toMatch(/color must be one of/i);
+  });
+
   it('rejects a dangling edge reference', () => {
     const result = parseDiagram(`
 nodes:

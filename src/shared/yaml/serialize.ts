@@ -11,6 +11,7 @@ export function serializeDiagram(diagram: Diagram): string {
       ...(typeof n.x === 'number' ? { x: n.x } : {}),
       ...(typeof n.y === 'number' ? { y: n.y } : {}),
       ...(n.clusterId ? { clusterId: n.clusterId } : {}),
+      ...(n.color ? { color: n.color } : {}),
     })),
     edges: diagram.edges.map((e) => ({
       id: e.id,

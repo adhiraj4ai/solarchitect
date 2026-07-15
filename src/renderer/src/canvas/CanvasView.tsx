@@ -29,8 +29,9 @@ import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
-import { CLUSTER_COLORS } from '@shared/ir/types';
+import { CLUSTER_COLORS, ACCENT_COLORS } from '@shared/ir/types';
 import { FRAME_PRESETS, CUSTOM_FRAME } from '@shared/ir/frames';
+import { ACCENT_HEX } from './accent';
 import { resolveNodePositions } from '@shared/ir/layout';
 import type {
   Diagram,
@@ -38,6 +39,7 @@ import type {
   DiagramCluster,
   DiagramEdge,
   DiagramFrame,
+  AccentColor,
   EdgeShape as EdgeShapeKind,
   EdgeLineStyle,
 } from '@shared/ir/types';
@@ -69,6 +71,34 @@ function LineStyleGlyph({ kind }: { kind: EdgeLineStyle }) {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
       <line x1="2" y1="8" x2="14" y2="8" strokeDasharray={dash} />
     </svg>
+  );
+}
+
+/** Accent-color picker with a leading "black & white" (none) option. */
+function ColorSwatches({ value, onPick }: { value: AccentColor | 'none'; onPick: (c: AccentColor | 'none') => void }) {
+  return (
+    <div className="swatches" role="group" aria-label="Color">
+      <button
+        type="button"
+        data-testid="color-none"
+        className={`swatch swatch--none${value === 'none' ? ' on' : ''}`}
+        title="Black & white"
+        aria-label="Black and white"
+        onClick={() => onPick('none')}
+      />
+      {ACCENT_COLORS.map((col) => (
+        <button
+          type="button"
+          key={col}
+          data-testid={`color-${col}`}
+          className={`swatch${value === col ? ' on' : ''}`}
+          style={{ background: ACCENT_HEX[col] }}
+          title={col}
+          aria-label={col}
+          onClick={() => onPick(col)}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -159,7 +189,11 @@ function reconcile(editor: Editor, diagram: Diagram): void {
     // Nodes (drawn on top). Use the position-resolved list so every node has x/y.
     const currentNodes = getArchNodeShapes(editor).map(shapeToNode);
     const nodeEq = (a: DiagramNode, b: DiagramNode) =>
-      a.type === b.type && a.label === b.label && a.x === b.x && a.y === b.y;
+      a.type === b.type &&
+      a.label === b.label &&
+      a.x === b.x &&
+      a.y === b.y &&
+      (a.color ?? 'none') === (b.color ?? 'none');
     const dn = diffById(currentNodes, positionedNodes, nodeEq);
     if (dn.removeIds.length) editor.deleteShapes(dn.removeIds.map((id) => createShapeId(id)));
     if (dn.add.length) editor.createShapes(nodesToShapes(dn.add));
@@ -240,6 +274,8 @@ export function CanvasView({
     null,
   );
   const [frameMenuOpen, setFrameMenuOpen] = useState(false);
+  // All currently-selected node ids (for assigning a color to several at once).
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
   const selectedEdgeIdRef = useRef<string | null>(null);
   selectedEdgeIdRef.current = selectedEdgeId;
@@ -336,6 +372,12 @@ export function CanvasView({
       else if (only?.type === 'archFrame')
         setSelection({ kind: 'frame', id: (only as ArchFrameShape).props.frameId });
       else setSelection(null);
+      setSelectedNodeIds(
+        editor
+          .getSelectedShapes()
+          .filter((s): s is ArchNodeShape => s.type === 'archNode')
+          .map((s) => s.props.nodeId),
+      );
     });
   }, []);
 
@@ -498,6 +540,19 @@ export function CanvasView({
     const nodes = diagramRef.current.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n));
     onCanvasEditRef.current({ ...diagramRef.current, nodes });
   }, []);
+  // Assign (or clear, when 'none') an accent color across one or more nodes.
+  const setNodesColor = useCallback((ids: string[], color: AccentColor | 'none') => {
+    const set = new Set(ids);
+    const nodes = diagramRef.current.nodes.map((n) => {
+      if (!set.has(n.id)) return n;
+      if (color === 'none') {
+        const { color: _drop, ...rest } = n;
+        return rest;
+      }
+      return { ...n, color };
+    });
+    onCanvasEditRef.current({ ...diagramRef.current, nodes });
+  }, []);
   const patchCluster = useCallback((id: string, patch: Partial<DiagramCluster>) => {
     const clusters = diagramRef.current.clusters.map((c) => (c.id === id ? { ...c, ...patch } : c));
     onCanvasEditRef.current({ ...diagramRef.current, clusters });
@@ -641,7 +696,20 @@ export function CanvasView({
         </button>
       </div>
 
-      {mode === 'architect' && (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
+      {mode === 'architect' && selectedNodeIds.length >= 2 && (
+        <aside className="props-panel" data-testid="props-panel-multi" aria-label="Properties">
+          <div className="props-panel__title">{selectedNodeIds.length} components</div>
+          <div className="props-field">
+            <span className="props-field__label">Color</span>
+            <ColorSwatches value="none" onPick={(c) => setNodesColor(selectedNodeIds, c)} />
+          </div>
+          <div className="props-field__hint">Applies to all selected components.</div>
+        </aside>
+      )}
+
+      {mode === 'architect' &&
+        selectedNodeIds.length < 2 &&
+        (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
         <aside className="props-panel" data-testid="props-panel" aria-label="Properties">
           {selectedFrame && (
             <>
@@ -692,6 +760,13 @@ export function CanvasView({
                   onChange={(e) => patchNode(selectedNode.id, { label: e.target.value })}
                 />
               </label>
+              <div className="props-field">
+                <span className="props-field__label">Color</span>
+                <ColorSwatches
+                  value={selectedNode.color ?? 'none'}
+                  onPick={(c) => setNodesColor([selectedNode.id], c)}
+                />
+              </div>
               <div className="props-field__hint">{selectedNode.type}</div>
             </>
           )}
