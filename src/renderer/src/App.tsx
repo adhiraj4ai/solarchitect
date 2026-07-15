@@ -12,7 +12,9 @@ import type { Diagram } from '@shared/ir/types';
 export default function App() {
   const { yamlText, diagram, yamlError, canvasEditSeq, onCanvasEdit, onYamlEdit, loadDiagram } = useSyncEngine();
   const project = useProject(loadDiagram);
-  const templates = useTemplates(project.projectDir, (msg) => project.setIoError(msg));
+  // Pass the stable setter directly — an inline wrapper would change every
+  // render and retrigger useTemplates' load effect in a loop.
+  const templates = useTemplates(project.projectDir, project.setIoError);
 
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
@@ -48,7 +50,12 @@ export default function App() {
           onOpenDiagram={project.openDiagram}
           onSave={() => project.saveDiagram(yamlText)}
         />
-        <TemplatesPanel templates={templates.templates} />
+        <TemplatesPanel
+          templates={templates.templates}
+          templatesText={templates.templatesText}
+          yamlError={templates.yamlError}
+          onApplyYaml={templates.applyTemplatesYaml}
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <NodePalette />

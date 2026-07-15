@@ -71,6 +71,48 @@ annotations: []
     expect(result.ok).toBe(false);
   });
 
+  it('rejects a node referencing an unknown cluster', () => {
+    const result = parseDiagram(`
+nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: Web
+    x: 0
+    y: 0
+    clusterId: ghost
+edges: []
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toMatch(/unknown cluster/);
+      expect(result.error.path).toBe('nodes[0].clusterId');
+    }
+  });
+
+  it('accepts a node referencing a defined cluster', () => {
+    const result = parseDiagram(`
+nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: Web
+    x: 0
+    y: 0
+    clusterId: c1
+edges: []
+clusters:
+  - id: c1
+    label: VPC
+    x: 0
+    y: 0
+    width: 200
+    height: 120
+annotations: []
+`);
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects a dangling edge reference', () => {
     const result = parseDiagram(`
 nodes:

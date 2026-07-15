@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
 import { ClusterShapeUtil } from './ClusterShapeUtil';
 import { EdgeShapeUtil, type ArchEdgeShape } from './EdgeShapeUtil';
-import { NODE_TYPE_DND_MIME } from './NodePalette';
+import { NODE_TYPE_DND_MIME, TEMPLATE_DND_MIME } from './dnd';
 import {
   nodesToShapes,
   nodeToShapeProps,
@@ -20,7 +20,6 @@ import {
   edgeShapesEqual,
 } from './shapeAdapters';
 import { getAnnotationShapes, annotationToShape, shapeToAnnotation, annotationEq } from './annotationAdapters';
-import { TEMPLATE_DND_MIME } from '../project/TemplatesPanel';
 import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';

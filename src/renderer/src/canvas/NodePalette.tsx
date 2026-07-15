@@ -1,6 +1,5 @@
 import { NODE_TAXONOMY, type Provider } from '@shared/ir/taxonomy';
-
-export const NODE_TYPE_DND_MIME = 'application/x-solarchitect-node-type';
+import { NODE_TYPE_DND_MIME } from './dnd';
 
 const PROVIDER_ORDER: Provider[] = ['aws', 'azure', 'gcp', 'kubernetes', 'generic'];
 

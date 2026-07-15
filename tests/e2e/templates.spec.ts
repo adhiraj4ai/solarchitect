@@ -105,3 +105,39 @@ test('saving under an existing name asks to overwrite rather than duplicating', 
   // Still exactly one template with that name.
   await expect(win.locator('[data-testid="templates-list"]').getByText('VPC Pair')).toHaveCount(1);
 });
+
+test('the templates library is editable as YAML (updates the panel, freezes on error)', async () => {
+  await win.locator('[data-testid="templates-edit-toggle"]').click();
+  const ta = win.locator('[data-testid="templates-yaml"]');
+  await expect(ta).toBeVisible();
+
+  // A valid edit renaming the template updates the list.
+  await ta.fill(`templates:
+  - name: Renamed Template
+    diagram:
+      nodes: []
+      edges: []
+      clusters: []
+      annotations: []
+`);
+  await win.locator('[data-testid="templates-edit-toggle"]').click(); // back to list
+  await expect(win.locator('[data-testid="templates-list"]').getByText('Renamed Template')).toBeVisible();
+
+  // An invalid edit surfaces an inline error and doesn't wipe the library.
+  await win.locator('[data-testid="templates-edit-toggle"]').click();
+  await win.locator('[data-testid="templates-yaml"]').fill(`templates:
+  - name: Bad
+    diagram:
+      nodes:
+        - id: n1
+          type: not.a.real.type
+          label: X
+          x: 0
+          y: 0
+      edges: []
+      clusters: []
+      annotations: []
+`);
+  await win.locator('[data-testid="templates-yaml"]').blur(); // flush the debounced apply
+  await expect(win.getByText(/Unknown node type/).first()).toBeVisible();
+});

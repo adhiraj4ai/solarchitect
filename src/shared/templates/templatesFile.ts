@@ -23,12 +23,12 @@ export type TemplatesParseResult =
  * serializer so the whole file reads like the diagrams it complements.
  */
 export function serializeTemplates(templates: NamedTemplate[]): string {
-  // serializeDiagram emits a full YAML doc; nest it under each template by
-  // re-parsing to a plain object so the outer document stays a single tree.
+  // Round-trip each diagram through serializeDiagram → plain object so template
+  // subtrees get the exact same field ordering and optional-field omission as
+  // standalone diagrams, then emit the whole file as one document.
   const doc = {
     templates: templates.map((t) => ({ name: t.name, diagram: parseYaml(serializeDiagram(t.diagram)) })),
   };
-  // Reuse the diagram serializer's YAML engine indirectly via a fresh stringify.
   return stringifyDoc(doc);
 }
 

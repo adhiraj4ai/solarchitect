@@ -42,12 +42,29 @@ export function parseDiagram(yamlText: string): ParseResult {
   try {
     const doc = asMapping(raw, 'document');
 
+    // Clusters first, so node.clusterId references can be validated against them.
+    const clusters: DiagramCluster[] = asList(doc.clusters, 'clusters').map((item, i) => {
+      const c = asMapping(item, `clusters[${i}]`);
+      return {
+        id: c.id as string,
+        label: c.label as string,
+        x: c.x as number,
+        y: c.y as number,
+        width: c.width as number,
+        height: c.height as number,
+      };
+    });
+    const clusterIds = new Set(clusters.map((c) => c.id));
+
     const nodes: DiagramNode[] = [];
     const nodeIds = new Set<string>();
     asList(doc.nodes, 'nodes').forEach((item, i) => {
       const n = asMapping(item, `nodes[${i}]`);
       if (!isValidNodeType(n.type as string)) {
         throw new ValidationError(`Unknown node type "${n.type}"`, `nodes[${i}].type`);
+      }
+      if (n.clusterId && !clusterIds.has(n.clusterId as string)) {
+        throw new ValidationError(`Node references unknown cluster "${n.clusterId}"`, `nodes[${i}].clusterId`);
       }
       nodeIds.add(n.id as string);
       nodes.push({
@@ -76,18 +93,6 @@ export function parseDiagram(yamlText: string): ParseResult {
         direction: (e.direction as DiagramEdge['direction']) ?? 'forward',
         ...(e.label ? { label: e.label as string } : {}),
       });
-    });
-
-    const clusters: DiagramCluster[] = asList(doc.clusters, 'clusters').map((item, i) => {
-      const c = asMapping(item, `clusters[${i}]`);
-      return {
-        id: c.id as string,
-        label: c.label as string,
-        x: c.x as number,
-        y: c.y as number,
-        width: c.width as number,
-        height: c.height as number,
-      };
     });
 
     const annotations: DiagramAnnotation[] = asList(doc.annotations, 'annotations').map((item, i) => {
