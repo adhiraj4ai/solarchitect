@@ -2,9 +2,9 @@ import { Tldraw, type Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
 import { useCallback, useEffect, useRef } from 'react';
-import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
+import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT } from './NodeShapeUtil';
 import { NODE_TYPE_DND_MIME } from './NodePalette';
-import { nodesToShapes, shapeToNode } from './shapeAdapters';
+import { nodesToShapes, nodeToShapeProps, getArchNodeShapes, shapeToNode } from './shapeAdapters';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import type { Diagram, DiagramNode } from '@shared/ir/types';
 
@@ -12,16 +12,16 @@ import type { Diagram, DiagramNode } from '@shared/ir/types';
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [NodeShapeUtil];
 
-let nodeCounter = 0;
+// Collision-resistant so ids survive loading a saved diagram (ticket #4) without
+// a module counter that would restart at 0 and regenerate existing ids.
 function makeNodeId(): string {
-  nodeCounter += 1;
-  return `node-${nodeCounter}-${nodeCounter.toString(36)}`;
+  return `node-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 /** Reconcile the tldraw canvas to match the IR: create new, update changed, remove gone. */
 function reconcileNodes(editor: Editor, nodes: DiagramNode[]): void {
   const desired = new Map(nodes.map((n) => [n.id, n]));
-  const existing = editor.getCurrentPageShapes().filter((s): s is ArchNodeShape => s.type === 'archNode');
+  const existing = getArchNodeShapes(editor);
   const existingById = new Map(existing.map((s) => [s.props.nodeId, s]));
 
   const toRemove = existing.filter((s) => !desired.has(s.props.nodeId)).map((s) => s.id);
@@ -34,13 +34,7 @@ function reconcileNodes(editor: Editor, nodes: DiagramNode[]): void {
     const shape = existingById.get(n.id);
     if (!shape) continue;
     if (shape.x !== n.x || shape.y !== n.y || shape.props.label !== n.label || shape.props.nodeType !== n.type) {
-      editor.updateShape({
-        id: shape.id,
-        type: 'archNode',
-        x: n.x,
-        y: n.y,
-        props: { nodeId: n.id, nodeType: n.type, label: n.label, w: NODE_DEFAULT_WIDTH, h: NODE_DEFAULT_HEIGHT },
-      });
+      editor.updateShape({ id: shape.id, type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) });
     }
   }
 }
@@ -62,13 +56,16 @@ export function CanvasView({
     editorRef.current = editor;
     reconcileNodes(editor, diagramRef.current.nodes);
 
-    // User-driven canvas changes (move/delete) flow back into the IR.
+    // User-driven canvas changes (move/delete) flow back into the IR. Non-shape
+    // fields (clusterId) are merged from the prior IR since shapes don't carry them.
     editor.store.listen(
       () => {
-        const nodes = editor
-          .getCurrentPageShapes()
-          .filter((s): s is ArchNodeShape => s.type === 'archNode')
-          .map(shapeToNode);
+        const prevById = new Map(diagramRef.current.nodes.map((n) => [n.id, n]));
+        const nodes = getArchNodeShapes(editor).map((s) => {
+          const node = shapeToNode(s);
+          const prev = prevById.get(node.id);
+          return prev?.clusterId ? { ...node, clusterId: prev.clusterId } : node;
+        });
         onCanvasEditRef.current({ ...diagramRef.current, nodes });
       },
       { source: 'user', scope: 'document' },
@@ -85,13 +82,13 @@ export function CanvasView({
     e.preventDefault();
     const editor = editorRef.current;
     const nodeType = e.dataTransfer.getData(NODE_TYPE_DND_MIME);
-    if (!editor || !nodeType || !NODE_TAXONOMY.some((n) => n.id === nodeType)) return;
+    const def = NODE_TAXONOMY.find((n) => n.id === nodeType);
+    if (!editor || !def) return;
 
     const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
-    const def = NODE_TAXONOMY.find((n) => n.id === nodeType)!;
     const node: DiagramNode = {
       id: makeNodeId(),
-      type: nodeType,
+      type: def.id,
       label: def.displayName,
       x: Math.round(point.x - NODE_DEFAULT_WIDTH / 2),
       y: Math.round(point.y - NODE_DEFAULT_HEIGHT / 2),
