@@ -1,4 +1,4 @@
-export type Provider = 'aws' | 'azure' | 'gcp' | 'kubernetes' | 'generic';
+export type Provider = 'aws' | 'azure' | 'gcp' | 'kubernetes' | 'cloudflare' | 'digitalocean' | 'saas' | 'generic';
 
 export interface NodeTypeDefinition {
   id: string;
@@ -41,6 +41,14 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'aws.security.WAF', provider: 'aws', displayName: 'WAF', category: 'Security', glyph: 'firewall' },
   { id: 'aws.security.SecretsManager', provider: 'aws', displayName: 'Secrets Manager', category: 'Security', glyph: 'lock' },
   { id: 'aws.security.IAM', provider: 'aws', displayName: 'IAM', category: 'Security', glyph: 'identity' },
+  { id: 'aws.analytics.Glue', provider: 'aws', displayName: 'Glue', category: 'Analytics', glyph: 'etl' },
+  { id: 'aws.analytics.Athena', provider: 'aws', displayName: 'Athena', category: 'Analytics', glyph: 'search' },
+  { id: 'aws.security.Cognito', provider: 'aws', displayName: 'Cognito', category: 'Security', glyph: 'identity' },
+  { id: 'aws.security.KMS', provider: 'aws', displayName: 'KMS', category: 'Security', glyph: 'key' },
+  { id: 'aws.network.TransitGateway', provider: 'aws', displayName: 'Transit Gateway', category: 'Network', glyph: 'router' },
+  { id: 'aws.integration.AppSync', provider: 'aws', displayName: 'AppSync', category: 'Integration', glyph: 'graph' },
+  { id: 'aws.storage.EFS', provider: 'aws', displayName: 'EFS', category: 'Storage', glyph: 'file' },
+  { id: 'aws.management.CloudFormation', provider: 'aws', displayName: 'CloudFormation', category: 'Management', glyph: 'iac' },
 
   // ---- Azure ----
   { id: 'azure.compute.VM', provider: 'azure', displayName: 'Virtual Machine', category: 'Compute', glyph: 'vm' },
@@ -62,6 +70,11 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'azure.management.Monitor', provider: 'azure', displayName: 'Monitor', category: 'Management', glyph: 'gauge' },
   { id: 'azure.security.KeyVault', provider: 'azure', displayName: 'Key Vault', category: 'Security', glyph: 'lock' },
   { id: 'azure.security.ActiveDirectory', provider: 'azure', displayName: 'Entra ID', category: 'Security', glyph: 'identity' },
+  { id: 'azure.analytics.DataFactory', provider: 'azure', displayName: 'Data Factory', category: 'Analytics', glyph: 'etl' },
+  { id: 'azure.security.Defender', provider: 'azure', displayName: 'Defender', category: 'Security', glyph: 'shield' },
+  { id: 'azure.network.TransitGateway', provider: 'azure', displayName: 'Transit Gateway', category: 'Network', glyph: 'router' },
+  { id: 'azure.integration.APIManagement', provider: 'azure', displayName: 'API Management', category: 'Integration', glyph: 'gateway' },
+  { id: 'azure.storage.Files', provider: 'azure', displayName: 'Azure Files', category: 'Storage', glyph: 'file' },
 
   // ---- GCP ----
   { id: 'gcp.compute.ComputeEngine', provider: 'gcp', displayName: 'Compute Engine', category: 'Compute', glyph: 'server' },
@@ -80,6 +93,12 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'gcp.management.Monitoring', provider: 'gcp', displayName: 'Monitoring', category: 'Management', glyph: 'gauge' },
   { id: 'gcp.network.VPC', provider: 'gcp', displayName: 'VPC', category: 'Network', glyph: 'vpc' },
   { id: 'gcp.network.CloudDNS', provider: 'gcp', displayName: 'Cloud DNS', category: 'Network', glyph: 'dns' },
+  { id: 'gcp.analytics.DataPrep', provider: 'gcp', displayName: 'DataPrep', category: 'Analytics', glyph: 'etl' },
+  { id: 'gcp.security.KMS', provider: 'gcp', displayName: 'Cloud KMS', category: 'Security', glyph: 'key' },
+  { id: 'gcp.security.Armor', provider: 'gcp', displayName: 'Cloud Armor', category: 'Security', glyph: 'firewall' },
+  { id: 'gcp.network.Interconnect', provider: 'gcp', displayName: 'Interconnect', category: 'Network', glyph: 'router' },
+  { id: 'gcp.network.ApiGateway', provider: 'gcp', displayName: 'API Gateway', category: 'Network', glyph: 'gateway' },
+  { id: 'gcp.storage.Filestore', provider: 'gcp', displayName: 'Filestore', category: 'Storage', glyph: 'file' },
 
   // ---- Kubernetes ----
   { id: 'kubernetes.compute.Pod', provider: 'kubernetes', displayName: 'Pod', category: 'Workloads', glyph: 'pod' },
@@ -93,6 +112,35 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'kubernetes.config.ConfigMap', provider: 'kubernetes', displayName: 'ConfigMap', category: 'Config', glyph: 'config' },
   { id: 'kubernetes.config.Secret', provider: 'kubernetes', displayName: 'Secret', category: 'Config', glyph: 'lock' },
   { id: 'kubernetes.group.Namespace', provider: 'kubernetes', displayName: 'Namespace', category: 'Grouping', glyph: 'namespace' },
+  { id: 'kubernetes.controller.ReplicaSet', provider: 'kubernetes', displayName: 'ReplicaSet', category: 'Workloads', glyph: 'registry' },
+  { id: 'kubernetes.controller.Job', provider: 'kubernetes', displayName: 'Job', category: 'Workloads', glyph: 'gear' },
+
+  // ---- Cloudflare ----
+  { id: 'cloudflare.network.DNS', provider: 'cloudflare', displayName: 'DNS Resolver', category: 'Network', glyph: 'dns' },
+  { id: 'cloudflare.network.WAF', provider: 'cloudflare', displayName: 'WAF', category: 'Security', glyph: 'firewall' },
+  { id: 'cloudflare.network.CDN', provider: 'cloudflare', displayName: 'CDN', category: 'Network', glyph: 'cdn' },
+  { id: 'cloudflare.compute.Workers', provider: 'cloudflare', displayName: 'Workers', category: 'Compute', glyph: 'function' },
+  { id: 'cloudflare.storage.R2', provider: 'cloudflare', displayName: 'R2 Storage', category: 'Storage', glyph: 'bucket' },
+  { id: 'cloudflare.security.SSL', provider: 'cloudflare', displayName: 'SSL/TLS', category: 'Security', glyph: 'certificate' },
+  { id: 'cloudflare.network.Tunnel', provider: 'cloudflare', displayName: 'Tunnel', category: 'Network', glyph: 'tunnel' },
+
+  // ---- DigitalOcean ----
+  { id: 'digitalocean.compute.Droplet', provider: 'digitalocean', displayName: 'Droplet', category: 'Compute', glyph: 'droplet' },
+  { id: 'digitalocean.compute.AppPlatform', provider: 'digitalocean', displayName: 'App Platform', category: 'Compute', glyph: 'app' },
+  { id: 'digitalocean.database.ManagedDatabase', provider: 'digitalocean', displayName: 'Managed Database', category: 'Database', glyph: 'database' },
+  { id: 'digitalocean.storage.Space', provider: 'digitalocean', displayName: 'Spaces', category: 'Storage', glyph: 'bucket' },
+  { id: 'digitalocean.storage.Volume', provider: 'digitalocean', displayName: 'Volume', category: 'Storage', glyph: 'volume' },
+  { id: 'digitalocean.network.LoadBalancer', provider: 'digitalocean', displayName: 'Load Balancer', category: 'Network', glyph: 'loadbalancer' },
+  { id: 'digitalocean.network.VPC', provider: 'digitalocean', displayName: 'VPC', category: 'Network', glyph: 'vpc' },
+  { id: 'digitalocean.compute.DOKS', provider: 'digitalocean', displayName: 'Kubernetes (DOKS)', category: 'Containers', glyph: 'kubernetes' },
+
+  // ---- SaaS ----
+  { id: 'saas.communication.Slack', provider: 'saas', displayName: 'Slack', category: 'Communication', glyph: 'slack' },
+  { id: 'saas.vcs.GitHub', provider: 'saas', displayName: 'GitHub', category: 'VCS', glyph: 'github' },
+  { id: 'saas.payment.Stripe', provider: 'saas', displayName: 'Stripe', category: 'Payment', glyph: 'creditcard' },
+  { id: 'saas.auth.Auth0', provider: 'saas', displayName: 'Auth0', category: 'Security', glyph: 'shield' },
+  { id: 'saas.communication.Twilio', provider: 'saas', displayName: 'Twilio', category: 'Communication', glyph: 'message' },
+  { id: 'saas.communication.SendGrid', provider: 'saas', displayName: 'SendGrid', category: 'Communication', glyph: 'mail' },
 
   // ---- Generic ----
   { id: 'generic.compute.Server', provider: 'generic', displayName: 'Server', category: 'Compute', glyph: 'server' },
@@ -115,6 +163,12 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'generic.client.User', provider: 'generic', displayName: 'User', category: 'Client', glyph: 'user' },
   { id: 'generic.client.Browser', provider: 'generic', displayName: 'Browser', category: 'Client', glyph: 'client' },
   { id: 'generic.client.Mobile', provider: 'generic', displayName: 'Mobile', category: 'Client', glyph: 'mobile' },
+  { id: 'generic.vcs.Git', provider: 'generic', displayName: 'Git', category: 'VCS', glyph: 'github' },
+  { id: 'generic.analytics.Spark', provider: 'generic', displayName: 'Spark', category: 'Analytics', glyph: 'spark' },
+  { id: 'generic.search.Elasticsearch', provider: 'generic', displayName: 'Elasticsearch', category: 'Search', glyph: 'search' },
+  { id: 'generic.integration.Mail', provider: 'generic', displayName: 'Mail Server', category: 'Integration', glyph: 'mail' },
+  { id: 'generic.security.Certificate', provider: 'generic', displayName: 'Certificate', category: 'Security', glyph: 'certificate' },
+  { id: 'generic.observability.Alert', provider: 'generic', displayName: 'Alert Manager', category: 'Observability', glyph: 'bell' },
 ];
 
 const VALID_NODE_TYPE_IDS = new Set(NODE_TAXONOMY.map((n) => n.id));

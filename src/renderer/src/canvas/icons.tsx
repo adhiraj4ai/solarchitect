@@ -7,6 +7,9 @@ export const PROVIDER_COLOR: Record<Provider, string> = {
   azure: '#1275C6',
   gcp: '#1A73E8',
   kubernetes: '#3660C4',
+  cloudflare: '#F38020',
+  digitalocean: '#0080FF',
+  saas: '#A855F7',
   generic: '#5A6675',
 };
 
@@ -15,6 +18,9 @@ export const PROVIDER_TINT: Record<Provider, string> = {
   azure: 'rgba(18, 117, 198, 0.12)',
   gcp: 'rgba(26, 115, 232, 0.12)',
   kubernetes: 'rgba(54, 96, 196, 0.12)',
+  cloudflare: 'rgba(243, 128, 32, 0.12)',
+  digitalocean: 'rgba(0, 128, 255, 0.12)',
+  saas: 'rgba(168, 85, 247, 0.12)',
   generic: 'rgba(90, 102, 117, 0.12)',
 };
 
@@ -247,6 +253,112 @@ const GLYPHS: Record<string, ReactElement> = {
       <rect x="4" y="10" width="16" height="5" rx="1.4" />
       <rect x="4" y="16" width="16" height="4" rx="1.4" />
       <circle cx="7.4" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+    </>
+  ),
+  gear: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" />
+    </>
+  ),
+  tunnel: (
+    <>
+      <ellipse cx="6" cy="12" rx="2" ry="5" />
+      <ellipse cx="18" cy="12" rx="2" ry="5" />
+      <path d="M6 7h12M6 17h12" />
+      <path d="M10 12h4" strokeDasharray="3 3" />
+    </>
+  ),
+  certificate: (
+    <>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 11l2 2 4-4" />
+    </>
+  ),
+  droplet: (
+    <path d="M12 22a7 7 0 0 0 7-7c0-4.3-7-11-7-11S5 10.7 5 15a7 7 0 0 0 7 7z" />
+  ),
+  slack: (
+    <>
+      <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+      <circle cx="9" cy="6" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="9" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="18" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="15" r="1.5" fill="currentColor" stroke="none" />
+    </>
+  ),
+  github: (
+    <path d="M12 2A10 10 0 0 0 2 12c0 4.4 2.9 8.2 6.8 9.5.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.7.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-4.9 0-1.1.4-2 1-2.7-.1-.3-.5-1.3.1-2.6 0 0 .8-.3 2.7 1 .8-.2 1.6-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.3 2.7-1 2.7-1 .6 1.4.2 2.4.1 2.6.7.7 1.1 1.6 1.1 2.7 0 3.8-2.3 4.7-4.6 4.9.4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 22 12A10 10 0 0 0 12 2z" />
+  ),
+  creditcard: (
+    <>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20M6 14h4" />
+    </>
+  ),
+  shield: (
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  ),
+  key: (
+    <>
+      <circle cx="7.5" cy="16.5" r="4.5" />
+      <path d="M10.7 13.3L19 5M16 8l2 2M19 5l3 3" />
+    </>
+  ),
+  router: (
+    <>
+      <rect x="2" y="8" width="20" height="8" rx="2" />
+      <path d="M5 12h14M17 10l2 2-2 2M7 14l-2-2 2-2" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  graph: (
+    <>
+      <circle cx="12" cy="5" r="2.5" />
+      <circle cx="5" cy="18" r="2.5" />
+      <circle cx="19" cy="18" r="2.5" />
+      <path d="M10.2 7.2l-3.4 8.6M13.8 7.2l3.4 8.6M7.5 18h9" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+    </>
+  ),
+  iac: (
+    <>
+      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+    </>
+  ),
+  etl: (
+    <path d="M20 4H4v2l6 6v6l4 2v-8l6-6V4z" />
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6" />
+      <path d="M16 16l5 5" />
+    </>
+  ),
+  message: (
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  ),
+  mail: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M22 6l-10 7L2 6" />
+    </>
+  ),
+  spark: (
+    <>
+      <path d="M12 3v4M12 17v4M5 5l3 3M16 16l3 3M2 12h4M18 12h4M5 19l3-3M16 8l3-3" />
+      <circle cx="12" cy="12" r="2.5" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
     </>
   ),
 };

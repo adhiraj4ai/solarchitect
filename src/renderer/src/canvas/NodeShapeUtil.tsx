@@ -38,7 +38,9 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
     const def = NODE_TAXONOMY.find((n) => n.id === shape.props.nodeType);
     return (
       <HTMLContainer
+        className="arch-node"
         style={{
+          position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -54,6 +56,15 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
           pointerEvents: 'all',
         }}
       >
+        {/* Drag from a port onto another node to draw a relationship. */}
+        {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+          <span
+            key={side}
+            className={`arch-node__port arch-node__port--${side}`}
+            data-conn-port=""
+            data-conn-node={shape.props.nodeId}
+          />
+        ))}
         <span
           style={{
             display: 'grid',

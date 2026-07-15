@@ -163,6 +163,71 @@ export function CanvasView({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const selectedEdgeIdRef = useRef(selectedEdgeId);
   selectedEdgeIdRef.current = selectedEdgeId;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
+  // ---- connect-by-drag: drag from a node's port onto another node to add an edge ----
+  const [connectLine, setConnectLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const connectFromRef = useRef<string | null>(null);
+  const connectRectRef = useRef<DOMRect | null>(null);
+  const connectSrcRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onConnectMove = useCallback((ev: PointerEvent) => {
+    const rect = connectRectRef.current;
+    const src = connectSrcRef.current;
+    if (!rect || !src) return;
+    setConnectLine({ x1: src.x - rect.left, y1: src.y - rect.top, x2: ev.clientX - rect.left, y2: ev.clientY - rect.top });
+  }, []);
+
+  const onConnectUp = useCallback(
+    (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onConnectMove);
+      window.removeEventListener('pointerup', onConnectUp);
+      const from = connectFromRef.current;
+      const editor = editorRef.current;
+      connectFromRef.current = null;
+      setConnectLine(null);
+      if (!from || !editor) return;
+      const p = editor.screenToPage({ x: ev.clientX, y: ev.clientY });
+      const target = diagramRef.current.nodes.find(
+        (n) =>
+          n.id !== from &&
+          p.x >= n.x &&
+          p.x <= n.x + NODE_DEFAULT_WIDTH &&
+          p.y >= n.y &&
+          p.y <= n.y + NODE_DEFAULT_HEIGHT,
+      );
+      if (!target) return;
+      const edge = { id: shortId('edge'), from, to: target.id, direction: 'forward' as const };
+      onCanvasEditRef.current({ ...diagramRef.current, edges: [...diagramRef.current.edges, edge] });
+    },
+    [onConnectMove],
+  );
+
+  const handlePointerDownCapture = useCallback(
+    (e: React.PointerEvent) => {
+      if (modeRef.current !== 'architect') return;
+      const port = (e.target as HTMLElement).closest?.('[data-conn-port]');
+      const editor = editorRef.current;
+      if (!port || !editor) return;
+      const nodeId = port.getAttribute('data-conn-node');
+      const node = nodeId ? diagramRef.current.nodes.find((n) => n.id === nodeId) : undefined;
+      if (!node) return;
+      // Take over from tldraw so grabbing a port starts a connection, not a shape drag.
+      e.preventDefault();
+      e.stopPropagation();
+      const center = { x: node.x + NODE_DEFAULT_WIDTH / 2, y: node.y + NODE_DEFAULT_HEIGHT / 2 };
+      const src = editor.pageToScreen(center);
+      const rect = e.currentTarget.getBoundingClientRect();
+      connectFromRef.current = node.id;
+      connectSrcRef.current = { x: src.x, y: src.y };
+      connectRectRef.current = rect;
+      setConnectLine({ x1: src.x - rect.left, y1: src.y - rect.top, x2: e.clientX - rect.left, y2: e.clientY - rect.top });
+      window.addEventListener('pointermove', onConnectMove);
+      window.addEventListener('pointerup', onConnectUp);
+    },
+    [onConnectMove, onConnectUp],
+  );
 
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor;
@@ -326,8 +391,9 @@ export function CanvasView({
 
   return (
     <div
-      className="canvas"
+      className={`canvas${mode === 'architect' ? ' connect-enabled' : ''}`}
       data-testid="canvas-drop"
+      onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {
         if (e.dataTransfer.types.some((t) => t === NODE_TYPE_DND_MIME || t === TEMPLATE_DND_MIME)) {
           e.preventDefault();
@@ -374,6 +440,25 @@ export function CanvasView({
         components={mode === 'architect' ? ARCHITECT_COMPONENTS : WHITEBOARD_COMPONENTS}
         onMount={handleMount}
       />
+      {connectLine && (
+        <svg className="connect-overlay" aria-hidden="true">
+          <defs>
+            <marker id="connect-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+              <path d="M0,0 L7,3 L0,6 Z" fill="var(--sync)" />
+            </marker>
+          </defs>
+          <line
+            x1={connectLine.x1}
+            y1={connectLine.y1}
+            x2={connectLine.x2}
+            y2={connectLine.y2}
+            stroke="var(--sync)"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            markerEnd="url(#connect-arrow)"
+          />
+        </svg>
+      )}
     </div>
   );
 }

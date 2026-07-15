@@ -6,12 +6,18 @@ describe('taxonomy', () => {
     expect(isValidNodeType('aws.compute.EC2')).toBe(true);
   });
 
+  it('accepts new provider node types', () => {
+    expect(isValidNodeType('cloudflare.network.DNS')).toBe(true);
+    expect(isValidNodeType('digitalocean.compute.Droplet')).toBe(true);
+    expect(isValidNodeType('saas.communication.Slack')).toBe(true);
+  });
+
   it('rejects an unknown node type', () => {
     expect(isValidNodeType('aws.compute.NotARealService')).toBe(false);
   });
 
-  it('covers all v1 curated providers', () => {
+  it('covers all curated providers', () => {
     const providers = new Set(NODE_TAXONOMY.map((n) => n.provider));
-    expect(providers).toEqual(new Set(['aws', 'azure', 'gcp', 'kubernetes', 'generic']));
+    expect(providers).toEqual(new Set(['aws', 'azure', 'gcp', 'kubernetes', 'cloudflare', 'digitalocean', 'saas', 'generic']));
   });
 });

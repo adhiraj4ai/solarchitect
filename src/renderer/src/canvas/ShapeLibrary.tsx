@@ -3,12 +3,15 @@ import { NODE_TAXONOMY, type Provider } from '@shared/ir/taxonomy';
 import { NODE_TYPE_DND_MIME } from './dnd';
 import { NodeIcon, PROVIDER_COLOR, PROVIDER_TINT } from './icons';
 
-const PROVIDER_ORDER: Provider[] = ['aws', 'azure', 'gcp', 'kubernetes', 'generic'];
+const PROVIDER_ORDER: Provider[] = ['aws', 'azure', 'gcp', 'kubernetes', 'cloudflare', 'digitalocean', 'saas', 'generic'];
 const PROVIDER_NAME: Record<Provider, string> = {
   aws: 'AWS',
   azure: 'Azure',
   gcp: 'Google Cloud',
   kubernetes: 'Kubernetes',
+  cloudflare: 'Cloudflare',
+  digitalocean: 'DigitalOcean',
+  saas: 'SaaS',
   generic: 'Generic',
 };
 
