@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CanvasView } from './canvas/CanvasView';
-import { NodePalette } from './canvas/NodePalette';
+import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { ProjectSidebar } from './project/ProjectSidebar';
 import { TemplatesPanel } from './project/TemplatesPanel';
@@ -18,6 +18,7 @@ export default function App() {
   // render and retrigger useTemplates' load effect in a loop.
   const templates = useTemplates(project.projectDir, project.setIoError);
 
+  const [sourceOpen, setSourceOpen] = useState(true);
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
@@ -61,65 +62,79 @@ export default function App() {
     <div className="app">
       <header className="app__bar">
         <Wordmark />
+        <span className="topsep" />
+        <div className="topgroup">
+          <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm" title="Undo (⌘Z)">
+            ↩
+          </button>
+          <button data-testid="redo-btn" onClick={redo} disabled={!canRedo} className="btn btn--sm" title="Redo (⌘⇧Z)">
+            ↪
+          </button>
+        </div>
         <span className="spacer" />
         <span className="app__file">
           {project.currentFile ? (
             <span className="name">{project.currentFile}</span>
           ) : (
-            <span style={{ color: 'var(--faint)' }}>untitled — not in a project</span>
+            <span className="muted">untitled — not in a project</span>
           )}
-          {yamlError && <span className="state error">YAML error</span>}
+          {yamlError ? <span className="state error">YAML error</span> : <span className="state ok">canvas ⇄ source</span>}
         </span>
+        <button
+          className={`btn btn--sm${sourceOpen ? ' btn--on' : ''}`}
+          onClick={() => setSourceOpen((v) => !v)}
+          aria-pressed={sourceOpen}
+          title="Toggle the YAML source panel"
+        >
+          Source
+        </button>
       </header>
 
-      <div className="app__body">
-        <div className="sidebar">
-          <ProjectSidebar
-            projectDir={project.projectDir}
-            entries={project.entries}
-            currentFile={project.currentFile}
-            canSave={!!project.currentFile && !yamlError}
-            onOpenProject={project.openProject}
-            onNewDiagram={project.newDiagram}
-            onOpenDiagram={project.openDiagram}
-            onSave={() => project.saveDiagram(yamlText)}
-          />
-          <TemplatesPanel
-            templates={templates.templates}
-            templatesText={templates.templatesText}
-            yamlError={templates.yamlError}
-            onApplyYaml={templates.applyTemplatesYaml}
-          />
-        </div>
-
-        <div className="workspace">
-          <div className="actionbar">
-            <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm" title="Undo (⌘Z)">
-              ↩ Undo
-            </button>
-            <button data-testid="redo-btn" onClick={redo} disabled={!canRedo} className="btn btn--sm" title="Redo (⌘⇧Z)">
-              Redo ↪
-            </button>
-            <span className="actionbar__hint">Drag a node onto the canvas, or edit the YAML →</span>
-          </div>
-          <NodePalette />
-          <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-            <CanvasView
-              diagram={diagram}
-              templates={templates.templates}
-              onCanvasEdit={onCanvasEdit}
-              onSaveTemplate={beginSaveTemplate}
-              onError={project.setIoError}
+      <div className={`app__body${sourceOpen ? '' : ' app__body--nosource'}`}>
+        <aside className="rail">
+          <section className="rail__proj">
+            <ProjectSidebar
+              projectDir={project.projectDir}
+              entries={project.entries}
+              currentFile={project.currentFile}
+              canSave={!!project.currentFile && !yamlError}
+              onOpenProject={project.openProject}
+              onNewDiagram={project.newDiagram}
+              onOpenDiagram={project.openDiagram}
+              onSave={() => project.saveDiagram(yamlText)}
             />
-          </div>
-        </div>
+          </section>
+          <section className="rail__shapes">
+            <ShapeLibrary />
+          </section>
+          <section className="rail__tpl">
+            <TemplatesPanel
+              templates={templates.templates}
+              templatesText={templates.templatesText}
+              yamlError={templates.yamlError}
+              onApplyYaml={templates.applyTemplatesYaml}
+            />
+          </section>
+        </aside>
 
-        <YamlCodeEditor
-          yamlText={yamlText}
-          yamlError={yamlError}
-          canvasEditSeq={canvasEditSeq}
-          onYamlEdit={onYamlEdit}
-        />
+        <main className="stage">
+          <CanvasView
+            diagram={diagram}
+            templates={templates.templates}
+            onCanvasEdit={onCanvasEdit}
+            onSaveTemplate={beginSaveTemplate}
+            onError={project.setIoError}
+          />
+        </main>
+
+        {sourceOpen && (
+          <YamlCodeEditor
+            yamlText={yamlText}
+            yamlError={yamlError}
+            canvasEditSeq={canvasEditSeq}
+            onYamlEdit={onYamlEdit}
+          />
+        )}
       </div>
 
       {pendingTemplate && (

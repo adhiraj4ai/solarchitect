@@ -1,13 +1,14 @@
 import { ShapeUtil, Rectangle2d, HTMLContainer, T, type TLBaseShape } from 'tldraw';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
+import { NodeIcon, PROVIDER_TINT } from './icons';
 
 export type ArchNodeShape = TLBaseShape<
   'archNode',
   { nodeId: string; nodeType: string; label: string; w: number; h: number }
 >;
 
-export const NODE_DEFAULT_WIDTH = 140;
-export const NODE_DEFAULT_HEIGHT = 88;
+export const NODE_DEFAULT_WIDTH = 148;
+export const NODE_DEFAULT_HEIGHT = 104;
 
 export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
   static override type = 'archNode' as const;
@@ -42,34 +43,35 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 4,
+          gap: 7,
           width: shape.props.w,
           height: shape.props.h,
           border: '1px solid var(--line-strong, #c6d0dc)',
-          borderRadius: 8,
+          borderRadius: 10,
           background: 'var(--panel, #fff)',
           boxShadow: '0 1px 3px rgba(16,23,34,0.1)',
           fontFamily: 'var(--sans)',
           pointerEvents: 'all',
         }}
       >
-        <div
+        <span
           style={{
-            fontFamily: 'var(--mono)',
-            fontSize: 10,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: 'var(--slate, #5a6675)',
+            display: 'grid',
+            placeItems: 'center',
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            background: def ? PROVIDER_TINT[def.provider] : PROVIDER_TINT.generic,
           }}
         >
-          {def?.provider ?? 'generic'}
-        </div>
-        <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'center', color: 'var(--ink, #101722)' }}>
+          <NodeIcon type={shape.props.nodeType} size={20} />
+        </span>
+        <span style={{ fontWeight: 650, fontSize: 13.5, lineHeight: 1.15, textAlign: 'center', color: 'var(--ink, #101722)' }}>
           {shape.props.label}
-        </div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--faint, #8a94a3)' }}>
+        </span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--faint, #8a94a3)' }}>
           {def?.displayName ?? shape.props.nodeType}
-        </div>
+        </span>
       </HTMLContainer>
     );
   }

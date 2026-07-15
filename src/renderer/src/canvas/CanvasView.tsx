@@ -28,6 +28,10 @@ import type { Diagram, DiagramNode, DiagramCluster } from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
+// Hide tldraw chrome that duplicates ours (export/menu) or clutters the canvas
+// (the style panel, and pages — we use one diagram per file). The bottom tool
+// dock stays for placing annotations.
+const canvasComponents = { StylePanel: null, PageMenu: null, MainMenu: null };
 
 function shortId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
@@ -330,7 +334,7 @@ export function CanvasView({
           />
         )}
       </div>
-      <Tldraw assetUrls={assetUrls} shapeUtils={shapeUtils} onMount={handleMount} />
+      <Tldraw assetUrls={assetUrls} shapeUtils={shapeUtils} components={canvasComponents} onMount={handleMount} />
     </div>
   );
 }
