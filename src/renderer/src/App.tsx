@@ -16,15 +16,16 @@ export default function App() {
 
   // Global undo/redo. Captured before tldraw and the textarea so a single
   // shortcut drives the unified IR history regardless of what has focus.
-  // Global undo/redo. Captured before tldraw and the textarea so a single
-  // shortcut drives the unified IR history regardless of what has focus.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod || e.key.toLowerCase() !== 'z') return;
+      const key = e.key.toLowerCase();
+      const isUndo = mod && !e.shiftKey && key === 'z';
+      const isRedo = mod && ((e.shiftKey && key === 'z') || key === 'y'); // Cmd+Shift+Z or Ctrl+Y
+      if (!isUndo && !isRedo) return;
       e.preventDefault();
       e.stopPropagation();
-      if (e.shiftKey) redo();
+      if (isRedo) redo();
       else undo();
     }
     window.addEventListener('keydown', onKeyDown, { capture: true });
