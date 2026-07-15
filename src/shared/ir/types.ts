@@ -26,6 +26,12 @@ export interface DiagramEdge {
   arrow?: boolean;
 }
 
+/** Named cluster accent colors (kept as a small vocabulary so YAML stays
+ *  readable and the palette stays on-brand). Absent means 'blueprint'. */
+export type ClusterColor = 'blueprint' | 'slate' | 'green' | 'amber' | 'violet' | 'red';
+
+export const CLUSTER_COLORS: ClusterColor[] = ['blueprint', 'slate', 'green', 'amber', 'violet', 'red'];
+
 export interface DiagramCluster {
   id: string;
   label: string;
@@ -33,6 +39,8 @@ export interface DiagramCluster {
   y: number;
   width: number;
   height: number;
+  /** Accent color. Absent means 'blueprint'. */
+  color?: ClusterColor;
 }
 
 export type AnnotationKind = 'sticky' | 'shape' | 'text';

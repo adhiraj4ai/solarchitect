@@ -1,5 +1,6 @@
 import { parse as parseYaml } from 'yaml';
 import { isValidNodeType } from '../ir/taxonomy';
+import { CLUSTER_COLORS } from '../ir/types';
 import type { Diagram, DiagramNode, DiagramEdge, DiagramCluster, DiagramAnnotation } from '../ir/types';
 
 export interface ParseError {
@@ -45,6 +46,13 @@ export function parseDiagram(yamlText: string): ParseResult {
     // Clusters first, so node.clusterId references can be validated against them.
     const clusters: DiagramCluster[] = asList(doc.clusters, 'clusters').map((item, i) => {
       const c = asMapping(item, `clusters[${i}]`);
+      const color = c.color as DiagramCluster['color'];
+      if (color && !CLUSTER_COLORS.includes(color)) {
+        throw new ValidationError(
+          `Cluster color must be one of ${CLUSTER_COLORS.join(', ')} (got "${color}")`,
+          `clusters[${i}].color`,
+        );
+      }
       return {
         id: c.id as string,
         label: c.label as string,
@@ -52,6 +60,7 @@ export function parseDiagram(yamlText: string): ParseResult {
         y: c.y as number,
         width: c.width as number,
         height: c.height as number,
+        ...(color ? { color } : {}),
       };
     });
     const clusterIds = new Set(clusters.map((c) => c.id));

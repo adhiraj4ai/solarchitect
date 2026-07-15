@@ -3,7 +3,7 @@ import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
-import { ClusterShapeUtil } from './ClusterShapeUtil';
+import { ClusterShapeUtil, CLUSTER_COLOR_STYLE, type ArchClusterShape } from './ClusterShapeUtil';
 import { EdgeShapeUtil, type ArchEdgeShape } from './EdgeShapeUtil';
 import { NODE_TYPE_DND_MIME, TEMPLATE_DND_MIME } from './dnd';
 import {
@@ -24,6 +24,7 @@ import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
+import { CLUSTER_COLORS } from '@shared/ir/types';
 import type {
   Diagram,
   DiagramNode,
@@ -106,7 +107,12 @@ function reconcile(editor: Editor, diagram: Diagram): void {
     // Clusters (drawn behind everything).
     const currentClusters: DiagramCluster[] = getArchClusterShapes(editor).map(shapeToCluster);
     const clusterEq = (a: DiagramCluster, b: DiagramCluster) =>
-      a.label === b.label && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+      a.label === b.label &&
+      a.x === b.x &&
+      a.y === b.y &&
+      a.width === b.width &&
+      a.height === b.height &&
+      (a.color ?? 'blueprint') === (b.color ?? 'blueprint');
     const dc = diffById(currentClusters, diagram.clusters, clusterEq);
     if (dc.removeIds.length) editor.deleteShapes(dc.removeIds.map((id) => createShapeId(id)));
     if (dc.add.length) editor.createShapes(clustersToShapes(dc.add));
@@ -202,8 +208,11 @@ export function CanvasView({
   onSaveTemplateRef.current = onSaveTemplate;
   const pendingSelectRef = useRef<string | null>(null);
 
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const selectedEdgeIdRef = useRef(selectedEdgeId);
+  // The single selected object (drives the properties panel). Kept as kind+IR-id
+  // so the panel can look the object up in the current diagram.
+  const [selection, setSelection] = useState<{ kind: 'node' | 'edge' | 'cluster'; id: string } | null>(null);
+  const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
+  const selectedEdgeIdRef = useRef<string | null>(null);
   selectedEdgeIdRef.current = selectedEdgeId;
   // Focus the label field as soon as a relationship is selected (including
   // right after connect-by-drag) so text can be typed onto it immediately.
@@ -286,10 +295,14 @@ export function CanvasView({
       scope: 'document',
     });
 
-    // Track whether the single selected shape is an edge (drives the label input).
-    react('selected-edge', () => {
+    // Track the single selected object (drives the properties panel).
+    react('selection', () => {
       const only = editor.getOnlySelectedShape();
-      setSelectedEdgeId(only?.type === 'archEdge' ? (only as ArchEdgeShape).props.edgeId : null);
+      if (only?.type === 'archEdge') setSelection({ kind: 'edge', id: (only as ArchEdgeShape).props.edgeId });
+      else if (only?.type === 'archNode') setSelection({ kind: 'node', id: (only as ArchNodeShape).props.nodeId });
+      else if (only?.type === 'archCluster')
+        setSelection({ kind: 'cluster', id: (only as ArchClusterShape).props.clusterId });
+      else setSelection(null);
     });
   }, []);
 
@@ -391,10 +404,10 @@ export function CanvasView({
     const [a, b] = selected;
     const edgeId = shortId('edge');
     pendingSelectRef.current = edgeId;
-    // Show the label input immediately (deterministic), rather than waiting on
-    // tldraw's selection reaction; the effect below also selects the shape on
+    // Show the properties panel immediately (deterministic), rather than waiting
+    // on tldraw's selection reaction; the effect below also selects the shape on
     // the canvas for the visual highlight.
-    setSelectedEdgeId(edgeId);
+    setSelection({ kind: 'edge', id: edgeId });
     onCanvasEditRef.current({
       ...diagramRef.current,
       edges: [
@@ -447,11 +460,23 @@ export function CanvasView({
   );
   const handleEdgeArrow = useCallback((arrow: boolean) => patchSelectedEdge({ arrow }), [patchSelectedEdge]);
 
+  const patchNode = useCallback((id: string, patch: Partial<DiagramNode>) => {
+    const nodes = diagramRef.current.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n));
+    onCanvasEditRef.current({ ...diagramRef.current, nodes });
+  }, []);
+  const patchCluster = useCallback((id: string, patch: Partial<DiagramCluster>) => {
+    const clusters = diagramRef.current.clusters.map((c) => (c.id === id ? { ...c, ...patch } : c));
+    onCanvasEditRef.current({ ...diagramRef.current, clusters });
+  }, []);
+
   const selectedEdge = diagram.edges.find((e) => e.id === selectedEdgeId);
   const selectedEdgeLabel = selectedEdge?.label ?? '';
   const selectedEdgeShape = selectedEdge?.shape ?? 'straight';
   const selectedEdgeLineStyle = selectedEdge?.lineStyle ?? 'solid';
   const selectedEdgeArrow = selectedEdge?.arrow ?? true;
+  const selectedNode = selection?.kind === 'node' ? diagram.nodes.find((n) => n.id === selection.id) : undefined;
+  const selectedCluster =
+    selection?.kind === 'cluster' ? diagram.clusters.find((c) => c.id === selection.id) : undefined;
 
   return (
     <div
@@ -487,57 +512,137 @@ export function CanvasView({
         <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} className="btn btn--sm">
           Export SVG
         </button>
-        {selectedEdgeId && (
-          <>
-            <input
-              ref={edgeLabelRef}
-              data-testid="edge-label-input"
-              aria-label="Edge label"
-              className="edge-label"
-              placeholder="Label this relationship…"
-              value={selectedEdgeLabel}
-              onChange={(e) => handleLabelChange(e.target.value)}
-            />
-            <span className="edge-shapes" role="group" aria-label="Edge routing">
-              {(['straight', 'curved', 'bent'] as const).map((k) => (
-                <button
-                  key={k}
-                  data-testid={`edge-shape-${k}`}
-                  className={`edge-shape-btn${selectedEdgeShape === k ? ' on' : ''}`}
-                  title={`${k[0].toUpperCase()}${k.slice(1)} routing`}
-                  onClick={() => handleEdgeShape(k)}
-                >
-                  <EdgeShapeGlyph kind={k} />
-                </button>
-              ))}
-            </span>
-            <span className="edge-shapes" role="group" aria-label="Line style">
-              {(['solid', 'dashed', 'dotted'] as const).map((k) => (
-                <button
-                  key={k}
-                  data-testid={`edge-line-${k}`}
-                  className={`edge-shape-btn${selectedEdgeLineStyle === k ? ' on' : ''}`}
-                  title={`${k[0].toUpperCase()}${k.slice(1)} line`}
-                  onClick={() => handleEdgeLineStyle(k)}
-                >
-                  <LineStyleGlyph kind={k} />
-                </button>
-              ))}
-            </span>
-            <span className="edge-shapes" role="group" aria-label="Arrowhead">
-              <button
-                data-testid="edge-arrow-toggle"
-                className={`edge-shape-btn${selectedEdgeArrow ? ' on' : ''}`}
-                aria-pressed={selectedEdgeArrow}
-                title={selectedEdgeArrow ? 'Arrowhead shown — click to hide' : 'No arrowhead — click to show'}
-                onClick={() => handleEdgeArrow(!selectedEdgeArrow)}
-              >
-                <ArrowGlyph on={selectedEdgeArrow} />
-              </button>
-            </span>
-          </>
-        )}
       </div>
+
+      {mode === 'architect' && (selectedEdge || selectedNode || selectedCluster) && (
+        <aside className="props-panel" data-testid="props-panel" aria-label="Properties">
+          {selectedNode && (
+            <>
+              <div className="props-panel__title">Component</div>
+              <label className="props-field">
+                <span className="props-field__label">Label</span>
+                <input
+                  data-testid="prop-node-label"
+                  className="props-input"
+                  value={selectedNode.label}
+                  onChange={(e) => patchNode(selectedNode.id, { label: e.target.value })}
+                />
+              </label>
+              <div className="props-field__hint">{selectedNode.type}</div>
+            </>
+          )}
+
+          {selectedCluster && (
+            <>
+              <div className="props-panel__title">Group</div>
+              <label className="props-field">
+                <span className="props-field__label">Label</span>
+                <input
+                  data-testid="prop-cluster-label"
+                  className="props-input"
+                  value={selectedCluster.label}
+                  onChange={(e) => patchCluster(selectedCluster.id, { label: e.target.value })}
+                />
+              </label>
+              <div className="props-field">
+                <span className="props-field__label">Color</span>
+                <div className="swatches" role="group" aria-label="Group color">
+                  {CLUSTER_COLORS.map((col) => (
+                    <button
+                      key={col}
+                      data-testid={`prop-cluster-color-${col}`}
+                      className={`swatch${(selectedCluster.color ?? 'blueprint') === col ? ' on' : ''}`}
+                      style={{ background: CLUSTER_COLOR_STYLE[col].border }}
+                      title={col}
+                      aria-label={col}
+                      onClick={() => patchCluster(selectedCluster.id, { color: col })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="props-field__hint">Drag the handles to resize.</div>
+            </>
+          )}
+
+          {selectedEdge && (
+            <>
+              <div className="props-panel__title">Relationship</div>
+              <label className="props-field">
+                <span className="props-field__label">Label</span>
+                <input
+                  ref={edgeLabelRef}
+                  data-testid="edge-label-input"
+                  aria-label="Edge label"
+                  className="props-input"
+                  placeholder="Label this relationship…"
+                  value={selectedEdgeLabel}
+                  onChange={(e) => handleLabelChange(e.target.value)}
+                />
+              </label>
+              <div className="props-field">
+                <span className="props-field__label">Routing</span>
+                <span className="edge-shapes" role="group" aria-label="Edge routing">
+                  {(['straight', 'curved', 'bent'] as const).map((k) => (
+                    <button
+                      key={k}
+                      data-testid={`edge-shape-${k}`}
+                      className={`edge-shape-btn${selectedEdgeShape === k ? ' on' : ''}`}
+                      title={`${k[0].toUpperCase()}${k.slice(1)} routing`}
+                      onClick={() => handleEdgeShape(k)}
+                    >
+                      <EdgeShapeGlyph kind={k} />
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <div className="props-field">
+                <span className="props-field__label">Line</span>
+                <span className="edge-shapes" role="group" aria-label="Line style">
+                  {(['solid', 'dashed', 'dotted'] as const).map((k) => (
+                    <button
+                      key={k}
+                      data-testid={`edge-line-${k}`}
+                      className={`edge-shape-btn${selectedEdgeLineStyle === k ? ' on' : ''}`}
+                      title={`${k[0].toUpperCase()}${k.slice(1)} line`}
+                      onClick={() => handleEdgeLineStyle(k)}
+                    >
+                      <LineStyleGlyph kind={k} />
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <div className="props-field">
+                <span className="props-field__label">Arrow</span>
+                <span className="edge-shapes" role="group" aria-label="Arrowhead">
+                  <button
+                    data-testid="edge-arrow-toggle"
+                    className={`edge-shape-btn${selectedEdgeArrow ? ' on' : ''}`}
+                    aria-pressed={selectedEdgeArrow}
+                    title={selectedEdgeArrow ? 'Arrowhead shown — click to hide' : 'No arrowhead — click to show'}
+                    onClick={() => handleEdgeArrow(!selectedEdgeArrow)}
+                  >
+                    <ArrowGlyph on={selectedEdgeArrow} />
+                  </button>
+                  <button
+                    data-testid="edge-direction-toggle"
+                    className={`edge-shape-btn${selectedEdge.direction === 'bidirectional' ? ' on' : ''}`}
+                    aria-pressed={selectedEdge.direction === 'bidirectional'}
+                    title={selectedEdge.direction === 'bidirectional' ? 'Bidirectional' : 'One-way'}
+                    onClick={() =>
+                      patchSelectedEdge({
+                        direction: selectedEdge.direction === 'bidirectional' ? 'forward' : 'bidirectional',
+                      })
+                    }
+                  >
+                    ⇌
+                  </button>
+                </span>
+              </div>
+            </>
+          )}
+        </aside>
+      )}
+
       <Tldraw
         assetUrls={assetUrls}
         shapeUtils={shapeUtils}

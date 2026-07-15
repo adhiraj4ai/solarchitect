@@ -46,7 +46,7 @@ export function clusterToShape(c: DiagramCluster): TLShapePartial {
     type: 'archCluster',
     x: c.x,
     y: c.y,
-    props: { clusterId: c.id, label: c.label, w: c.width, h: c.height },
+    props: { clusterId: c.id, label: c.label, color: c.color ?? 'blueprint', w: c.width, h: c.height },
   };
 }
 
@@ -60,7 +60,15 @@ export function getArchClusterShapes(editor: Editor): ArchClusterShape[] {
 
 /** Read an IR cluster out of its tldraw shape. */
 export function shapeToCluster(s: ArchClusterShape): DiagramCluster {
-  return { id: s.props.clusterId, label: s.props.label, x: s.x, y: s.y, width: s.props.w, height: s.props.h };
+  return {
+    id: s.props.clusterId,
+    label: s.props.label,
+    x: s.x,
+    y: s.y,
+    width: s.props.w,
+    height: s.props.h,
+    ...(s.props.color && s.props.color !== 'blueprint' ? { color: s.props.color } : {}),
+  };
 }
 
 // ---- Edges ----

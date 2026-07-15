@@ -28,6 +28,7 @@ export function serializeDiagram(diagram: Diagram): string {
       y: c.y,
       width: c.width,
       height: c.height,
+      ...(c.color && c.color !== 'blueprint' ? { color: c.color } : {}),
     })),
     annotations: diagram.annotations.map((a) => ({
       id: a.id,
