@@ -14,6 +14,9 @@ const api: SolarchitectApi = {
   readTemplates: (projectDir) => ipcRenderer.invoke('project:readTemplates', projectDir),
   writeTemplates: (projectDir, yamlText) => ipcRenderer.invoke('project:writeTemplates', projectDir, yamlText),
   exportImage: (base64Data, suggestedName) => ipcRenderer.invoke('project:exportImage', base64Data, suggestedName),
+  newProject: () => ipcRenderer.invoke('project:newProject'),
+  gitStatus: (projectDir) => ipcRenderer.invoke('project:gitStatus', projectDir),
+  gitSync: (projectDir, message) => ipcRenderer.invoke('project:gitSync', projectDir, message),
 };
 
 contextBridge.exposeInMainWorld('solarchitect', api);

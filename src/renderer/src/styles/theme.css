@@ -114,6 +114,25 @@ button { font-family: inherit; }
 .app__file .state.ok { color: var(--slate); border-color: var(--line-strong); }
 .btn--on { border-color: var(--blueprint); color: var(--blueprint-ink); background: var(--blueprint-soft); }
 
+/* mode toggle */
+.segmented { display: inline-flex; padding: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
+.segmented__btn {
+  font-family: var(--mono); font-size: 12px; padding: 5px 12px;
+  border: none; background: transparent; color: var(--slate); border-radius: 6px; cursor: pointer;
+}
+.segmented__btn.on { background: var(--panel); color: var(--blueprint-ink); box-shadow: var(--shadow-1); }
+
+/* git row in the project section */
+.git-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-family: var(--mono); font-size: 11px; color: var(--slate); }
+.git-branch { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-state { color: var(--faint); }
+.git-state.dirty { color: var(--sync); }
+.git-row .btn { margin-left: auto; }
+
+/* whiteboard-mode hint where the shape library would be */
+.rail__hint { padding: 14px; }
+.rail__hint p { margin: 8px 0 0; font-size: 12.5px; color: var(--slate); line-height: 1.5; }
+
 /* left rail: project · shapes · templates */
 .rail {
   display: flex; flex-direction: column; min-height: 0;

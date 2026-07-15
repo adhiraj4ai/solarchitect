@@ -5,6 +5,23 @@ export interface DiagramFileEntry {
   errorMessage?: string;
 }
 
+export interface GitStatus {
+  isRepo: boolean;
+  branch: string | null;
+  dirty: number;
+  hasRemote: boolean;
+}
+
+export interface GitSyncResult {
+  ok: boolean;
+  message: string;
+}
+
+export interface NewProjectResult {
+  dir: string;
+  fileName: string;
+}
+
 /**
  * The API the preload bridge exposes on window.solarchitect. Single source of
  * truth: the preload implementation is typed against this, and the renderer's
@@ -20,4 +37,7 @@ export interface SolarchitectApi {
   writeTemplates(projectDir: string, yamlText: string): Promise<void>;
   /** Save exported image bytes (base64) via a save dialog; returns the path, or null if cancelled. */
   exportImage(base64Data: string, suggestedName: string): Promise<string | null>;
+  newProject(): Promise<NewProjectResult | null>;
+  gitStatus(projectDir: string): Promise<GitStatus>;
+  gitSync(projectDir: string, message: string): Promise<GitSyncResult>;
 }

@@ -8,12 +8,32 @@ import {
   writeTemplates,
 } from './projectManager';
 import { writeExportedImage } from './exportService';
+import { gitStatus, gitInit, gitSync } from './gitService';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('project:openFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? null : result.filePaths[0];
   });
+
+  // Create a new project: pick/create a folder, git-init it, and seed a first
+  // diagram. Returns the folder and the starter file, or null if cancelled.
+  ipcMain.handle('project:newProject', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Create or choose a folder for the new project',
+      buttonLabel: 'Create project',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const dir = result.filePaths[0];
+    const status = await gitStatus(dir);
+    if (!status.isRepo) await gitInit(dir);
+    const fileName = await createDiagram(dir, 'diagram');
+    return { dir, fileName };
+  });
+
+  ipcMain.handle('project:gitStatus', (_e, projectDir: string) => gitStatus(projectDir));
+  ipcMain.handle('project:gitSync', (_e, projectDir: string, message: string) => gitSync(projectDir, message));
 
   ipcMain.handle('project:listDiagrams', (_e, projectDir: string) => listDiagrams(projectDir));
   ipcMain.handle('project:readDiagram', (_e, projectDir: string, fileName: string) =>

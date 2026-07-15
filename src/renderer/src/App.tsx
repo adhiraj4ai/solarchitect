@@ -8,6 +8,7 @@ import { Wordmark } from './ui/Wordmark';
 import { useSyncEngine } from './hooks/useSyncEngine';
 import { useProject } from './hooks/useProject';
 import { useTemplates } from './hooks/useTemplates';
+import type { Mode } from './canvas/CanvasView';
 import type { Diagram } from '@shared/ir/types';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
   // render and retrigger useTemplates' load effect in a loop.
   const templates = useTemplates(project.projectDir, project.setIoError);
 
+  const [mode, setMode] = useState<Mode>('architect');
   const [sourceOpen, setSourceOpen] = useState(true);
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
@@ -63,6 +65,25 @@ export default function App() {
       <header className="app__bar">
         <Wordmark />
         <span className="topsep" />
+        <div className="segmented" role="tablist" aria-label="Mode">
+          <button
+            role="tab"
+            aria-selected={mode === 'architect'}
+            className={`segmented__btn${mode === 'architect' ? ' on' : ''}`}
+            onClick={() => setMode('architect')}
+          >
+            Architect
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === 'whiteboard'}
+            className={`segmented__btn${mode === 'whiteboard' ? ' on' : ''}`}
+            onClick={() => setMode('whiteboard')}
+          >
+            Whiteboard
+          </button>
+        </div>
+        <span className="topsep" />
         <div className="topgroup">
           <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm" title="Undo (⌘Z)">
             ↩
@@ -98,14 +119,25 @@ export default function App() {
               entries={project.entries}
               currentFile={project.currentFile}
               canSave={!!project.currentFile && !yamlError}
+              git={project.git}
+              syncing={project.syncing}
               onOpenProject={project.openProject}
+              onNewProject={project.newProject}
               onNewDiagram={project.newDiagram}
               onOpenDiagram={project.openDiagram}
               onSave={() => project.saveDiagram(yamlText)}
+              onSync={project.sync}
             />
           </section>
           <section className="rail__shapes">
-            <ShapeLibrary />
+            {mode === 'architect' ? (
+              <ShapeLibrary />
+            ) : (
+              <div className="rail__hint">
+                <span className="eyebrow">Whiteboard</span>
+                <p>Sketch freely with the drawing tools on the canvas. Switch to Architect to place cloud shapes.</p>
+              </div>
+            )}
           </section>
           <section className="rail__tpl">
             <TemplatesPanel
@@ -121,6 +153,7 @@ export default function App() {
           <CanvasView
             diagram={diagram}
             templates={templates.templates}
+            mode={mode}
             onCanvasEdit={onCanvasEdit}
             onSaveTemplate={beginSaveTemplate}
             onError={project.setIoError}

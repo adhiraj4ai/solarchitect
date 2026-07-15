@@ -28,10 +28,23 @@ import type { Diagram, DiagramNode, DiagramCluster } from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
-// Hide tldraw chrome that duplicates ours (export/menu) or clutters the canvas
-// (the style panel, and pages — we use one diagram per file). The bottom tool
-// dock stays for placing annotations.
-const canvasComponents = { StylePanel: null, PageMenu: null, MainMenu: null };
+
+export type Mode = 'architect' | 'whiteboard';
+
+// Architect mode is a structured system-design surface: no freehand tools, no
+// style panel — you place nodes from the library and connect them. Whiteboard
+// mode is for sketching: tldraw's full drawing dock and style panel return.
+const ARCHITECT_COMPONENTS = {
+  StylePanel: null,
+  PageMenu: null,
+  MainMenu: null,
+  Toolbar: null,
+  QuickActions: null,
+  ActionsMenu: null,
+  HelpMenu: null,
+  NavigationPanel: null,
+};
+const WHITEBOARD_COMPONENTS = { PageMenu: null, MainMenu: null };
 
 function shortId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
@@ -124,12 +137,14 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
 export function CanvasView({
   diagram,
   templates,
+  mode,
   onCanvasEdit,
   onSaveTemplate,
   onError,
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
+  mode: Mode;
   onCanvasEdit: (next: Diagram) => void;
   onSaveTemplate: (subtree: Diagram) => void;
   onError: (msg: string) => void;
@@ -180,13 +195,19 @@ export function CanvasView({
   }, [diagram]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
     const editor = editorRef.current;
     if (!editor) return;
+    // Only claim drops that carry our payload; let tldraw handle image/file drops.
+    const templateName = e.dataTransfer.getData(TEMPLATE_DND_MIME);
+    const nodeType = e.dataTransfer.getData(NODE_TYPE_DND_MIME);
+    if (!templateName && !nodeType) return;
+    // Capture-phase + stopPropagation so tldraw's own drop handler (on the inner
+    // canvas) doesn't swallow the event before we place the shape.
+    e.preventDefault();
+    e.stopPropagation();
     const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
 
     // Instantiating a template dropped from the Templates panel.
-    const templateName = e.dataTransfer.getData(TEMPLATE_DND_MIME);
     if (templateName) {
       const template = templatesRef.current.find((t) => t.name === templateName);
       if (!template) return;
@@ -203,8 +224,8 @@ export function CanvasView({
       return;
     }
 
-    // Dropping a node type from the palette.
-    const def = NODE_TAXONOMY.find((n) => n.id === e.dataTransfer.getData(NODE_TYPE_DND_MIME));
+    // Dropping a node type from the shape library.
+    const def = NODE_TAXONOMY.find((n) => n.id === nodeType);
     if (!def) return;
     const node: DiagramNode = {
       id: shortId('node'),
@@ -304,19 +325,32 @@ export function CanvasView({
   const selectedEdgeLabel = diagram.edges.find((e) => e.id === selectedEdgeId)?.label ?? '';
 
   return (
-    <div className="canvas" data-testid="canvas-drop" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+    <div
+      className="canvas"
+      data-testid="canvas-drop"
+      onDragOverCapture={(e) => {
+        if (e.dataTransfer.types.some((t) => t === NODE_TYPE_DND_MIME || t === TEMPLATE_DND_MIME)) {
+          e.preventDefault();
+        }
+      }}
+      onDropCapture={handleDrop}
+    >
       <div className="canvas-toolbar">
-        <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
-          Connect
-        </button>
-        <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
-          Group
-        </button>
-        <span className="sep" />
-        <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
-          Save as Template
-        </button>
-        <span className="sep" />
+        {mode === 'architect' && (
+          <>
+            <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
+              Connect
+            </button>
+            <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
+              Group
+            </button>
+            <span className="sep" />
+            <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
+              Save as Template
+            </button>
+            <span className="sep" />
+          </>
+        )}
         <button data-testid="export-png-btn" onClick={() => handleExport('png')} className="btn btn--sm">
           Export PNG
         </button>
@@ -334,7 +368,12 @@ export function CanvasView({
           />
         )}
       </div>
-      <Tldraw assetUrls={assetUrls} shapeUtils={shapeUtils} components={canvasComponents} onMount={handleMount} />
+      <Tldraw
+        assetUrls={assetUrls}
+        shapeUtils={shapeUtils}
+        components={mode === 'architect' ? ARCHITECT_COMPONENTS : WHITEBOARD_COMPONENTS}
+        onMount={handleMount}
+      />
     </div>
   );
 }

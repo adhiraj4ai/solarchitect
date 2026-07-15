@@ -199,6 +199,56 @@ const GLYPHS: Record<string, ReactElement> = {
       <path d="M10.5 18h3" />
     </>
   ),
+  vpc: <path d="M7 18h10a4 4 0 0 0 .5-8 5 5 0 0 0-9.6-1.4A3.5 3.5 0 0 0 7 18z" />,
+  gauge: (
+    <>
+      <path d="M4 15a8 8 0 0 1 16 0" />
+      <path d="M12 15l4.5-3.2" />
+      <circle cx="12" cy="15" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  chip: (
+    <>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <rect x="9.5" y="9.5" width="5" height="5" rx="1" />
+      <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      <circle cx="12" cy="15" r="1.3" fill="currentColor" stroke="none" />
+    </>
+  ),
+  hub: (
+    <>
+      <circle cx="12" cy="12" r="2.5" />
+      <circle cx="12" cy="4.2" r="1.6" />
+      <circle cx="12" cy="19.8" r="1.6" />
+      <circle cx="4.6" cy="8" r="1.6" />
+      <circle cx="19.4" cy="8" r="1.6" />
+      <path d="M12 6.5v3M12 14.5v3.7M6.1 8.9l3.7 2.1M17.9 8.9l-3.7 2.1" />
+    </>
+  ),
+  steps: <path d="M4 19h4v-4h4v-4h4v-4h4" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7v5l3.4 2" />
+    </>
+  ),
+  namespace: (
+    <path d="M8 4H6.5A2.5 2.5 0 0 0 4 6.5V10l-1.5 2L4 14v3.5A2.5 2.5 0 0 0 6.5 20H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V10l1.5 2L20 14v3.5a2.5 2.5 0 0 1-2.5 2.5H16" />
+  ),
+  registry: (
+    <>
+      <rect x="4" y="4" width="16" height="5" rx="1.4" />
+      <rect x="4" y="10" width="16" height="5" rx="1.4" />
+      <rect x="4" y="16" width="16" height="4" rx="1.4" />
+      <circle cx="7.4" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 const DEF_BY_ID = new Map(NODE_TAXONOMY.map((d) => [d.id, d]));
