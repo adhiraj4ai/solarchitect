@@ -11,6 +11,9 @@ import { useTemplates } from './hooks/useTemplates';
 import type { Mode } from './canvas/CanvasView';
 import type { Diagram } from '@shared/ir/types';
 
+/** Which panels are on screen. Orthogonal to the canvas-interaction Mode. */
+type View = 'visual' | 'split' | 'code';
+
 export default function App() {
   const { yamlText, diagram, yamlError, canvasEditSeq, canUndo, canRedo, onCanvasEdit, onYamlEdit, loadDiagram, undo, redo } =
     useSyncEngine();
@@ -20,7 +23,10 @@ export default function App() {
   const templates = useTemplates(project.projectDir, project.setIoError);
 
   const [mode, setMode] = useState<Mode>('architect');
-  const [sourceOpen, setSourceOpen] = useState(true);
+  // Layout: visual = canvas only, split = canvas + source (default), code =
+  // source editor only. Independent of the canvas-interaction mode above.
+  const [view, setView] = useState<View>('split');
+  const showCanvas = view !== 'code';
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
@@ -65,25 +71,29 @@ export default function App() {
       <header className="app__bar">
         <Wordmark />
         <span className="topsep" />
-        <div className="segmented" role="tablist" aria-label="Mode">
-          <button
-            role="tab"
-            aria-selected={mode === 'architect'}
-            className={`segmented__btn${mode === 'architect' ? ' on' : ''}`}
-            onClick={() => setMode('architect')}
-          >
-            Architect
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === 'whiteboard'}
-            className={`segmented__btn${mode === 'whiteboard' ? ' on' : ''}`}
-            onClick={() => setMode('whiteboard')}
-          >
-            Whiteboard
-          </button>
-        </div>
-        <span className="topsep" />
+        {showCanvas && (
+          <>
+            <div className="segmented" role="tablist" aria-label="Mode">
+              <button
+                role="tab"
+                aria-selected={mode === 'architect'}
+                className={`segmented__btn${mode === 'architect' ? ' on' : ''}`}
+                onClick={() => setMode('architect')}
+              >
+                Architect
+              </button>
+              <button
+                role="tab"
+                aria-selected={mode === 'whiteboard'}
+                className={`segmented__btn${mode === 'whiteboard' ? ' on' : ''}`}
+                onClick={() => setMode('whiteboard')}
+              >
+                Whiteboard
+              </button>
+            </div>
+            <span className="topsep" />
+          </>
+        )}
         <div className="topgroup">
           <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm btn--icon" title="Undo (⌘Z)">
             ↩
@@ -101,17 +111,9 @@ export default function App() {
           )}
           {yamlError ? <span className="state error">YAML error</span> : <span className="state ok">canvas ⇄ source</span>}
         </span>
-        <button
-          className={`btn btn--sm${sourceOpen ? ' btn--on' : ''}`}
-          onClick={() => setSourceOpen((v) => !v)}
-          aria-pressed={sourceOpen}
-          title="Toggle the YAML source panel"
-        >
-          Source
-        </button>
       </header>
 
-      <div className={`app__body${sourceOpen ? '' : ' app__body--nosource'}`}>
+      <div className={`app__body app__body--${view}`}>
         <aside className="rail">
           <section className="rail__proj">
             <ProjectSidebar
@@ -130,7 +132,12 @@ export default function App() {
             />
           </section>
           <section className="rail__shapes">
-            {mode === 'architect' ? (
+            {!showCanvas ? (
+              <div className="rail__hint">
+                <span className="eyebrow">Code</span>
+                <p>Editing the diagram as YAML. Invalid YAML freezes sync and shows the error — nothing is lost. Switch to Split or Visual to place shapes.</p>
+              </div>
+            ) : mode === 'architect' ? (
               <ShapeLibrary />
             ) : (
               <div className="rail__hint">
@@ -150,17 +157,27 @@ export default function App() {
         </aside>
 
         <main className="stage">
-          <CanvasView
-            diagram={diagram}
-            templates={templates.templates}
-            mode={mode}
-            onCanvasEdit={onCanvasEdit}
-            onSaveTemplate={beginSaveTemplate}
-            onError={project.setIoError}
-          />
+          {showCanvas ? (
+            <CanvasView
+              diagram={diagram}
+              templates={templates.templates}
+              mode={mode}
+              onCanvasEdit={onCanvasEdit}
+              onSaveTemplate={beginSaveTemplate}
+              onError={project.setIoError}
+            />
+          ) : (
+            <YamlCodeEditor
+              yamlText={yamlText}
+              yamlError={yamlError}
+              canvasEditSeq={canvasEditSeq}
+              onYamlEdit={onYamlEdit}
+              full
+            />
+          )}
         </main>
 
-        {sourceOpen && (
+        {view === 'split' && (
           <YamlCodeEditor
             yamlText={yamlText}
             yamlError={yamlError}
@@ -169,6 +186,30 @@ export default function App() {
           />
         )}
       </div>
+
+      <footer className="app__foot">
+        <div className="segmented" role="tablist" aria-label="View">
+          {(
+            [
+              ['visual', 'Visual'],
+              ['split', 'Split'],
+              ['code', 'Code'],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              role="tab"
+              data-testid={`view-${v}`}
+              aria-selected={view === v}
+              className={`segmented__btn${view === v ? ' on' : ''}`}
+              onClick={() => setView(v)}
+              title={`${label} view`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </footer>
 
       {pendingTemplate && (
         <div className="modal__backdrop">

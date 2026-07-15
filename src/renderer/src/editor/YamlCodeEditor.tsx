@@ -17,11 +17,14 @@ export function YamlCodeEditor({
   yamlError,
   canvasEditSeq,
   onYamlEdit,
+  full = false,
 }: {
   yamlText: string;
   yamlError: ParseError | null;
   canvasEditSeq: number;
   onYamlEdit: (text: string) => void;
+  /** True when the editor is the main pane (Code view) rather than the side panel. */
+  full?: boolean;
 }) {
   const [draft, setDraft] = useState(yamlText);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -44,7 +47,7 @@ export function YamlCodeEditor({
   }
 
   return (
-    <div className="code">
+    <div className={`code${full ? ' code--full' : ''}`}>
       <div className="code__head">
         <span className="eyebrow">Source · YAML</span>
         <span className="eyebrow" style={{ color: yamlError ? 'var(--danger-ink)' : 'var(--faint)' }}>
