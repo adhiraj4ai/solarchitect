@@ -1,9 +1,10 @@
 import { CanvasView } from './canvas/CanvasView';
 import { NodePalette } from './canvas/NodePalette';
+import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { useSyncEngine } from './hooks/useSyncEngine';
 
 export default function App() {
-  const { yamlText, diagram, onCanvasEdit } = useSyncEngine();
+  const { yamlText, diagram, yamlError, onCanvasEdit, onYamlEdit } = useSyncEngine();
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', height: '100vh' }}>
@@ -13,22 +14,7 @@ export default function App() {
           <CanvasView diagram={diagram} onCanvasEdit={onCanvasEdit} />
         </div>
       </div>
-      <textarea
-        value={yamlText}
-        readOnly
-        spellCheck={false}
-        aria-label="Diagram YAML"
-        style={{
-          fontFamily: 'monospace',
-          fontSize: 13,
-          height: '100%',
-          border: 'none',
-          borderLeft: '1px solid #ccc',
-          resize: 'none',
-          padding: 8,
-          background: '#fafafa',
-        }}
-      />
+      <YamlCodeEditor yamlText={yamlText} yamlError={yamlError} onYamlEdit={onYamlEdit} />
     </div>
   );
 }

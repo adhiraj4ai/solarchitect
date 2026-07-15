@@ -1,13 +1,13 @@
 import { serializeDiagram } from '../yaml/serialize';
+import { parseDiagram, type ParseError } from '../yaml/parse';
 import type { Diagram } from '../ir/types';
+
+export type YamlEditResult = { ok: true; diagram: Diagram } | { ok: false; error: ParseError };
 
 /**
  * Coordinates the single in-memory Diagram that both the canvas and the YAML
  * code view project from. Neither view talks to the other directly — they go
  * through this engine.
- *
- * v1 slice: canvas -> YAML only (applyCanvasPatch). The reverse direction
- * (applyYamlEdit + shape diffing) is added in ticket #4.
  */
 export class SyncEngine {
   private diagram: Diagram;
@@ -31,5 +31,19 @@ export class SyncEngine {
     this.diagram = next;
     this.yamlText = serializeDiagram(next);
     return { yamlText: this.yamlText };
+  }
+
+  /**
+   * Apply a code-view YAML edit. On success the diagram is replaced and the
+   * caller's exact text is retained verbatim (so live typing doesn't fight the
+   * editor's cursor). On any parse/validation error the engine freezes: the
+   * last-valid diagram and YAML are left untouched and the error is returned.
+   */
+  applyYamlEdit(yamlText: string): YamlEditResult {
+    const result = parseDiagram(yamlText);
+    if (!result.ok) return { ok: false, error: result.error };
+    this.diagram = result.diagram;
+    this.yamlText = yamlText;
+    return { ok: true, diagram: result.diagram };
   }
 }
