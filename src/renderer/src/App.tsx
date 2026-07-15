@@ -1,24 +1,23 @@
-import { Tldraw } from 'tldraw';
-import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
-import 'tldraw/tldraw.css';
-import { serializeDiagram } from '@shared/yaml/serialize';
-import { emptyDiagram } from '@shared/ir/types';
-
-// Self-host tldraw's icons/fonts/translations by bundling them through Vite,
-// so the app has no runtime dependency on cdn.tldraw.com (local-only, offline).
-const assetUrls = getAssetUrlsByImport();
-
-const initialYamlText = serializeDiagram(emptyDiagram());
+import { CanvasView } from './canvas/CanvasView';
+import { NodePalette } from './canvas/NodePalette';
+import { useSyncEngine } from './hooks/useSyncEngine';
 
 export default function App() {
+  const { yamlText, diagram, onCanvasEdit } = useSyncEngine();
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', height: '100vh' }}>
-      <div style={{ position: 'relative' }}>
-        <Tldraw assetUrls={assetUrls} />
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <NodePalette />
+        <div style={{ position: 'relative', flex: 1 }}>
+          <CanvasView diagram={diagram} onCanvasEdit={onCanvasEdit} />
+        </div>
       </div>
       <textarea
-        defaultValue={initialYamlText}
+        value={yamlText}
+        readOnly
         spellCheck={false}
+        aria-label="Diagram YAML"
         style={{
           fontFamily: 'monospace',
           fontSize: 13,
@@ -27,6 +26,7 @@ export default function App() {
           borderLeft: '1px solid #ccc',
           resize: 'none',
           padding: 8,
+          background: '#fafafa',
         }}
       />
     </div>
