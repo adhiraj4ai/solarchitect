@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ParseError } from '@shared/yaml/parse';
+import { highlightYaml } from '@shared/yaml/highlight';
 
 const DEBOUNCE_MS = 300;
 
@@ -11,6 +12,11 @@ const DEBOUNCE_MS = 300;
  * and pushed out via `onYamlEdit`. On a parse error the engine freezes and
  * `yamlError` is shown inline while the user's (invalid) draft is left intact
  * so they can fix it in place.
+ *
+ * A line-number gutter and a syntax-coloured highlight layer sit behind a
+ * transparent textarea (the textarea stays the real, accessible input — tests
+ * and screen readers see it). Highlighting is best-effort and never throws, so
+ * typing partial YAML only ever changes colours, never crashes the editor.
  */
 export function YamlCodeEditor({
   yamlText,
@@ -28,6 +34,8 @@ export function YamlCodeEditor({
 }) {
   const [draft, setDraft] = useState(yamlText);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
 
   // Pull in canvas-originated changes only (keyed on canvasEditSeq, not yamlText).
   // Keying on yamlText would echo the user's own accepted edits back and could
@@ -40,10 +48,20 @@ export function YamlCodeEditor({
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
+  const html = useMemo(() => highlightYaml(draft), [draft]);
+  const lineCount = useMemo(() => draft.split('\n').length, [draft]);
+
   function handleChange(text: string) {
     setDraft(text);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => onYamlEdit(text), DEBOUNCE_MS);
+  }
+
+  // Keep the gutter aligned with vertical scroll (it doesn't scroll horizontally).
+  function handleScroll() {
+    const s = scrollRef.current;
+    const g = gutterRef.current;
+    if (s && g) g.style.transform = `translateY(${-s.scrollTop}px)`;
   }
 
   return (
@@ -54,13 +72,32 @@ export function YamlCodeEditor({
           {yamlError ? 'frozen — fix to resume' : 'live ⇄ canvas'}
         </span>
       </div>
-      <textarea
-        className={`code__area${yamlError ? ' has-error' : ''}`}
-        value={draft}
-        onChange={(e) => handleChange(e.target.value)}
-        spellCheck={false}
-        aria-label="Diagram YAML"
-      />
+      <div className={`code__body${yamlError ? ' has-error' : ''}`}>
+        <div className="code__gutter" aria-hidden="true">
+          <div className="code__gutter-inner" ref={gutterRef}>
+            {Array.from({ length: lineCount }, (_, i) => (
+              <div key={i} className="code__lineno">
+                {i + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="code__scroll" ref={scrollRef} onScroll={handleScroll}>
+          <div className="code__mirror">
+            <pre className="code__hl" aria-hidden="true">
+              <code dangerouslySetInnerHTML={{ __html: html }} />
+            </pre>
+            <textarea
+              className="code__area"
+              value={draft}
+              onChange={(e) => handleChange(e.target.value)}
+              onScroll={handleScroll}
+              spellCheck={false}
+              aria-label="Diagram YAML"
+            />
+          </div>
+        </div>
+      </div>
       {yamlError && (
         <div role="alert" className="code__error">
           {yamlError.path ? `${yamlError.path}: ` : ''}

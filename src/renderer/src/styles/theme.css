@@ -479,27 +479,53 @@ button { font-family: inherit; }
 .code { display: flex; flex-direction: column; height: 100%; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }
 /* as the main pane (Code view) the rail already draws the divider on our left */
 .code--full { border-left: none; }
-.code--full .code__area { font-size: 13.5px; }
 .code__head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--panel-2);
 }
-.code__area {
-  flex: 1 1 auto;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 12px 14px;
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--ink);
-  background: var(--panel);
-  tab-size: 2;
+
+/* gutter + highlight overlay + transparent textarea */
+.code__body { flex: 1 1 auto; min-height: 0; display: flex; background: var(--panel); overflow: hidden; }
+.code__body.has-error { background: color-mix(in srgb, var(--danger-soft) 40%, var(--panel)); }
+
+.code__gutter {
+  flex: 0 0 auto; overflow: hidden;
+  padding: 12px 0; background: var(--panel-2); border-right: 1px solid var(--line);
+  user-select: none;
 }
-.code__area.has-error { background: color-mix(in srgb, var(--danger-soft) 45%, var(--panel)); }
+.code__gutter-inner { will-change: transform; }
+.code__lineno {
+  padding: 0 10px 0 14px; min-width: 46px; text-align: right;
+  font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--faint);
+}
+
+.code__scroll { position: relative; flex: 1 1 auto; min-width: 0; overflow: auto; }
+.code__mirror { position: relative; min-height: 100%; min-width: 100%; width: max-content; }
+/* the highlight layer and the input must share identical metrics or they drift */
+.code__hl,
+.code__area {
+  margin: 0; padding: 12px 14px; border: 0;
+  font-family: var(--mono); font-size: 13px; line-height: 1.7; letter-spacing: 0;
+  tab-size: 2; white-space: pre; word-wrap: normal; box-sizing: border-box;
+}
+.code__hl { display: block; pointer-events: none; color: var(--ink); }
+.code__hl code { font: inherit; }
+.code__area {
+  position: absolute; inset: 0;
+  resize: none; outline: none; overflow: hidden;
+  background: transparent; color: transparent; caret-color: var(--ink);
+}
+.code__area::selection { background: var(--blueprint-ring); }
+
+/* YAML token colours (see @shared/yaml/highlight) */
+.tok-k { color: #1e3f96; }                        /* key */
+.tok-s { color: #0b6e63; }                        /* string / scalar value */
+.tok-n { color: #a5561a; }                        /* number */
+.tok-b { color: #6d3bcc; }                        /* boolean / null */
+.tok-c { color: var(--faint); font-style: italic; } /* comment */
+.tok-p { color: #8a94a3; }                        /* punctuation */
 .code__error {
   background: var(--danger-soft);
   color: var(--danger-ink);

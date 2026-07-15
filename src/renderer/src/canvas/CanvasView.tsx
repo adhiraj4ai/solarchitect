@@ -178,6 +178,12 @@ export function CanvasView({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const selectedEdgeIdRef = useRef(selectedEdgeId);
   selectedEdgeIdRef.current = selectedEdgeId;
+  // Focus the label field as soon as a relationship is selected (including
+  // right after connect-by-drag) so text can be typed onto it immediately.
+  const edgeLabelRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectedEdgeId) edgeLabelRef.current?.focus();
+  }, [selectedEdgeId]);
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
@@ -451,10 +457,11 @@ export function CanvasView({
         {selectedEdgeId && (
           <>
             <input
+              ref={edgeLabelRef}
               data-testid="edge-label-input"
               aria-label="Edge label"
               className="edge-label"
-              placeholder="edge label"
+              placeholder="Label this relationship…"
               value={selectedEdgeLabel}
               onChange={(e) => handleLabelChange(e.target.value)}
             />
