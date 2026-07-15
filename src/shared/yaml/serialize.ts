@@ -7,8 +7,9 @@ export function serializeDiagram(diagram: Diagram): string {
       id: n.id,
       type: n.type,
       label: n.label,
-      x: n.x,
-      y: n.y,
+      // Coordinate-free nodes stay coordinate-free in YAML.
+      ...(typeof n.x === 'number' ? { x: n.x } : {}),
+      ...(typeof n.y === 'number' ? { y: n.y } : {}),
       ...(n.clusterId ? { clusterId: n.clusterId } : {}),
     })),
     edges: diagram.edges.map((e) => ({

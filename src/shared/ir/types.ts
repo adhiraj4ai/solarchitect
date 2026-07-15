@@ -2,8 +2,11 @@ export interface DiagramNode {
   id: string;
   type: string; // must satisfy isValidNodeType() from taxonomy.ts
   label: string;
-  x: number;
-  y: number;
+  /** Canvas position. Optional: nodes without coordinates are auto-laid-out
+   *  (see resolveNodePositions). A node gets concrete coordinates once it is
+   *  moved on the canvas. */
+  x?: number;
+  y?: number;
   clusterId?: string;
 }
 

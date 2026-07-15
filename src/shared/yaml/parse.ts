@@ -75,13 +75,20 @@ export function parseDiagram(yamlText: string): ParseResult {
       if (n.clusterId && !clusterIds.has(n.clusterId as string)) {
         throw new ValidationError(`Node references unknown cluster "${n.clusterId}"`, `nodes[${i}].clusterId`);
       }
+      if (n.x !== undefined && n.x !== null && typeof n.x !== 'number') {
+        throw new ValidationError(`Node x must be a number (got "${n.x}")`, `nodes[${i}].x`);
+      }
+      if (n.y !== undefined && n.y !== null && typeof n.y !== 'number') {
+        throw new ValidationError(`Node y must be a number (got "${n.y}")`, `nodes[${i}].y`);
+      }
       nodeIds.add(n.id as string);
+      // x/y are optional — coordinate-free nodes are auto-laid-out downstream.
       nodes.push({
         id: n.id as string,
         type: n.type as string,
         label: n.label as string,
-        x: n.x as number,
-        y: n.y as number,
+        ...(typeof n.x === 'number' ? { x: n.x } : {}),
+        ...(typeof n.y === 'number' ? { y: n.y } : {}),
         ...(n.clusterId ? { clusterId: n.clusterId as string } : {}),
       });
     });

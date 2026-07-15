@@ -25,6 +25,7 @@ import { extractTemplate, instantiateTemplate } from '@shared/templates/template
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import { CLUSTER_COLORS } from '@shared/ir/types';
+import { resolveNodePositions } from '@shared/ir/layout';
 import type {
   Diagram,
   DiagramNode,
@@ -118,8 +119,12 @@ function reconcile(editor: Editor, diagram: Diagram): void {
     if (dc.add.length) editor.createShapes(clustersToShapes(dc.add));
     dc.update.forEach((c) => editor.updateShape(clusterToShape(c)));
 
+    // Resolve coordinate-free nodes to concrete positions before anything reads
+    // them (edges need node centers; the canvas can't hold undefined x/y).
+    const positionedNodes = resolveNodePositions(diagram);
+
     // Edges (derived shapes between node centers).
-    const nodeById = new Map(diagram.nodes.map((n) => [n.id, n]));
+    const nodeById = new Map(positionedNodes.map((n) => [n.id, n]));
     const desiredEdges = diagram.edges
       .map((e) => edgeToShape(e, nodeById))
       .filter((s): s is TLShapePartial => s !== null);
@@ -134,11 +139,11 @@ function reconcile(editor: Editor, diagram: Diagram): void {
       else if (!edgeShapesEqual(cur, desired as ArchEdgeShape)) editor.updateShape(desired);
     }
 
-    // Nodes (drawn on top).
+    // Nodes (drawn on top). Use the position-resolved list so every node has x/y.
     const currentNodes = getArchNodeShapes(editor).map(shapeToNode);
     const nodeEq = (a: DiagramNode, b: DiagramNode) =>
       a.type === b.type && a.label === b.label && a.x === b.x && a.y === b.y;
-    const dn = diffById(currentNodes, diagram.nodes, nodeEq);
+    const dn = diffById(currentNodes, positionedNodes, nodeEq);
     if (dn.removeIds.length) editor.deleteShapes(dn.removeIds.map((id) => createShapeId(id)));
     if (dn.add.length) editor.createShapes(nodesToShapes(dn.add));
     dn.update.forEach((n) =>
@@ -249,6 +254,8 @@ export function CanvasView({
       const target = diagramRef.current.nodes.find(
         (n) =>
           n.id !== from &&
+          n.x !== undefined &&
+          n.y !== undefined &&
           p.x >= n.x &&
           p.x <= n.x + NODE_DEFAULT_WIDTH &&
           p.y >= n.y &&
@@ -273,7 +280,7 @@ export function CanvasView({
       // Take over from tldraw so grabbing a port starts a connection, not a shape drag.
       e.preventDefault();
       e.stopPropagation();
-      const center = { x: node.x + NODE_DEFAULT_WIDTH / 2, y: node.y + NODE_DEFAULT_HEIGHT / 2 };
+      const center = { x: (node.x ?? 0) + NODE_DEFAULT_WIDTH / 2, y: (node.y ?? 0) + NODE_DEFAULT_HEIGHT / 2 };
       const src = editor.pageToScreen(center);
       const rect = e.currentTarget.getBoundingClientRect();
       connectFromRef.current = node.id;

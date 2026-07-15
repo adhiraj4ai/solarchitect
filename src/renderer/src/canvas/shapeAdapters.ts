@@ -35,7 +35,7 @@ export function shapeToNode(shape: ArchNodeShape): DiagramNode {
 }
 
 export function nodeCenter(n: DiagramNode): { x: number; y: number } {
-  return { x: n.x + NODE_DEFAULT_WIDTH / 2, y: n.y + NODE_DEFAULT_HEIGHT / 2 };
+  return { x: (n.x ?? 0) + NODE_DEFAULT_WIDTH / 2, y: (n.y ?? 0) + NODE_DEFAULT_HEIGHT / 2 };
 }
 
 // ---- Clusters ----
