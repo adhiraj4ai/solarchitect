@@ -34,7 +34,6 @@ export function serializeDiagram(diagram: Diagram): string {
       width: a.width,
       height: a.height,
       content: a.content,
-      ...(a.style ? { style: a.style } : {}),
     })),
   };
   return stringify(doc, { sortMapEntries: true });

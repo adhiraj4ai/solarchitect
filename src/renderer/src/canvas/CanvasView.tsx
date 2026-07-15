@@ -19,13 +19,7 @@ import {
   getArchEdgeShapes,
   edgeShapesEqual,
 } from './shapeAdapters';
-import {
-  getAnnotationShapes,
-  annotationToShape,
-  shapeToAnnotation,
-  annotationEq,
-  annotationUpdateProps,
-} from './annotationAdapters';
+import { getAnnotationShapes, annotationToShape, shapeToAnnotation, annotationEq } from './annotationAdapters';
 import { diffById } from '@shared/sync/diff';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import type { Diagram, DiagramNode, DiagramCluster } from '@shared/ir/types';
@@ -89,7 +83,7 @@ function reconcile(editor: Editor, diagram: Diagram): void {
     const da = diffById(currentAnnotations, diagram.annotations, annotationEq);
     if (da.removeIds.length) editor.deleteShapes(da.removeIds.map((id) => createShapeId(id)));
     if (da.add.length) editor.createShapes(da.add.map(annotationToShape));
-    da.update.forEach((a) => editor.updateShape(annotationUpdateProps(a)));
+    da.update.forEach((a) => editor.updateShape(annotationToShape(a)));
 
     // Enforce paint order after any additions: clusters at back, nodes on top,
     // edges in between. (New shapes otherwise land on top of their nodes.)

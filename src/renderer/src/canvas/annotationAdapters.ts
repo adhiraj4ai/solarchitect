@@ -19,7 +19,15 @@ export function getAnnotationShapes(editor: Editor): TLShape[] {
   return editor.getCurrentPageShapes().filter(isAnnotationShape);
 }
 
-/** Build a tldraw native shape for an IR annotation. */
+/**
+ * Build a tldraw native shape for an IR annotation.
+ *
+ * Sizing differs by kind because tldraw's native shapes do: geo (rectangle)
+ * takes explicit w+h; text takes a fixed width (autoSize off) with auto height;
+ * note (sticky) is fixed-size and takes neither. annotationEq mirrors exactly
+ * which dimensions each kind actually owns, so reconcile never churns trying to
+ * force a dimension the shape ignores.
+ */
 export function annotationToShape(a: DiagramAnnotation): TLShapePartial {
   const type = KIND_TO_TLTYPE[a.kind];
   const id = createShapeId(a.id);
@@ -28,7 +36,7 @@ export function annotationToShape(a: DiagramAnnotation): TLShapePartial {
     return { id, type, x: a.x, y: a.y, props: { w: a.width, h: a.height, geo: 'rectangle', richText } };
   }
   if (type === 'text') {
-    return { id, type, x: a.x, y: a.y, props: { w: a.width, richText } };
+    return { id, type, x: a.x, y: a.y, props: { w: a.width, autoSize: false, richText } };
   }
   return { id, type, x: a.x, y: a.y, props: { richText } }; // note (auto-sized)
 }
@@ -49,18 +57,15 @@ export function shapeToAnnotation(editor: Editor, s: TLShape): DiagramAnnotation
   };
 }
 
+/**
+ * Equality for reconcile diffing. Only compares the dimensions the shape kind
+ * actually owns (see annotationToShape): geo owns w+h, text owns width, sticky
+ * owns neither (fixed-size). Comparing a dimension the shape ignores would make
+ * current-from-bounds never equal IR-desired, churning updateShape forever.
+ */
 export function annotationEq(a: DiagramAnnotation, b: DiagramAnnotation): boolean {
-  return (
-    a.kind === b.kind &&
-    a.x === b.x &&
-    a.y === b.y &&
-    a.width === b.width &&
-    a.height === b.height &&
-    a.content === b.content
-  );
-}
-
-/** Props patch for updating an existing annotation shape (kind is fixed once created). */
-export function annotationUpdateProps(a: DiagramAnnotation): TLShapePartial {
-  return annotationToShape(a);
+  if (a.kind !== b.kind || a.x !== b.x || a.y !== b.y || a.content !== b.content) return false;
+  if (a.kind === 'shape') return a.width === b.width && a.height === b.height;
+  if (a.kind === 'text') return a.width === b.width;
+  return true; // sticky: size is canvas-owned
 }

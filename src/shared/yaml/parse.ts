@@ -100,7 +100,6 @@ export function parseDiagram(yamlText: string): ParseResult {
         width: a.width as number,
         height: a.height as number,
         content: a.content as string,
-        ...(a.style ? { style: a.style as Record<string, string> } : {}),
       };
     });
 

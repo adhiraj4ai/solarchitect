@@ -34,7 +34,6 @@ export interface DiagramAnnotation {
   width: number;
   height: number;
   content: string;
-  style?: Record<string, string>;
 }
 
 export interface Diagram {
