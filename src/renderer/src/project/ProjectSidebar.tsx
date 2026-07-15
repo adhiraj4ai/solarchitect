@@ -22,28 +22,17 @@ export function ProjectSidebar({
   onSave: () => void;
 }) {
   return (
-    <div
-      style={{
-        width: 220,
-        borderRight: '1px solid #e2e8f0',
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#f7fafc',
-        minHeight: 0,
-      }}
-    >
-      <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>
-        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#718096' }}>
-          Project
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 600, wordBreak: 'break-word' }}>
+    <>
+      <div className="sidebar__head">
+        <span className="eyebrow">Project</span>
+        <div className={`sidebar__project${projectDir ? '' : ' empty'}`}>
           {projectDir ? basename(projectDir) : 'No project open'}
         </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-          <button data-testid="open-project-btn" onClick={onOpenProject} style={btn}>
+        <div className="sidebar__actions">
+          <button data-testid="open-project-btn" onClick={onOpenProject} className="btn btn--sm">
             Open…
           </button>
-          <button data-testid="new-diagram-btn" onClick={onNewDiagram} disabled={!projectDir} style={btn}>
+          <button data-testid="new-diagram-btn" onClick={onNewDiagram} disabled={!projectDir} className="btn btn--sm">
             New
           </button>
           <button
@@ -51,46 +40,31 @@ export function ProjectSidebar({
             onClick={onSave}
             disabled={!canSave}
             title={currentFile && !canSave ? 'Fix the YAML error before saving' : undefined}
-            style={btn}
+            className="btn btn--sm btn--primary"
           >
             Save
           </button>
         </div>
       </div>
-      <div style={{ overflowY: 'auto', flex: 1 }} data-testid="diagram-list">
+      <div className="list" data-testid="diagram-list">
+        {entries.length === 0 && projectDir && (
+          <div className="list__empty">No diagrams yet — “New” creates one.</div>
+        )}
         {entries.map((e) => (
           <button
             key={e.fileName}
             onClick={() => e.status === 'ok' && onOpenDiagram(e.fileName)}
             disabled={e.status === 'error'}
             title={e.errorMessage}
-            style={{
-              display: 'block',
-              width: '100%',
-              textAlign: 'left',
-              padding: '6px 10px',
-              border: 'none',
-              borderBottom: '1px solid #edf2f7',
-              background: e.fileName === currentFile ? '#e6f0fb' : 'transparent',
-              color: e.status === 'error' ? '#c53030' : '#2d3748',
-              fontSize: 13,
-              cursor: e.status === 'error' ? 'not-allowed' : 'pointer',
-            }}
+            className={`diagram-item${e.fileName === currentFile ? ' active' : ''}${
+              e.status === 'error' ? ' error' : ''
+            }`}
           >
-            {e.status === 'error' ? '⚠ ' : ''}
+            {e.status === 'error' && <span className="warn" aria-hidden="true">⚠</span>}
             {e.fileName}
           </button>
         ))}
       </div>
-    </div>
+    </>
   );
 }
-
-const btn: React.CSSProperties = {
-  padding: '3px 8px',
-  fontSize: 12,
-  background: 'white',
-  border: '1px solid #cbd5e0',
-  borderRadius: 6,
-  cursor: 'pointer',
-};

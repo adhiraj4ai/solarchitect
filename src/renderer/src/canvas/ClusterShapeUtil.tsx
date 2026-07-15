@@ -33,9 +33,9 @@ export class ClusterShapeUtil extends ShapeUtil<ArchClusterShape> {
         style={{
           width: shape.props.w,
           height: shape.props.h,
-          border: '2px dashed #4a90d9',
+          border: '1.5px dashed var(--blueprint, #2b57c6)',
           borderRadius: 10,
-          background: 'rgba(74,144,217,0.05)',
+          background: 'var(--blueprint-soft, rgba(43,87,198,0.09))',
           pointerEvents: 'none',
         }}
       >
@@ -44,9 +44,10 @@ export class ClusterShapeUtil extends ShapeUtil<ArchClusterShape> {
             position: 'absolute',
             top: 6,
             left: 10,
+            fontFamily: 'var(--mono)',
             fontWeight: 600,
-            fontSize: 13,
-            color: '#2c5282',
+            fontSize: 12,
+            color: 'var(--blueprint-ink, #1e3f96)',
           }}
         >
           {shape.props.label}

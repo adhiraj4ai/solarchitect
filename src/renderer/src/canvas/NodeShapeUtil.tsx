@@ -45,18 +45,31 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
           gap: 4,
           width: shape.props.w,
           height: shape.props.h,
-          border: '1px solid #4a5568',
+          border: '1px solid var(--line-strong, #c6d0dc)',
           borderRadius: 8,
-          background: 'white',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+          background: 'var(--panel, #fff)',
+          boxShadow: '0 1px 3px rgba(16,23,34,0.1)',
+          fontFamily: 'var(--sans)',
           pointerEvents: 'all',
         }}
       >
-        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#718096' }}>
+        <div
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: 10,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--slate, #5a6675)',
+          }}
+        >
           {def?.provider ?? 'generic'}
         </div>
-        <div style={{ fontWeight: 600, fontSize: 14, textAlign: 'center' }}>{shape.props.label}</div>
-        <div style={{ fontSize: 10, color: '#a0aec0' }}>{def?.displayName ?? shape.props.nodeType}</div>
+        <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'center', color: 'var(--ink, #101722)' }}>
+          {shape.props.label}
+        </div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--faint, #8a94a3)' }}>
+          {def?.displayName ?? shape.props.nodeType}
+        </div>
       </HTMLContainer>
     );
   }

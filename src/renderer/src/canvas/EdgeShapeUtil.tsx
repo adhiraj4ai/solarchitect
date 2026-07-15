@@ -44,10 +44,10 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
         <svg style={{ overflow: 'visible', position: 'absolute', left: 0, top: 0 }}>
           <defs>
             <marker id={endId} markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-              <path d="M0,0 L8,3 L0,6 Z" fill="#4a5568" />
+              <path d="M0,0 L8,3 L0,6 Z" fill="var(--slate, #5a6675)" />
             </marker>
             <marker id={startId} markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto">
-              <path d="M8,0 L0,3 L8,6 Z" fill="#4a5568" />
+              <path d="M8,0 L0,3 L8,6 Z" fill="var(--slate, #5a6675)" />
             </marker>
           </defs>
           <line
@@ -55,7 +55,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="#4a5568"
+            stroke="var(--slate, #5a6675)"
             strokeWidth={2}
             markerEnd={`url(#${endId})`}
             markerStart={direction === 'bidirectional' ? `url(#${startId})` : undefined}
@@ -68,11 +68,12 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
               left: midX - minX,
               top: midY - minY,
               transform: 'translate(-50%, -50%)',
-              background: 'white',
-              padding: '1px 4px',
+              background: 'var(--panel, #fff)',
+              padding: '1px 5px',
+              fontFamily: 'var(--mono)',
               fontSize: 11,
-              color: '#4a5568',
-              border: '1px solid #e2e8f0',
+              color: 'var(--slate, #5a6675)',
+              border: '1px solid var(--line, #dbe3ec)',
               borderRadius: 4,
               whiteSpace: 'nowrap',
             }}

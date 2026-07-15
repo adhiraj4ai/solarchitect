@@ -300,47 +300,33 @@ export function CanvasView({
   const selectedEdgeLabel = diagram.edges.find((e) => e.id === selectedEdgeId)?.label ?? '';
 
   return (
-    <div
-      data-testid="canvas-drop"
-      style={{ position: 'absolute', inset: 0 }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={handleDrop}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 8,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          display: 'flex',
-          gap: 6,
-          alignItems: 'center',
-        }}
-      >
-        <button data-testid="connect-btn" onClick={handleConnect} style={toolbarBtn}>
+    <div className="canvas" data-testid="canvas-drop" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+      <div className="canvas-toolbar">
+        <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
           Connect
         </button>
-        <button data-testid="group-btn" onClick={handleGroup} style={toolbarBtn}>
+        <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
           Group
         </button>
-        <button data-testid="save-template-btn" onClick={handleSaveTemplate} style={toolbarBtn}>
+        <span className="sep" />
+        <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
           Save as Template
         </button>
-        <button data-testid="export-png-btn" onClick={() => handleExport('png')} style={toolbarBtn}>
+        <span className="sep" />
+        <button data-testid="export-png-btn" onClick={() => handleExport('png')} className="btn btn--sm">
           Export PNG
         </button>
-        <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} style={toolbarBtn}>
+        <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} className="btn btn--sm">
           Export SVG
         </button>
         {selectedEdgeId && (
           <input
             data-testid="edge-label-input"
             aria-label="Edge label"
+            className="edge-label"
             placeholder="edge label"
             value={selectedEdgeLabel}
             onChange={(e) => handleLabelChange(e.target.value)}
-            style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #cbd5e0', borderRadius: 6 }}
           />
         )}
       </div>
@@ -348,12 +334,3 @@ export function CanvasView({
     </div>
   );
 }
-
-const toolbarBtn: React.CSSProperties = {
-  padding: '4px 10px',
-  fontSize: 12,
-  background: 'white',
-  border: '1px solid #cbd5e0',
-  borderRadius: 6,
-  cursor: 'pointer',
-};

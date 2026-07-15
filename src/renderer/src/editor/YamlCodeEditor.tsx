@@ -44,36 +44,22 @@ export function YamlCodeEditor({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderLeft: '1px solid #ccc' }}>
+    <div className="code">
+      <div className="code__head">
+        <span className="eyebrow">Source · YAML</span>
+        <span className="eyebrow" style={{ color: yamlError ? 'var(--danger-ink)' : 'var(--faint)' }}>
+          {yamlError ? 'frozen — fix to resume' : 'live ⇄ canvas'}
+        </span>
+      </div>
       <textarea
+        className={`code__area${yamlError ? ' has-error' : ''}`}
         value={draft}
         onChange={(e) => handleChange(e.target.value)}
         spellCheck={false}
         aria-label="Diagram YAML"
-        style={{
-          flex: 1,
-          fontFamily: 'monospace',
-          fontSize: 13,
-          border: 'none',
-          resize: 'none',
-          padding: 8,
-          outline: 'none',
-          background: yamlError ? '#fffafa' : 'white',
-        }}
       />
       {yamlError && (
-        <div
-          role="alert"
-          style={{
-            background: '#fdecea',
-            color: '#611a15',
-            padding: '8px 10px',
-            fontFamily: 'monospace',
-            fontSize: 12,
-            borderTop: '1px solid #f5c6cb',
-            whiteSpace: 'pre-wrap',
-          }}
-        >
+        <div role="alert" className="code__error">
           {yamlError.path ? `${yamlError.path}: ` : ''}
           {yamlError.message}
         </div>
