@@ -15,6 +15,7 @@ export default function App() {
         projectDir={project.projectDir}
         entries={project.entries}
         currentFile={project.currentFile}
+        canSave={!!project.currentFile && !yamlError}
         onOpenProject={project.openProject}
         onNewDiagram={project.newDiagram}
         onOpenDiagram={project.openDiagram}

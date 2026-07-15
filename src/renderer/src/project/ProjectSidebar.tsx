@@ -6,6 +6,7 @@ export function ProjectSidebar({
   projectDir,
   entries,
   currentFile,
+  canSave,
   onOpenProject,
   onNewDiagram,
   onOpenDiagram,
@@ -14,6 +15,7 @@ export function ProjectSidebar({
   projectDir: string | null;
   entries: DiagramFileEntry[];
   currentFile: string | null;
+  canSave: boolean;
   onOpenProject: () => void;
   onNewDiagram: () => void;
   onOpenDiagram: (fileName: string) => void;
@@ -44,7 +46,13 @@ export function ProjectSidebar({
           <button data-testid="new-diagram-btn" onClick={onNewDiagram} disabled={!projectDir} style={btn}>
             New
           </button>
-          <button data-testid="save-btn" onClick={onSave} disabled={!currentFile} style={btn}>
+          <button
+            data-testid="save-btn"
+            onClick={onSave}
+            disabled={!canSave}
+            title={currentFile && !canSave ? 'Fix the YAML error before saving' : undefined}
+            style={btn}
+          >
             Save
           </button>
         </div>

@@ -68,6 +68,11 @@ annotations: []
     expect(text).toContain('nodes: []');
   });
 
+  it('refuses to read or write a path that escapes the project (traversal)', async () => {
+    await expect(readDiagram(projectDir, '../../etc/hosts')).rejects.toThrow(/outside the project/);
+    await expect(writeDiagram(projectDir, '../escape.yaml', 'x')).rejects.toThrow(/outside the project/);
+  });
+
   it('does not overwrite an existing file when creating a same-named diagram', async () => {
     const first = await createDiagram(projectDir, 'dup');
     const second = await createDiagram(projectDir, 'dup');

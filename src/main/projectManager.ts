@@ -30,12 +30,26 @@ export async function listDiagrams(projectDir: string): Promise<DiagramFileEntry
   return entries;
 }
 
+/**
+ * Resolve fileName inside projectDir, refusing any path that escapes it. The
+ * fileName arrives over IPC from the renderer, so this is the trust boundary —
+ * a crafted "../../etc/passwd" must never read or overwrite outside the project.
+ */
+function resolveInProject(projectDir: string, fileName: string): string {
+  const root = path.resolve(projectDir);
+  const resolved = path.resolve(root, fileName);
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+    throw new Error(`Refusing to access a path outside the project: ${fileName}`);
+  }
+  return resolved;
+}
+
 export async function readDiagram(projectDir: string, fileName: string): Promise<string> {
-  return readFile(path.join(projectDir, fileName), 'utf-8');
+  return readFile(resolveInProject(projectDir, fileName), 'utf-8');
 }
 
 export async function writeDiagram(projectDir: string, fileName: string, yamlText: string): Promise<void> {
-  await writeFile(path.join(projectDir, fileName), yamlText, 'utf-8');
+  await writeFile(resolveInProject(projectDir, fileName), yamlText, 'utf-8');
 }
 
 function slugify(name: string): string {
