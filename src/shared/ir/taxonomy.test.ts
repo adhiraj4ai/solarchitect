@@ -12,6 +12,9 @@ describe('taxonomy', () => {
     expect(isValidNodeType('saas.communication.Slack')).toBe(true);
     expect(isValidNodeType('onprem.database.PostgreSQL')).toBe(true);
     expect(isValidNodeType('onprem.queue.Kafka')).toBe(true);
+    expect(isValidNodeType('oracle.database.Autonomous')).toBe(true);
+    expect(isValidNodeType('firebase.database.Firestore')).toBe(true);
+    expect(isValidNodeType('elastic.search.Elasticsearch')).toBe(true);
   });
 
   it('rejects an unknown node type', () => {
@@ -21,7 +24,22 @@ describe('taxonomy', () => {
   it('covers all curated providers', () => {
     const providers = new Set(NODE_TAXONOMY.map((n) => n.provider));
     expect(providers).toEqual(
-      new Set(['aws', 'azure', 'gcp', 'kubernetes', 'onprem', 'cloudflare', 'digitalocean', 'saas', 'generic']),
+      new Set([
+        'aws',
+        'azure',
+        'gcp',
+        'oracle',
+        'ibm',
+        'alibaba',
+        'kubernetes',
+        'onprem',
+        'cloudflare',
+        'digitalocean',
+        'firebase',
+        'elastic',
+        'saas',
+        'generic',
+      ]),
     );
   });
 });

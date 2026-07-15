@@ -2,10 +2,15 @@ export type Provider =
   | 'aws'
   | 'azure'
   | 'gcp'
+  | 'oracle'
+  | 'ibm'
+  | 'alibaba'
   | 'kubernetes'
   | 'onprem'
   | 'cloudflare'
   | 'digitalocean'
+  | 'firebase'
+  | 'elastic'
   | 'saas'
   | 'generic';
 
@@ -150,6 +155,49 @@ export const NODE_TAXONOMY: NodeTypeDefinition[] = [
   { id: 'saas.auth.Auth0', provider: 'saas', displayName: 'Auth0', category: 'Security', glyph: 'shield' },
   { id: 'saas.communication.Twilio', provider: 'saas', displayName: 'Twilio', category: 'Communication', glyph: 'message' },
   { id: 'saas.communication.SendGrid', provider: 'saas', displayName: 'SendGrid', category: 'Communication', glyph: 'mail' },
+
+  // ---- Oracle Cloud (OCI) ----
+  { id: 'oracle.compute.Compute', provider: 'oracle', displayName: 'Compute', category: 'Compute', glyph: 'server' },
+  { id: 'oracle.compute.Functions', provider: 'oracle', displayName: 'Functions', category: 'Serverless', glyph: 'function' },
+  { id: 'oracle.compute.OKE', provider: 'oracle', displayName: 'Kubernetes (OKE)', category: 'Containers', glyph: 'kubernetes' },
+  { id: 'oracle.database.Autonomous', provider: 'oracle', displayName: 'Autonomous DB', category: 'Database', glyph: 'database' },
+  { id: 'oracle.storage.ObjectStorage', provider: 'oracle', displayName: 'Object Storage', category: 'Storage', glyph: 'bucket' },
+  { id: 'oracle.network.VCN', provider: 'oracle', displayName: 'VCN', category: 'Network', glyph: 'vpc' },
+  { id: 'oracle.network.LoadBalancer', provider: 'oracle', displayName: 'Load Balancer', category: 'Network', glyph: 'loadbalancer' },
+
+  // ---- IBM Cloud ----
+  { id: 'ibm.compute.VirtualServer', provider: 'ibm', displayName: 'Virtual Server', category: 'Compute', glyph: 'server' },
+  { id: 'ibm.compute.Functions', provider: 'ibm', displayName: 'Cloud Functions', category: 'Serverless', glyph: 'function' },
+  { id: 'ibm.compute.Kubernetes', provider: 'ibm', displayName: 'Kubernetes Service', category: 'Containers', glyph: 'kubernetes' },
+  { id: 'ibm.database.Cloudant', provider: 'ibm', displayName: 'Cloudant', category: 'Database', glyph: 'nosql' },
+  { id: 'ibm.storage.ObjectStorage', provider: 'ibm', displayName: 'Object Storage', category: 'Storage', glyph: 'bucket' },
+  { id: 'ibm.ml.Watson', provider: 'ibm', displayName: 'Watson', category: 'ML', glyph: 'chip' },
+
+  // ---- Alibaba Cloud ----
+  { id: 'alibaba.compute.ECS', provider: 'alibaba', displayName: 'ECS', category: 'Compute', glyph: 'server' },
+  { id: 'alibaba.compute.FunctionCompute', provider: 'alibaba', displayName: 'Function Compute', category: 'Serverless', glyph: 'function' },
+  { id: 'alibaba.database.RDS', provider: 'alibaba', displayName: 'ApsaraDB RDS', category: 'Database', glyph: 'database' },
+  { id: 'alibaba.storage.OSS', provider: 'alibaba', displayName: 'OSS', category: 'Storage', glyph: 'bucket' },
+  { id: 'alibaba.network.SLB', provider: 'alibaba', displayName: 'Server Load Balancer', category: 'Network', glyph: 'loadbalancer' },
+  { id: 'alibaba.network.CDN', provider: 'alibaba', displayName: 'CDN', category: 'Network', glyph: 'cdn' },
+  { id: 'alibaba.network.VPC', provider: 'alibaba', displayName: 'VPC', category: 'Network', glyph: 'vpc' },
+
+  // ---- Firebase ----
+  { id: 'firebase.auth.Authentication', provider: 'firebase', displayName: 'Authentication', category: 'Security', glyph: 'identity' },
+  { id: 'firebase.database.Firestore', provider: 'firebase', displayName: 'Firestore', category: 'Database', glyph: 'nosql' },
+  { id: 'firebase.database.RealtimeDatabase', provider: 'firebase', displayName: 'Realtime Database', category: 'Database', glyph: 'nosql' },
+  { id: 'firebase.compute.Functions', provider: 'firebase', displayName: 'Cloud Functions', category: 'Serverless', glyph: 'function' },
+  { id: 'firebase.hosting.Hosting', provider: 'firebase', displayName: 'Hosting', category: 'Compute', glyph: 'internet' },
+  { id: 'firebase.storage.Storage', provider: 'firebase', displayName: 'Storage', category: 'Storage', glyph: 'bucket' },
+  { id: 'firebase.messaging.FCM', provider: 'firebase', displayName: 'Cloud Messaging', category: 'Integration', glyph: 'bell' },
+
+  // ---- Elastic ----
+  { id: 'elastic.search.Elasticsearch', provider: 'elastic', displayName: 'Elasticsearch', category: 'Search', glyph: 'search' },
+  { id: 'elastic.observability.Kibana', provider: 'elastic', displayName: 'Kibana', category: 'Observability', glyph: 'dashboard' },
+  { id: 'elastic.ingest.Logstash', provider: 'elastic', displayName: 'Logstash', category: 'Ingest', glyph: 'etl' },
+  { id: 'elastic.ingest.Beats', provider: 'elastic', displayName: 'Beats', category: 'Ingest', glyph: 'stream' },
+  { id: 'elastic.observability.APM', provider: 'elastic', displayName: 'APM', category: 'Observability', glyph: 'graph' },
+  { id: 'elastic.security.SIEM', provider: 'elastic', displayName: 'SIEM', category: 'Security', glyph: 'shield' },
 
   // ---- On-prem / self-hosted (the mingrammer `onprem` catalog) ----
   { id: 'onprem.compute.Server', provider: 'onprem', displayName: 'Server', category: 'Compute', glyph: 'server' },
