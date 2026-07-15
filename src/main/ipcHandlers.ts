@@ -1,5 +1,12 @@
 import { ipcMain, dialog } from 'electron';
-import { listDiagrams, readDiagram, writeDiagram, createDiagram } from './projectManager';
+import {
+  listDiagrams,
+  readDiagram,
+  writeDiagram,
+  createDiagram,
+  readTemplates,
+  writeTemplates,
+} from './projectManager';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('project:openFolder', async () => {
@@ -16,5 +23,9 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('project:createDiagram', (_e, projectDir: string, displayName: string) =>
     createDiagram(projectDir, displayName),
+  );
+  ipcMain.handle('project:readTemplates', (_e, projectDir: string) => readTemplates(projectDir));
+  ipcMain.handle('project:writeTemplates', (_e, projectDir: string, yamlText: string) =>
+    writeTemplates(projectDir, yamlText),
   );
 }

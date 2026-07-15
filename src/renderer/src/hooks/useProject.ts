@@ -77,6 +77,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
     entries,
     currentFile,
     ioError,
+    setIoError,
     dismissError: () => setIoError(null),
     openProject,
     openDiagram,

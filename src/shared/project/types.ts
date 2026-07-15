@@ -16,4 +16,6 @@ export interface SolarchitectApi {
   readDiagram(projectDir: string, fileName: string): Promise<string>;
   writeDiagram(projectDir: string, fileName: string, yamlText: string): Promise<void>;
   createDiagram(projectDir: string, displayName: string): Promise<string>;
+  readTemplates(projectDir: string): Promise<string>;
+  writeTemplates(projectDir: string, yamlText: string): Promise<void>;
 }

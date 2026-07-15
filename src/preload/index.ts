@@ -11,6 +11,8 @@ const api: SolarchitectApi = {
   writeDiagram: (projectDir, fileName, yamlText) =>
     ipcRenderer.invoke('project:writeDiagram', projectDir, fileName, yamlText),
   createDiagram: (projectDir, displayName) => ipcRenderer.invoke('project:createDiagram', projectDir, displayName),
+  readTemplates: (projectDir) => ipcRenderer.invoke('project:readTemplates', projectDir),
+  writeTemplates: (projectDir, yamlText) => ipcRenderer.invoke('project:writeTemplates', projectDir, yamlText),
 };
 
 contextBridge.exposeInMainWorld('solarchitect', api);

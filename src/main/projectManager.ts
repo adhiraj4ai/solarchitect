@@ -70,6 +70,16 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+/** Read the project's shared templates file (empty document if it doesn't exist yet). */
+export async function readTemplates(projectDir: string): Promise<string> {
+  return readFile(path.join(projectDir, TEMPLATES_FILE), 'utf-8').catch(() => 'templates: []\n');
+}
+
+/** Write the project's shared templates file. */
+export async function writeTemplates(projectDir: string, yamlText: string): Promise<void> {
+  await writeFile(path.join(projectDir, TEMPLATES_FILE), yamlText, 'utf-8');
+}
+
 /** Create a new empty diagram file, disambiguating the name so an existing file
  *  is never overwritten. Returns the created file name. */
 export async function createDiagram(projectDir: string, displayName: string): Promise<string> {

@@ -20,7 +20,10 @@ import {
   edgeShapesEqual,
 } from './shapeAdapters';
 import { getAnnotationShapes, annotationToShape, shapeToAnnotation, annotationEq } from './annotationAdapters';
+import { TEMPLATE_DND_MIME } from '../project/TemplatesPanel';
 import { diffById } from '@shared/sync/diff';
+import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
+import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import type { Diagram, DiagramNode, DiagramCluster } from '@shared/ir/types';
 
@@ -117,16 +120,24 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
 
 export function CanvasView({
   diagram,
+  templates,
   onCanvasEdit,
+  onSaveTemplate,
 }: {
   diagram: Diagram;
+  templates: NamedTemplate[];
   onCanvasEdit: (next: Diagram) => void;
+  onSaveTemplate: (subtree: Diagram) => void;
 }) {
   const editorRef = useRef<Editor | null>(null);
   const diagramRef = useRef(diagram);
   diagramRef.current = diagram;
   const onCanvasEditRef = useRef(onCanvasEdit);
   onCanvasEditRef.current = onCanvasEdit;
+  const templatesRef = useRef(templates);
+  templatesRef.current = templates;
+  const onSaveTemplateRef = useRef(onSaveTemplate);
+  onSaveTemplateRef.current = onSaveTemplate;
   const pendingSelectRef = useRef<string | null>(null);
 
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -166,11 +177,30 @@ export function CanvasView({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const editor = editorRef.current;
-    const nodeType = e.dataTransfer.getData(NODE_TYPE_DND_MIME);
-    const def = NODE_TAXONOMY.find((n) => n.id === nodeType);
-    if (!editor || !def) return;
-
+    if (!editor) return;
     const point = editor.screenToPage({ x: e.clientX, y: e.clientY });
+
+    // Instantiating a template dropped from the Templates panel.
+    const templateName = e.dataTransfer.getData(TEMPLATE_DND_MIME);
+    if (templateName) {
+      const template = templatesRef.current.find((t) => t.name === templateName);
+      if (!template) return;
+      const inst = instantiateTemplate(template.diagram, { x: Math.round(point.x), y: Math.round(point.y) }, () =>
+        shortId('el'),
+      );
+      const cur = diagramRef.current;
+      onCanvasEditRef.current({
+        nodes: [...cur.nodes, ...inst.nodes],
+        edges: [...cur.edges, ...inst.edges],
+        clusters: [...cur.clusters, ...inst.clusters],
+        annotations: cur.annotations,
+      });
+      return;
+    }
+
+    // Dropping a node type from the palette.
+    const def = NODE_TAXONOMY.find((n) => n.id === e.dataTransfer.getData(NODE_TYPE_DND_MIME));
+    if (!def) return;
     const node: DiagramNode = {
       id: shortId('node'),
       type: def.id,
@@ -179,6 +209,14 @@ export function CanvasView({
       y: Math.round(point.y - NODE_DEFAULT_HEIGHT / 2),
     };
     onCanvasEditRef.current({ ...diagramRef.current, nodes: [...diagramRef.current.nodes, node] });
+  }, []);
+
+  const handleSaveTemplate = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const ids = new Set(selectedNodes(editor).map((s) => s.props.nodeId));
+    if (ids.size < 2) return;
+    onSaveTemplateRef.current(extractTemplate(diagramRef.current, ids));
   }, []);
 
   const handleGroup = useCallback(() => {
@@ -261,6 +299,9 @@ export function CanvasView({
         </button>
         <button data-testid="group-btn" onClick={handleGroup} style={toolbarBtn}>
           Group
+        </button>
+        <button data-testid="save-template-btn" onClick={handleSaveTemplate} style={toolbarBtn}>
+          Save as Template
         </button>
         {selectedEdgeId && (
           <input
