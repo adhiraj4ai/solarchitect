@@ -1,8 +1,9 @@
 import { serializeDiagram } from '../yaml/serialize';
-import { parseDiagram, type ParseError } from '../yaml/parse';
+import { parseDiagram, type ParseResult } from '../yaml/parse';
 import type { Diagram } from '../ir/types';
 
-export type YamlEditResult = { ok: true; diagram: Diagram } | { ok: false; error: ParseError };
+/** A YAML edit either produces a new diagram or a parse/validation error. */
+export type YamlEditResult = ParseResult;
 
 /**
  * Coordinates the single in-memory Diagram that both the canvas and the YAML

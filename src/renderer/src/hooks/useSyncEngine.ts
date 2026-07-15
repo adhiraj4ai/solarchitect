@@ -15,12 +15,16 @@ export function useSyncEngine() {
   const [yamlText, setYamlText] = useState(() => engineRef.current!.getYamlText());
   const [diagram, setDiagram] = useState<Diagram>(() => engineRef.current!.getDiagram());
   const [yamlError, setYamlError] = useState<ParseError | null>(null);
+  // Bumped only on canvas-originated edits, so the code editor knows when to pull
+  // in new text without echoing (and clobbering) the user's own keystrokes.
+  const [canvasEditSeq, setCanvasEditSeq] = useState(0);
 
   const onCanvasEdit = useCallback((next: Diagram) => {
     const result = engineRef.current!.applyCanvasPatch(next);
     setDiagram(next);
     setYamlText(result.yamlText);
     setYamlError(null);
+    setCanvasEditSeq((n) => n + 1);
   }, []);
 
   const onYamlEdit = useCallback((text: string) => {
@@ -35,5 +39,5 @@ export function useSyncEngine() {
     setYamlText(text);
   }, []);
 
-  return { yamlText, diagram, yamlError, onCanvasEdit, onYamlEdit };
+  return { yamlText, diagram, yamlError, canvasEditSeq, onCanvasEdit, onYamlEdit };
 }

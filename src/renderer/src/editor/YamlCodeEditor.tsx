@@ -15,20 +15,25 @@ const DEBOUNCE_MS = 300;
 export function YamlCodeEditor({
   yamlText,
   yamlError,
+  canvasEditSeq,
   onYamlEdit,
 }: {
   yamlText: string;
   yamlError: ParseError | null;
+  canvasEditSeq: number;
   onYamlEdit: (text: string) => void;
 }) {
   const [draft, setDraft] = useState(yamlText);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Reflect canvas-originated changes. A valid keystroke echoes back the same
-  // text (stored verbatim by the engine), so this is a no-op for typing.
+  // Pull in canvas-originated changes only (keyed on canvasEditSeq, not yamlText).
+  // Keying on yamlText would echo the user's own accepted edits back and could
+  // clobber a keystroke that raced the re-render, or overwrite a frozen invalid
+  // draft with the last-valid text.
   useEffect(() => {
     setDraft(yamlText);
-  }, [yamlText]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasEditSeq]);
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 

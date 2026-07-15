@@ -4,7 +4,7 @@ import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { useSyncEngine } from './hooks/useSyncEngine';
 
 export default function App() {
-  const { yamlText, diagram, yamlError, onCanvasEdit, onYamlEdit } = useSyncEngine();
+  const { yamlText, diagram, yamlError, canvasEditSeq, onCanvasEdit, onYamlEdit } = useSyncEngine();
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', height: '100vh' }}>
@@ -14,7 +14,12 @@ export default function App() {
           <CanvasView diagram={diagram} onCanvasEdit={onCanvasEdit} />
         </div>
       </div>
-      <YamlCodeEditor yamlText={yamlText} yamlError={yamlError} onYamlEdit={onYamlEdit} />
+      <YamlCodeEditor
+        yamlText={yamlText}
+        yamlError={yamlError}
+        canvasEditSeq={canvasEditSeq}
+        onYamlEdit={onYamlEdit}
+      />
     </div>
   );
 }

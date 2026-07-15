@@ -54,6 +54,23 @@ annotations: []
     }
   });
 
+  it('rejects a null/scalar list item without throwing', () => {
+    const result = parseDiagram('nodes:\n  - ~\nedges: []\nclusters: []\nannotations: []\n');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toMatch(/expected a mapping|must be/i);
+  });
+
+  it('rejects a non-array nodes value without throwing', () => {
+    const result = parseDiagram('nodes: 42\nedges: []\nclusters: []\nannotations: []\n');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toMatch(/must be a list|expected a list/i);
+  });
+
+  it('rejects a top-level scalar document without throwing', () => {
+    const result = parseDiagram('just a string');
+    expect(result.ok).toBe(false);
+  });
+
   it('rejects a dangling edge reference', () => {
     const result = parseDiagram(`
 nodes:

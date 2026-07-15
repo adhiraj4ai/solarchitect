@@ -54,6 +54,8 @@ test('fixing the error resumes live sync automatically', async () => {
 
   await editor().fill('nodes: [broken');
   await expect(win.getByRole('alert')).toContainText(/YAML syntax error/);
+  // Frozen under a pure syntax error too: the last-valid node stays on the canvas.
+  await expect(canvas().getByText('BeforeFix')).toBeVisible();
 
   await editor().fill(docWith('AfterFix'));
   await expect(win.getByRole('alert')).toHaveCount(0);
