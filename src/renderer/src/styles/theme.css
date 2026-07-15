@@ -447,6 +447,46 @@ button { font-family: inherit; }
 
 /* canvas */
 .canvas { position: absolute; inset: 0; }
+
+/* animate mode — relationship lines flow toward their arrowheads */
+.canvas.animate-on .arch-edge-path {
+  stroke-dasharray: 7 6;
+  animation: edge-flow 0.7s linear infinite;
+}
+@keyframes edge-flow { to { stroke-dashoffset: -13; } }
+
+/* presentation: hide all chrome, canvas fills the window */
+.app--presenting .app__bar,
+.app--presenting .rail,
+.app--presenting .app__foot,
+.app--presenting .code {
+  display: none;
+}
+.app--presenting .app__body { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.app--presenting .stage { background: var(--panel); }
+
+.present-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  box-shadow: var(--shadow-pop);
+}
+.present-sep { width: 1px; height: 18px; background: var(--line); }
+.present-count {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  font-family: var(--mono); font-size: 12px; color: var(--slate); padding: 0 4px;
+}
+.present-name { color: var(--ink); font-weight: 600; }
 .canvas-toolbar {
   position: absolute;
   top: 10px;
@@ -687,4 +727,5 @@ button { font-family: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  .canvas.animate-on .arch-edge-path { animation: none !important; }
 }

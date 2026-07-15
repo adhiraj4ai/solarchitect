@@ -127,6 +127,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             </marker>
           </defs>
           <path
+            className="arch-edge-path"
             d={d}
             fill="none"
             stroke="var(--slate, #5a6675)"

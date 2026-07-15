@@ -249,10 +249,16 @@ export function CanvasView({
   onCanvasEdit,
   onSaveTemplate,
   onError,
+  animate = false,
+  presenting = false,
+  presentIndex = 0,
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
   mode: Mode;
+  animate?: boolean;
+  presenting?: boolean;
+  presentIndex?: number;
   onCanvasEdit: (next: Diagram) => void;
   onSaveTemplate: (subtree: Diagram) => void;
   onError: (msg: string) => void;
@@ -394,6 +400,21 @@ export function CanvasView({
       }
     }
   }, [diagram]);
+
+  // Presentation: fit the camera to the current page frame (or the whole
+  // diagram when there are no frames) whenever presenting or the index changes.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !presenting) return;
+    editor.selectNone();
+    const frames = diagramRef.current.frames ?? [];
+    if (frames.length) {
+      const f = frames[Math.min(presentIndex, frames.length - 1)];
+      editor.zoomToBounds(new Box(f.x, f.y, f.width, f.height), { inset: 48, animation: { duration: 350 } });
+    } else {
+      editor.zoomToFit({ animation: { duration: 350 } });
+    }
+  }, [presenting, presentIndex]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     const editor = editorRef.current;
@@ -618,7 +639,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${mode === 'architect' ? ' connect-enabled' : ''}`}
+      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${presenting ? ' presenting' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {
@@ -628,6 +649,7 @@ export function CanvasView({
       }}
       onDropCapture={handleDrop}
     >
+      {!presenting && (
       <div className="canvas-toolbar">
         {mode === 'architect' && (
           <>
@@ -695,8 +717,9 @@ export function CanvasView({
           Export SVG
         </button>
       </div>
+      )}
 
-      {mode === 'architect' && selectedNodeIds.length >= 2 && (
+      {!presenting && mode === 'architect' && selectedNodeIds.length >= 2 && (
         <aside className="props-panel" data-testid="props-panel-multi" aria-label="Properties">
           <div className="props-panel__title">{selectedNodeIds.length} components</div>
           <div className="props-field">
@@ -707,7 +730,8 @@ export function CanvasView({
         </aside>
       )}
 
-      {mode === 'architect' &&
+      {!presenting &&
+        mode === 'architect' &&
         selectedNodeIds.length < 2 &&
         (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
         <aside className="props-panel" data-testid="props-panel" aria-label="Properties">

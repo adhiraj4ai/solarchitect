@@ -30,6 +30,34 @@ export default function App() {
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  // Animate: flow the relationship lines. Present: full-screen, chrome-free,
+  // stepping through page frames (or fit-to-content when there are none).
+  const [animate, setAnimate] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+  const [presentIndex, setPresentIndex] = useState(0);
+  const frames = diagram.frames ?? [];
+
+  function startPresenting() {
+    setPresentIndex(0);
+    setPresenting(true);
+  }
+  function stepPresent(delta: number) {
+    setPresentIndex((i) => Math.max(0, Math.min(frames.length - 1, i + delta)));
+  }
+
+  // Presentation keyboard controls: Esc exits, arrows step through frames.
+  useEffect(() => {
+    if (!presenting) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPresenting(false);
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ')
+        setPresentIndex((i) => Math.max(0, Math.min(frames.length - 1, i + 1)));
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')
+        setPresentIndex((i) => Math.max(0, i - 1));
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [presenting, frames.length]);
 
   // Global undo/redo. Captured before tldraw and the textarea so a single
   // shortcut drives the unified IR history regardless of what has focus.
@@ -67,7 +95,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${presenting ? ' app--presenting' : ''}`}>
       <header className="app__bar">
         <Wordmark />
         <span className="topsep" />
@@ -103,6 +131,23 @@ export default function App() {
           </button>
         </div>
         <span className="spacer" />
+        {showCanvas && (
+          <div className="topgroup">
+            <button
+              data-testid="animate-toggle"
+              className={`btn btn--sm${animate ? ' btn--on' : ''}`}
+              aria-pressed={animate}
+              onClick={() => setAnimate((v) => !v)}
+              title="Animate the relationship lines"
+            >
+              {animate ? '◉ Animating' : '◎ Animate'}
+            </button>
+            <button data-testid="present-btn" className="btn btn--sm" onClick={startPresenting} title="Present full screen">
+              ▷ Present
+            </button>
+          </div>
+        )}
+        <span className="topsep" />
         <span className="app__file">
           {project.currentFile ? (
             <span className="name">{project.currentFile}</span>
@@ -162,6 +207,9 @@ export default function App() {
               diagram={diagram}
               templates={templates.templates}
               mode={mode}
+              animate={animate}
+              presenting={presenting}
+              presentIndex={presentIndex}
               onCanvasEdit={onCanvasEdit}
               onSaveTemplate={beginSaveTemplate}
               onError={project.setIoError}
@@ -210,6 +258,34 @@ export default function App() {
           </div>
         </footer>
       </div>
+
+      {presenting && (
+        <div className="present-bar" role="toolbar" aria-label="Presentation">
+          <button className="btn btn--sm" data-testid="present-exit" onClick={() => setPresenting(false)} title="Exit (Esc)">
+            ✕ Exit
+          </button>
+          {frames.length > 0 && (
+            <>
+              <span className="present-sep" />
+              <button className="btn btn--sm btn--icon" onClick={() => stepPresent(-1)} disabled={presentIndex === 0} title="Previous (←)">
+                ‹
+              </button>
+              <span className="present-count">
+                {presentIndex + 1} / {frames.length}
+                <span className="present-name">{frames[Math.min(presentIndex, frames.length - 1)]?.label}</span>
+              </span>
+              <button
+                className="btn btn--sm btn--icon"
+                onClick={() => stepPresent(1)}
+                disabled={presentIndex >= frames.length - 1}
+                title="Next (→)"
+              >
+                ›
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {pendingTemplate && (
         <div className="modal__backdrop">
