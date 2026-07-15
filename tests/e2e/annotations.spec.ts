@@ -20,6 +20,8 @@ const editor = () => win.locator('textarea[aria-label="Diagram YAML"]');
 const canvas = () => win.locator('[data-testid="canvas-drop"]');
 
 test('all three annotation kinds typed in YAML render on the canvas', async () => {
+  // Annotations live on the Whiteboard, not in Architect.
+  await win.getByRole('tab', { name: 'Whiteboard' }).click();
   await editor().fill(`nodes: []
 edges: []
 clusters: []
@@ -52,6 +54,8 @@ annotations:
 });
 
 test('placing a sticky note on the canvas adds an annotation to the YAML', async () => {
+  // Annotations are a Whiteboard capability.
+  await win.getByRole('tab', { name: 'Whiteboard' }).click();
   await editor().fill(`nodes: []
 edges: []
 clusters: []
