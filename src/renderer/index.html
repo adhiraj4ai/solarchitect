@@ -2,10 +2,8 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self' data:;"
-    />
+    <!-- Content-Security-Policy is set from the main process (src/main/index.ts)
+         so dev can allow Vite's HMR while production stays strict. -->
     <title>Solarchitect</title>
   </head>
   <body>

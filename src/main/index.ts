@@ -1,9 +1,26 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session } from 'electron';
 import { createServer, type Server } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 import { AddressInfo } from 'node:net';
 import { registerIpcHandlers } from './ipcHandlers';
+
+const isDev = !!process.env['ELECTRON_RENDERER_URL'];
+
+// Production stays strict (bundled assets only, plus tldraw's data:/blob: icons).
+// Dev must allow Vite's HMR: its inline preamble script, eval, and the
+// localhost websocket — without this the renderer never mounts (blank window).
+const CSP = isDev
+  ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: http://localhost:* ws://localhost:*"
+  : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self' data:";
+
+function applyCsp(): void {
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [CSP] },
+    });
+  });
+}
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -58,6 +75,7 @@ function createWindow(rendererUrl: string): void {
 }
 
 app.whenReady().then(async () => {
+  applyCsp();
   registerIpcHandlers();
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'] ?? (await startRendererServer());
   createWindow(rendererUrl);

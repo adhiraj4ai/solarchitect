@@ -16,6 +16,13 @@ export default defineConfig({
         '@shared': resolve('src/shared'),
       },
     },
+    // @tldraw/assets/imports.vite resolves icon/font URLs via Vite's ?url asset
+    // handling; letting Vite pre-bundle it into .vite/deps breaks that in dev
+    // (getAssetUrlsByImport throws on undefined). Excluding it fixes the dev
+    // renderer; the production build is unaffected.
+    optimizeDeps: {
+      exclude: ['@tldraw/assets'],
+    },
     plugins: [react()],
   },
 });
