@@ -137,6 +137,11 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             markerEnd={arrow ? `url(#${endId})` : undefined}
             markerStart={arrow && direction === 'bidirectional' ? `url(#${startId})` : undefined}
           />
+          {/* A token that travels from → to along the edge; only visible in
+              Animate mode (gated by the .animate-on ancestor in CSS). */}
+          <circle className="arch-edge-token" r="4.5" fill="var(--sync, #d9822b)" stroke="none">
+            <animateMotion dur="1.7s" repeatCount="indefinite" path={d} rotate="0" />
+          </circle>
         </svg>
         {label && (
           <div

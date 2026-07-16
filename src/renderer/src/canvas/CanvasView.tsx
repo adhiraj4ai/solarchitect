@@ -112,6 +112,40 @@ function ArrowGlyph({ on }: { on: boolean }) {
   );
 }
 
+/** Monochrome icons for the canvas action toolbar. */
+const TOOL_ICONS = {
+  connect: (
+    <>
+      <circle cx="6" cy="18" r="2.4" />
+      <circle cx="18" cy="6" r="2.4" />
+      <path d="M8 16 L16 8" />
+    </>
+  ),
+  group: <rect x="4" y="6" width="16" height="12" rx="2" strokeDasharray="3 2.4" />,
+  template: <path d="M7 4h10v16l-5-3.6L7 20z" />,
+  frame: (
+    <>
+      <rect x="4" y="5.5" width="16" height="13" rx="1.5" />
+      <path d="M4 9.2h16" />
+    </>
+  ),
+  export: (
+    <>
+      <path d="M12 3v10" />
+      <path d="M8 9l4 4 4-4" />
+      <path d="M5 20h14" />
+    </>
+  ),
+} as const;
+
+function ToolIcon({ name }: { name: keyof typeof TOOL_ICONS }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {TOOL_ICONS[name]}
+    </svg>
+  );
+}
+
 // Architect mode is a structured system-design surface: no freehand tools, no
 // style panel — you place nodes from the library and connect them. Whiteboard
 // mode is for sketching: tldraw's full drawing dock and style panel return.
@@ -291,6 +325,7 @@ export function CanvasView({
     null,
   );
   const [frameMenuOpen, setFrameMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   // All currently-selected node ids (for assigning a color to several at once).
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
@@ -670,23 +705,29 @@ export function CanvasView({
         {mode === 'architect' && (
           <>
             <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
+              <ToolIcon name="connect" />
               Connect
             </button>
             <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
+              <ToolIcon name="group" />
               Group
             </button>
             <span className="sep" />
             <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
-              Save as Template
+              <ToolIcon name="template" />
+              Template
             </button>
-            <span className="sep" />
             <div className="frame-menu">
               <button
                 data-testid="add-frame-btn"
                 className="btn btn--sm"
                 aria-expanded={frameMenuOpen}
-                onClick={() => setFrameMenuOpen((v) => !v)}
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  setFrameMenuOpen((v) => !v);
+                }}
               >
+                <ToolIcon name="frame" />
                 Frame ▾
               </button>
               {frameMenuOpen && (
@@ -726,12 +767,48 @@ export function CanvasView({
             <span className="sep" />
           </>
         )}
-        <button data-testid="export-png-btn" onClick={() => handleExport('png')} className="btn btn--sm">
-          Export PNG
-        </button>
-        <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} className="btn btn--sm">
-          Export SVG
-        </button>
+        <div className="frame-menu">
+          <button
+            data-testid="export-btn"
+            className="btn btn--sm"
+            aria-expanded={exportMenuOpen}
+            onClick={() => {
+              setFrameMenuOpen(false);
+              setExportMenuOpen((v) => !v);
+            }}
+          >
+            <ToolIcon name="export" />
+            Export ▾
+          </button>
+          {exportMenuOpen && (
+            <div className="frame-menu__list" role="menu">
+              <button
+                role="menuitem"
+                data-testid="export-png-btn"
+                className="frame-menu__item"
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  void handleExport('png');
+                }}
+              >
+                <span>PNG image</span>
+                <span className="frame-menu__dim">.png</span>
+              </button>
+              <button
+                role="menuitem"
+                data-testid="export-svg-btn"
+                className="frame-menu__item"
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  void handleExport('svg');
+                }}
+              >
+                <span>SVG vector</span>
+                <span className="frame-menu__dim">.svg</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       )}
 

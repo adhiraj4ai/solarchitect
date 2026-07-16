@@ -480,12 +480,10 @@ button { font-family: inherit; }
 /* canvas */
 .canvas { position: absolute; inset: 0; }
 
-/* animate mode — relationship lines flow toward their arrowheads */
-.canvas.animate-on .arch-edge-path {
-  stroke-dasharray: 7 6;
-  animation: edge-flow 0.7s linear infinite;
-}
-@keyframes edge-flow { to { stroke-dashoffset: -13; } }
+/* animate mode — a token travels from → to along each relationship. The token
+   animates continuously (SMIL) but is only shown when animate mode is on. */
+.arch-edge-token { visibility: hidden; }
+.canvas.animate-on .arch-edge-token { visibility: visible; }
 
 /* presentation: hide all chrome, canvas fills the window */
 .app--presenting .app__bar,
@@ -759,5 +757,6 @@ button { font-family: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
-  .canvas.animate-on .arch-edge-path { animation: none !important; }
+  /* No travelling token when the user prefers reduced motion. */
+  .canvas.animate-on .arch-edge-token { visibility: hidden; }
 }
