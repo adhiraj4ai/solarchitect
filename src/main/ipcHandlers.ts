@@ -8,7 +8,17 @@ import {
   writeTemplates,
 } from './projectManager';
 import { writeExportedImage } from './exportService';
-import { gitStatus, gitInit, gitSync } from './gitService';
+import {
+  gitStatus,
+  gitInit,
+  gitSync,
+  gitDetail,
+  gitCommit,
+  gitPush,
+  gitPull,
+  gitCreateBranch,
+  gitCheckoutBranch,
+} from './gitService';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('project:openFolder', async () => {
@@ -34,6 +44,16 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('project:gitStatus', (_e, projectDir: string) => gitStatus(projectDir));
   ipcMain.handle('project:gitSync', (_e, projectDir: string, message: string) => gitSync(projectDir, message));
+  ipcMain.handle('project:gitDetail', (_e, projectDir: string) => gitDetail(projectDir));
+  ipcMain.handle('project:gitCommit', (_e, projectDir: string, message: string) => gitCommit(projectDir, message));
+  ipcMain.handle('project:gitPush', (_e, projectDir: string) => gitPush(projectDir));
+  ipcMain.handle('project:gitPull', (_e, projectDir: string) => gitPull(projectDir));
+  ipcMain.handle('project:gitCreateBranch', (_e, projectDir: string, name: string) =>
+    gitCreateBranch(projectDir, name),
+  );
+  ipcMain.handle('project:gitCheckoutBranch', (_e, projectDir: string, name: string) =>
+    gitCheckoutBranch(projectDir, name),
+  );
 
   ipcMain.handle('project:listDiagrams', (_e, projectDir: string) => listDiagrams(projectDir));
   ipcMain.handle('project:readDiagram', (_e, projectDir: string, fileName: string) =>

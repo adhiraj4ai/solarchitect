@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { gitStatus, gitInit, gitSync } from './gitService';
+import { gitStatus, gitInit, gitSync, gitDetail, gitCommit, gitCreateBranch, gitCheckoutBranch } from './gitService';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const run = promisify(execFile);
+async function identify(d: string) {
+  await run('git', ['config', 'user.email', 'test@example.com'], { cwd: d });
+  await run('git', ['config', 'user.name', 'Test'], { cwd: d });
+}
 
 let dir: string;
 
@@ -37,12 +45,7 @@ describe('gitService', () => {
 
   it('commits locally when there are changes but no remote', async () => {
     await gitInit(dir);
-    // Some CI/dev environments have no default git identity; set one for the repo.
-    const { execFile } = await import('node:child_process');
-    const { promisify } = await import('node:util');
-    const run = promisify(execFile);
-    await run('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
-    await run('git', ['config', 'user.name', 'Test'], { cwd: dir });
+    await identify(dir);
 
     await writeFile(path.join(dir, 'overview.yaml'), 'nodes: []\n');
     const r = await gitSync(dir, 'first commit');
@@ -51,5 +54,43 @@ describe('gitService', () => {
 
     const after = await gitStatus(dir);
     expect(after.dirty).toBe(0); // committed, working tree clean
+  });
+
+  it('gitDetail reports files, branch and log', async () => {
+    await gitInit(dir);
+    await identify(dir);
+    await writeFile(path.join(dir, 'a.yaml'), 'nodes: []\n');
+    await gitCommit(dir, 'add a');
+    await writeFile(path.join(dir, 'b.yaml'), 'nodes: []\n'); // untracked change
+
+    const d = await gitDetail(dir);
+    expect(d.isRepo).toBe(true);
+    expect(d.branch).toBeTruthy();
+    expect(d.files.map((f) => f.path)).toContain('b.yaml');
+    expect(d.log[0].subject).toBe('add a');
+    expect(d.ahead).toBe(0);
+    expect(d.behind).toBe(0);
+  });
+
+  it('gitCommit refuses an empty message and a clean tree', async () => {
+    await gitInit(dir);
+    await identify(dir);
+    expect((await gitCommit(dir, '   ')).ok).toBe(false);
+    expect((await gitCommit(dir, 'nothing to do')).message).toMatch(/nothing to commit/i);
+  });
+
+  it('creates and switches branches', async () => {
+    await gitInit(dir);
+    await identify(dir);
+    await writeFile(path.join(dir, 'a.yaml'), 'nodes: []\n');
+    await gitCommit(dir, 'init');
+
+    const created = await gitCreateBranch(dir, 'feature-x');
+    expect(created.ok).toBe(true);
+    expect((await gitDetail(dir)).branch).toBe('feature-x');
+
+    const back = await gitCheckoutBranch(dir, 'feature-x');
+    expect(back.ok).toBe(true);
+    expect((await gitDetail(dir)).branches).toContain('feature-x');
   });
 });

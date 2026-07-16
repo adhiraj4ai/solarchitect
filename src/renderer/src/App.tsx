@@ -3,6 +3,7 @@ import { CanvasView } from './canvas/CanvasView';
 import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { ProjectSidebar } from './project/ProjectSidebar';
+import { GitPanel } from './project/GitPanel';
 import { TemplatesPanel } from './project/TemplatesPanel';
 import { Wordmark } from './ui/Wordmark';
 import { useSyncEngine } from './hooks/useSyncEngine';
@@ -166,15 +167,15 @@ export default function App() {
               entries={project.entries}
               currentFile={project.currentFile}
               canSave={!!project.currentFile && !yamlError}
-              git={project.git}
-              syncing={project.syncing}
               onOpenProject={project.openProject}
               onNewProject={project.newProject}
               onNewDiagram={project.newDiagram}
               onOpenDiagram={project.openDiagram}
               onSave={() => project.saveDiagram(yamlText)}
-              onSync={project.sync}
             />
+          </section>
+          <section className="rail__git">
+            <GitPanel projectDir={project.projectDir} onError={project.setIoError} />
           </section>
           <section className="rail__shapes">
             {!showCanvas ? (

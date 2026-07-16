@@ -17,6 +17,30 @@ export interface GitSyncResult {
   message: string;
 }
 
+export interface GitFileChange {
+  path: string;
+  code: string; // two-char porcelain code
+  staged: boolean;
+}
+
+export interface GitCommitInfo {
+  hash: string;
+  subject: string;
+  author: string;
+  relDate: string;
+}
+
+export interface GitDetail {
+  isRepo: boolean;
+  branch: string | null;
+  hasRemote: boolean;
+  ahead: number;
+  behind: number;
+  files: GitFileChange[];
+  branches: string[];
+  log: GitCommitInfo[];
+}
+
 export interface NewProjectResult {
   dir: string;
   fileName: string;
@@ -40,4 +64,10 @@ export interface SolarchitectApi {
   newProject(): Promise<NewProjectResult | null>;
   gitStatus(projectDir: string): Promise<GitStatus>;
   gitSync(projectDir: string, message: string): Promise<GitSyncResult>;
+  gitDetail(projectDir: string): Promise<GitDetail>;
+  gitCommit(projectDir: string, message: string): Promise<GitSyncResult>;
+  gitPush(projectDir: string): Promise<GitSyncResult>;
+  gitPull(projectDir: string): Promise<GitSyncResult>;
+  gitCreateBranch(projectDir: string, name: string): Promise<GitSyncResult>;
+  gitCheckoutBranch(projectDir: string, name: string): Promise<GitSyncResult>;
 }

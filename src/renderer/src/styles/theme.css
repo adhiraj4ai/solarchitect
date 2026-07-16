@@ -159,12 +159,44 @@ button { font-family: inherit; }
 .segmented__btn:hover { color: var(--ink); }
 .segmented__btn.on { background: var(--panel); color: var(--blueprint-ink); box-shadow: var(--shadow-1); }
 
-/* git row in the project section */
-.git-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-family: var(--mono); font-size: 11px; color: var(--slate); }
-.git-branch { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.git-state { color: var(--faint); }
-.git-state.dirty { color: var(--sync); }
-.git-row .btn { margin-left: auto; }
+/* ---------------- git panel ---------------- */
+.rail__git { flex: 0 0 auto; }
+.git { display: flex; flex-direction: column; gap: 9px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.git__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.git__empty, .git__norem { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.git__branch-wrap { position: relative; }
+.git__branch-menu {
+  position: absolute; top: calc(100% + 5px); right: 0; z-index: 1200; min-width: 180px;
+  display: flex; flex-direction: column; padding: 5px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-pop);
+}
+.git__branch-item {
+  text-align: left; border: none; background: transparent; border-radius: var(--radius-sm);
+  padding: 6px 8px; font-family: var(--mono); font-size: 12px; color: var(--ink); cursor: pointer;
+}
+.git__branch-item:hover { background: var(--blueprint-soft); color: var(--blueprint-ink); }
+.git__branch-item.on { color: var(--blueprint-ink); }
+.git__branch-new { padding: 4px 2px 2px; }
+.git__remote { display: flex; gap: 6px; }
+.git__remote .btn { flex: 1; }
+.git__changes { display: flex; flex-direction: column; gap: 7px; }
+.git__changes-head { font-family: var(--mono); font-size: 11px; color: var(--slate); }
+.git__files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 116px; overflow-y: auto; }
+.git__file { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--slate); }
+.git__file-code { width: 16px; color: var(--sync); flex: 0 0 auto; text-align: center; }
+.git__file.staged .git__file-code { color: var(--blueprint); }
+.git__file-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git__file.more { color: var(--faint); }
+.git__commit { display: flex; gap: 6px; }
+.git__commit .props-input { flex: 1; min-width: 0; }
+.git__history { font-family: var(--mono); font-size: 11px; }
+.git__history summary { cursor: pointer; color: var(--slate); }
+.git__history ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+.git__history li { display: grid; gap: 1px; }
+.git__log-hash { color: var(--blueprint-ink); }
+.git__log-subject { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git__log-meta { color: var(--faint); font-size: 10px; }
+.git__status { font-family: var(--mono); font-size: 10.5px; color: var(--slate); }
 
 /* whiteboard-mode hint where the shape library would be */
 .rail__hint { padding: 14px; }

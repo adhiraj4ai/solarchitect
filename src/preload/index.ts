@@ -17,6 +17,12 @@ const api: SolarchitectApi = {
   newProject: () => ipcRenderer.invoke('project:newProject'),
   gitStatus: (projectDir) => ipcRenderer.invoke('project:gitStatus', projectDir),
   gitSync: (projectDir, message) => ipcRenderer.invoke('project:gitSync', projectDir, message),
+  gitDetail: (projectDir) => ipcRenderer.invoke('project:gitDetail', projectDir),
+  gitCommit: (projectDir, message) => ipcRenderer.invoke('project:gitCommit', projectDir, message),
+  gitPush: (projectDir) => ipcRenderer.invoke('project:gitPush', projectDir),
+  gitPull: (projectDir) => ipcRenderer.invoke('project:gitPull', projectDir),
+  gitCreateBranch: (projectDir, name) => ipcRenderer.invoke('project:gitCreateBranch', projectDir, name),
+  gitCheckoutBranch: (projectDir, name) => ipcRenderer.invoke('project:gitCheckoutBranch', projectDir, name),
 };
 
 contextBridge.exposeInMainWorld('solarchitect', api);
