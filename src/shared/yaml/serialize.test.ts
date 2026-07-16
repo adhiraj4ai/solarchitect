@@ -4,11 +4,11 @@ import type { Diagram } from '../ir/types';
 
 describe('serializeDiagram', () => {
   it('serializes an empty diagram', () => {
-    const yamlText = serializeDiagram({ nodes: [], edges: [], clusters: [], annotations: [] });
+    const yamlText = serializeDiagram({ nodes: [], edges: [], clusters: [] });
     expect(yamlText).toContain('nodes: []');
     expect(yamlText).toContain('edges: []');
     expect(yamlText).toContain('clusters: []');
-    expect(yamlText).toContain('annotations: []');
+    expect(yamlText).not.toContain('annotations');
   });
 
   it('serializes a node with all required fields', () => {
@@ -16,7 +16,6 @@ describe('serializeDiagram', () => {
       nodes: [{ id: 'n1', type: 'aws.compute.EC2', label: 'Web Server', x: 10, y: 20 }],
       edges: [],
       clusters: [],
-      annotations: [],
     };
     const yamlText = serializeDiagram(diagram);
     expect(yamlText).toContain('id: n1');
@@ -29,7 +28,6 @@ describe('serializeDiagram', () => {
       nodes: [{ id: 'n1', type: 'aws.compute.EC2', label: 'Web', x: 0, y: 0, clusterId: 'c1' }],
       edges: [{ id: 'e1', from: 'n1', to: 'n1', direction: 'forward', label: 'loop' }],
       clusters: [],
-      annotations: [],
     };
     const yamlText = serializeDiagram(diagram);
     expect(yamlText).toContain('clusterId: c1');

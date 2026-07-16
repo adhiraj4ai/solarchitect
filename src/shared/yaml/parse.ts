@@ -1,6 +1,6 @@
 import { parse as parseYaml } from 'yaml';
 import { isValidNodeType } from '../ir/taxonomy';
-import { CLUSTER_COLORS } from '../ir/types';
+import { ACCENT_COLORS } from '../ir/types';
 import type {
   Diagram,
   DiagramNode,
@@ -54,9 +54,9 @@ export function parseDiagram(yamlText: string): ParseResult {
     const clusters: DiagramCluster[] = asList(doc.clusters, 'clusters').map((item, i) => {
       const c = asMapping(item, `clusters[${i}]`);
       const color = c.color as DiagramCluster['color'];
-      if (color && !CLUSTER_COLORS.includes(color)) {
+      if (color && !ACCENT_COLORS.includes(color)) {
         throw new ValidationError(
-          `Cluster color must be one of ${CLUSTER_COLORS.join(', ')} (got "${color}")`,
+          `Cluster color must be one of ${ACCENT_COLORS.join(', ')} (got "${color}")`,
           `clusters[${i}].color`,
         );
       }
@@ -88,6 +88,13 @@ export function parseDiagram(yamlText: string): ParseResult {
       if (n.y !== undefined && n.y !== null && typeof n.y !== 'number') {
         throw new ValidationError(`Node y must be a number (got "${n.y}")`, `nodes[${i}].y`);
       }
+      const nodeColor = n.color as DiagramNode['color'];
+      if (nodeColor && !ACCENT_COLORS.includes(nodeColor)) {
+        throw new ValidationError(
+          `Node color must be one of ${ACCENT_COLORS.join(', ')} (got "${nodeColor}")`,
+          `nodes[${i}].color`,
+        );
+      }
       nodeIds.add(n.id as string);
       // x/y are optional — coordinate-free nodes are auto-laid-out downstream.
       nodes.push({
@@ -97,6 +104,7 @@ export function parseDiagram(yamlText: string): ParseResult {
         ...(typeof n.x === 'number' ? { x: n.x } : {}),
         ...(typeof n.y === 'number' ? { y: n.y } : {}),
         ...(n.clusterId ? { clusterId: n.clusterId as string } : {}),
+        ...(nodeColor ? { color: nodeColor } : {}),
       });
     });
 
@@ -135,18 +143,8 @@ export function parseDiagram(yamlText: string): ParseResult {
       });
     });
 
-    const annotations: DiagramAnnotation[] = asList(doc.annotations, 'annotations').map((item, i) => {
-      const a = asMapping(item, `annotations[${i}]`);
-      return {
-        id: a.id as string,
-        kind: a.kind as DiagramAnnotation['kind'],
-        x: a.x as number,
-        y: a.y as number,
-        width: a.width as number,
-        height: a.height as number,
-        content: a.content as string,
-      };
-    });
+    // A legacy `annotations` key is ignored here (not part of the Diagram
+    // anymore); the one-time migration reads it via extractAnnotations().
 
     const frames: DiagramFrame[] = asList(doc.frames, 'frames').map((item, i) => {
       const f = asMapping(item, `frames[${i}]`);
@@ -161,9 +159,35 @@ export function parseDiagram(yamlText: string): ParseResult {
       };
     });
 
-    return { ok: true, diagram: { nodes, edges, clusters, annotations, frames } };
+    return { ok: true, diagram: { nodes, edges, clusters, frames } };
   } catch (e) {
     if (e instanceof ValidationError) return { ok: false, error: { message: e.message, path: e.path } };
     return { ok: false, error: { message: `Invalid diagram: ${(e as Error).message}`, path: '' } };
+  }
+}
+
+/**
+ * Read any legacy `annotations` from a diagram's YAML, for the one-time
+ * migration onto the whiteboard. Returns [] for well-formed diagrams that have
+ * none, and swallows malformed input (migration is best-effort, never fatal).
+ */
+export function extractAnnotations(yamlText: string): DiagramAnnotation[] {
+  try {
+    const raw = parseYaml(yamlText) as { annotations?: unknown } | null;
+    const list = raw && typeof raw === 'object' ? raw.annotations : undefined;
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
+      .map((a) => ({
+        id: String(a.id ?? ''),
+        kind: (a.kind as DiagramAnnotation['kind']) ?? 'text',
+        x: Number(a.x) || 0,
+        y: Number(a.y) || 0,
+        width: Number(a.width) || 160,
+        height: Number(a.height) || 100,
+        content: String(a.content ?? ''),
+      }));
+  } catch {
+    return [];
   }
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { NODE_TAXONOMY, type Provider } from '@shared/ir/taxonomy';
 import { NODE_TYPE_DND_MIME } from './dnd';
-import { NodeIcon, PROVIDER_COLOR, PROVIDER_TINT } from './icons';
+import { NodeIcon, GlyphIcon, PROVIDER_GLYPH } from './icons';
 
 const PROVIDER_ORDER: Provider[] = [
   'aws',
@@ -17,6 +17,19 @@ const PROVIDER_ORDER: Provider[] = [
   'firebase',
   'elastic',
   'saas',
+  'vercel',
+  'netlify',
+  'heroku',
+  'supabase',
+  'snowflake',
+  'databricks',
+  'flowchart',
+  'uml',
+  'language',
+  'framework',
+  'oss',
+  'client',
+  'ai',
   'generic',
 ];
 const PROVIDER_NAME: Record<Provider, string> = {
@@ -33,6 +46,19 @@ const PROVIDER_NAME: Record<Provider, string> = {
   firebase: 'Firebase',
   elastic: 'Elastic',
   saas: 'SaaS',
+  vercel: 'Vercel',
+  netlify: 'Netlify',
+  heroku: 'Heroku',
+  supabase: 'Supabase',
+  snowflake: 'Snowflake',
+  databricks: 'Databricks',
+  flowchart: 'Flowchart',
+  uml: 'UML',
+  language: 'Languages',
+  framework: 'Frameworks',
+  oss: 'OSS Databases',
+  client: 'Clients',
+  ai: 'AI & ML',
   generic: 'Generic',
 };
 
@@ -87,7 +113,7 @@ export function ShapeLibrary() {
             <section key={g.provider} className="lib-group">
               <button
                 type="button"
-                className="lib-group__label"
+                className={`lib-group__label${open ? ' open' : ''}`}
                 data-testid={`lib-group-${g.provider}`}
                 aria-expanded={open}
                 onClick={() => toggle(g.provider)}
@@ -95,8 +121,10 @@ export function ShapeLibrary() {
                 <span className={`lib-caret${open ? ' open' : ''}`} aria-hidden="true">
                   ▸
                 </span>
-                <span className="lib-dot" style={{ background: PROVIDER_COLOR[g.provider] }} />
-                {PROVIDER_NAME[g.provider]}
+                <span className="lib-group__icon">
+                  <GlyphIcon name={PROVIDER_GLYPH[g.provider] ?? g.nodes[0].glyph} size={15} />
+                </span>
+                <span className="lib-group__name">{PROVIDER_NAME[g.provider]}</span>
                 <span className="lib-count">{g.nodes.length}</span>
               </button>
               {open && (
@@ -109,7 +137,7 @@ export function ShapeLibrary() {
                       onDragStart={(e) => e.dataTransfer.setData(NODE_TYPE_DND_MIME, def.id)}
                       title={`${def.displayName} — drag onto the canvas`}
                     >
-                      <span className="lib-tile__icon" style={{ background: PROVIDER_TINT[def.provider] }}>
+                      <span className="lib-tile__icon">
                         <NodeIcon type={def.id} size={22} />
                       </span>
                       <span className="lib-tile__name">{def.displayName}</span>

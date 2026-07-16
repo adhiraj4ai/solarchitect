@@ -16,7 +16,20 @@ export const PROVIDER_COLOR: Record<Provider, string> = {
   firebase: '#E8A400',
   elastic: '#17A398',
   saas: '#A855F7',
+  vercel: '#000000',
+  netlify: '#00C7B7',
+  heroku: '#430098',
+  supabase: '#3ECF8E',
+  snowflake: '#29B5E8',
+  databricks: '#FF3621',
+  flowchart: '#2563EB',
+  uml: '#9333EA',
   generic: '#5A6675',
+  language: '#EAB308',
+  framework: '#06B6D4',
+  oss: '#F97316',
+  client: '#14B8A6',
+  ai: '#EC4899',
 };
 
 export const PROVIDER_TINT: Record<Provider, string> = {
@@ -33,7 +46,20 @@ export const PROVIDER_TINT: Record<Provider, string> = {
   firebase: 'rgba(232, 164, 0, 0.12)',
   elastic: 'rgba(23, 163, 152, 0.12)',
   saas: 'rgba(168, 85, 247, 0.12)',
+  vercel: 'rgba(0, 0, 0, 0.12)',
+  netlify: 'rgba(0, 199, 183, 0.12)',
+  heroku: 'rgba(67, 0, 152, 0.12)',
+  supabase: 'rgba(62, 207, 142, 0.12)',
+  snowflake: 'rgba(41, 181, 232, 0.12)',
+  databricks: 'rgba(255, 54, 33, 0.12)',
+  flowchart: 'rgba(37, 99, 235, 0.12)',
+  uml: 'rgba(147, 51, 234, 0.12)',
   generic: 'rgba(90, 102, 117, 0.12)',
+  language: 'rgba(234, 179, 8, 0.12)',
+  framework: 'rgba(6, 182, 212, 0.12)',
+  oss: 'rgba(249, 115, 22, 0.12)',
+  client: 'rgba(20, 184, 166, 0.12)',
+  ai: 'rgba(236, 72, 153, 0.12)',
 };
 
 // Recognizable line-art for the architecture vocabulary. Original glyphs (not
@@ -405,14 +431,196 @@ const GLYPHS: Record<string, ReactElement> = {
       <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
     </>
   ),
+  warehouse: (
+    <>
+      <path d="M4 6h16v12H4z" />
+      <path d="M4 10h16M4 14h16M10 6v12M14 6v12" />
+    </>
+  ),
+  switch: (
+    <>
+      <rect x="3" y="8" width="18" height="8" rx="2" />
+      <path d="M7 10h2M11 10h2M15 10h2M7 14h2M11 14h2M15 14h2" />
+    </>
+  ),
+  vpn: (
+    <>
+      <rect x="4" y="8" width="16" height="8" rx="4" />
+      <circle cx="8" cy="12" r="2" />
+      <path d="M10 12h6" strokeDasharray="3 3" />
+    </>
+  ),
+  microservice: (
+    <>
+      <path d="M12 3l7 4v10l-7 4-7-4V7zM12 7l4 2.5v5L12 17l-4-2.5v-5z" />
+    </>
+  ),
+  diamond: <path d="M12 2l10 10-10 10L2 12z" />,
+  pill: <rect x="2" y="6" width="20" height="12" rx="6" />,
+  parallelogram: <path d="M6 4h14l-4 16H2z" />,
+  document: (
+    <>
+      <path d="M4 4h16v12c-3-2-5 2-8 0s-5-2-8 0V4z" />
+    </>
+  ),
+  stickman: (
+    <>
+      <circle cx="12" cy="6" r="3" />
+      <path d="M12 9v7M7 12h10M9 22l3-6 3 6" />
+    </>
+  ),
+  oval: <ellipse cx="12" cy="12" rx="10" ry="6" />,
+  umlclass: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M3 15h18" />
+    </>
+  ),
+  umlcomponent: (
+    <>
+      <rect x="6" y="4" width="15" height="16" rx="2" />
+      <rect x="3" y="7" width="6" height="3" rx="0.5" fill="currentColor" stroke="none" />
+      <rect x="3" y="14" width="6" height="3" rx="0.5" fill="currentColor" stroke="none" />
+    </>
+  ),
+  lollipop: (
+    <>
+      <circle cx="16" cy="12" r="3" />
+      <path d="M4 12h9" />
+    </>
+  ),
+  code: (
+    <>
+      <path d="M8 8l-4 4 4 4M16 8l4 4-4 4" />
+      <path d="M14 4l-4 16" />
+    </>
+  ),
+  folder: (
+    <>
+      <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" />
+    </>
+  ),
+  package: (
+    <>
+      <path d="M4 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <rect x="2" y="8" width="20" height="12" rx="2" />
+    </>
+  ),
+  card: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18" />
+    </>
+  ),
+  hexagon: (
+    <path d="M12 2l8.5 5v10L12 22l-8.5-5V7L12 2z" />
+  ),
+  cloud: (
+    <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5a4.5 4.5 0 0 0-4-4.47A7.5 7.5 0 0 0 4 11.5 5 5 0 0 0 5 21h12.5z" />
+  ),
+  frame: (
+    <>
+      <rect x="2" y="3" width="20" height="18" rx="2" />
+      <path d="M2 9h8V3" />
+    </>
+  ),
+  rectangle: (
+    <rect x="3" y="4" width="18" height="16" rx="1.5" />
+  ),
+  collections: (
+    <>
+      <rect x="6" y="2" width="16" height="16" rx="2" />
+      <path d="M2 6v14a2 2 0 0 0 2 2h14" />
+    </>
+  ),
+  boundary: (
+    <>
+      <circle cx="13" cy="12" r="7" />
+      <path d="M2 12h4M2 4v16" />
+    </>
+  ),
+  control: (
+    <>
+      <circle cx="12" cy="12" r="7" />
+      <path d="M12 5l4-4 4 4M16 1v4" />
+    </>
+  ),
+  entity: (
+    <>
+      <circle cx="12" cy="10" r="7" />
+      <path d="M5 21h14" />
+    </>
+  ),
+  node: (
+    <>
+      <path d="M12 22V12M12 12L2 7M12 12l10-5" />
+      <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" />
+    </>
+  ),
 };
 
 const DEF_BY_ID = new Map(NODE_TAXONOMY.map((d) => [d.id, d]));
 
-/** Provider-colored glyph for a node type. */
-export function NodeIcon({ type, size = 20 }: { type: string; size?: number }) {
+/** A representative glyph per provider, for the library group headers. Unlisted
+ *  providers fall back to a representative node glyph in the caller. */
+export const PROVIDER_GLYPH: Partial<Record<Provider, string>> = {
+  aws: 'cloud',
+  azure: 'cloud',
+  gcp: 'cloud',
+  oracle: 'cloud',
+  ibm: 'cloud',
+  alibaba: 'cloud',
+  kubernetes: 'kubernetes',
+  onprem: 'server',
+  cloudflare: 'shield',
+  digitalocean: 'droplet',
+  firebase: 'spark',
+  elastic: 'search',
+  saas: 'app',
+  vercel: 'hexagon',
+  netlify: 'cdn',
+  heroku: 'container',
+  supabase: 'database',
+  snowflake: 'warehouse',
+  databricks: 'spark',
+  flowchart: 'rectangle',
+  uml: 'umlclass',
+  generic: 'hub',
+  language: 'code',
+  framework: 'package',
+  oss: 'github',
+  client: 'client',
+  ai: 'chip',
+};
+
+/** Render any glyph by its key (monochrome ink by default). */
+export function GlyphIcon({ name, size = 16, color }: { name: string; size?: number; color?: string }) {
+  const glyph = GLYPHS[name] || GLYPHS.server;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ color: color ?? 'var(--ink, #101722)', display: 'block' }}
+      aria-hidden="true"
+    >
+      {glyph}
+    </svg>
+  );
+}
+
+/**
+ * Line-art glyph for a node type. Monochrome (ink) by default — the sidebar and
+ * uncolored canvas nodes render black & white; pass `color` to tint the glyph
+ * (used when the user assigns a node an accent color).
+ */
+export function NodeIcon({ type, size = 20, color }: { type: string; size?: number; color?: string }) {
   const def = DEF_BY_ID.get(type);
-  const color = def ? PROVIDER_COLOR[def.provider] : PROVIDER_COLOR.generic;
   const glyph = (def && GLYPHS[def.glyph]) || GLYPHS.server;
   return (
     <svg
@@ -424,7 +632,7 @@ export function NodeIcon({ type, size = 20 }: { type: string; size?: number }) {
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ color, display: 'block' }}
+      style={{ color: color ?? 'var(--ink, #101722)', display: 'block' }}
       aria-hidden="true"
     >
       {glyph}

@@ -5,7 +5,7 @@ import type { Diagram } from '../ir/types';
 
 describe('IR -> YAML -> IR round-trip', () => {
   it('produces an identical empty diagram after a full round-trip', () => {
-    const original: Diagram = { nodes: [], edges: [], clusters: [], annotations: [] };
+    const original: Diagram = { nodes: [], edges: [], clusters: [], frames: [] };
     const result = parseDiagram(serializeDiagram(original));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.diagram).toEqual(original);
@@ -19,7 +19,7 @@ describe('IR -> YAML -> IR round-trip', () => {
       ],
       edges: [{ id: 'e1', from: 'n1', to: 'n2', direction: 'forward', label: 'reads/writes' }],
       clusters: [{ id: 'c1', label: 'VPC', x: 0, y: 0, width: 300, height: 200 }],
-      annotations: [{ id: 'a1', kind: 'sticky', x: 5, y: 5, width: 100, height: 60, content: 'note' }],
+      frames: [],
     };
     const yamlText = serializeDiagram(original);
     const result = parseDiagram(yamlText);

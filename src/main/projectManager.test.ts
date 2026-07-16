@@ -2,7 +2,25 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { listDiagrams, readDiagram, writeDiagram, createDiagram } from './projectManager';
+import {
+  listDiagrams,
+  readDiagram,
+  writeDiagram,
+  createDiagram,
+  readWhiteboard,
+  writeWhiteboard,
+  whiteboardName,
+} from './projectManager';
+import { access } from 'node:fs/promises';
+
+async function exists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const EMPTY_DOC = 'nodes: []\nedges: []\nclusters: []\nannotations: []\n';
 
@@ -79,5 +97,46 @@ annotations: []
     expect(second).not.toBe(first);
     const entries = await listDiagrams(projectDir);
     expect(entries).toHaveLength(2);
+  });
+
+  describe('whiteboard sidecar', () => {
+    it('derives the sidecar name from the diagram file', () => {
+      expect(whiteboardName('payments.yaml')).toBe('payments.whiteboard.json');
+      expect(whiteboardName('a.yml')).toBe('a.whiteboard.json');
+    });
+
+    it('round-trips a snapshot', async () => {
+      await writeDiagram(projectDir, 'd.yaml', EMPTY_DOC);
+      const snap = '{"store":{"shape:1":{"typeName":"shape"}}}';
+      await writeWhiteboard(projectDir, 'd.yaml', snap);
+      expect(await readWhiteboard(projectDir, 'd.yaml')).toBe(snap);
+    });
+
+    it('reads a missing sidecar as null (blank whiteboard)', async () => {
+      expect(await readWhiteboard(projectDir, 'never.yaml')).toBeNull();
+    });
+
+    it('is lazy: a null/empty snapshot writes no file and removes an existing one', async () => {
+      const sidecar = path.join(projectDir, whiteboardName('d.yaml'));
+      await writeWhiteboard(projectDir, 'd.yaml', null);
+      expect(await exists(sidecar)).toBe(false);
+
+      await writeWhiteboard(projectDir, 'd.yaml', '{"store":{}}');
+      expect(await exists(sidecar)).toBe(true);
+
+      await writeWhiteboard(projectDir, 'd.yaml', ''); // emptied → removed
+      expect(await exists(sidecar)).toBe(false);
+    });
+
+    it('is excluded from the diagram list', async () => {
+      await writeDiagram(projectDir, 'd.yaml', EMPTY_DOC);
+      await writeWhiteboard(projectDir, 'd.yaml', '{"store":{}}');
+      const entries = await listDiagrams(projectDir);
+      expect(entries.map((e) => e.fileName)).toEqual(['d.yaml']);
+    });
+
+    it('refuses a path that escapes the project', async () => {
+      await expect(readWhiteboard(projectDir, '../../etc/passwd')).rejects.toThrow(/outside the project/);
+    });
   });
 });

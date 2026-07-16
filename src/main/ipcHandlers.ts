@@ -6,14 +6,33 @@ import {
   createDiagram,
   readTemplates,
   writeTemplates,
+  readWhiteboard,
+  writeWhiteboard,
 } from './projectManager';
 import { writeExportedImage } from './exportService';
-import { gitStatus, gitInit, gitSync } from './gitService';
+import {
+  gitStatus,
+  gitInit,
+  gitSync,
+  gitDetail,
+  gitCommit,
+  gitPush,
+  gitPull,
+  gitCreateBranch,
+  gitCheckoutBranch,
+} from './gitService';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('project:openFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
-    return result.canceled ? null : result.filePaths[0];
+    if (result.canceled || !result.filePaths[0]) return null;
+    const dir = result.filePaths[0];
+    // Version control should just work: initialize a repo if the folder isn't
+    // already under git (gitStatus is true for any ancestor repo, so this never
+    // nests a repo inside an existing one).
+    const status = await gitStatus(dir);
+    if (!status.isRepo) await gitInit(dir);
+    return dir;
   });
 
   // Create a new project: pick/create a folder, git-init it, and seed a first
@@ -32,8 +51,22 @@ export function registerIpcHandlers(): void {
     return { dir, fileName };
   });
 
+  ipcMain.handle('project:gitInit', async (_e, projectDir: string) => {
+    await gitInit(projectDir);
+    return { ok: true, message: 'Initialized an empty git repository.' };
+  });
   ipcMain.handle('project:gitStatus', (_e, projectDir: string) => gitStatus(projectDir));
   ipcMain.handle('project:gitSync', (_e, projectDir: string, message: string) => gitSync(projectDir, message));
+  ipcMain.handle('project:gitDetail', (_e, projectDir: string) => gitDetail(projectDir));
+  ipcMain.handle('project:gitCommit', (_e, projectDir: string, message: string) => gitCommit(projectDir, message));
+  ipcMain.handle('project:gitPush', (_e, projectDir: string) => gitPush(projectDir));
+  ipcMain.handle('project:gitPull', (_e, projectDir: string) => gitPull(projectDir));
+  ipcMain.handle('project:gitCreateBranch', (_e, projectDir: string, name: string) =>
+    gitCreateBranch(projectDir, name),
+  );
+  ipcMain.handle('project:gitCheckoutBranch', (_e, projectDir: string, name: string) =>
+    gitCheckoutBranch(projectDir, name),
+  );
 
   ipcMain.handle('project:listDiagrams', (_e, projectDir: string) => listDiagrams(projectDir));
   ipcMain.handle('project:readDiagram', (_e, projectDir: string, fileName: string) =>
@@ -44,6 +77,12 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('project:createDiagram', (_e, projectDir: string, displayName: string) =>
     createDiagram(projectDir, displayName),
+  );
+  ipcMain.handle('project:readWhiteboard', (_e, projectDir: string, diagramFileName: string) =>
+    readWhiteboard(projectDir, diagramFileName),
+  );
+  ipcMain.handle('project:writeWhiteboard', (_e, projectDir: string, diagramFileName: string, snapshot: string | null) =>
+    writeWhiteboard(projectDir, diagramFileName, snapshot),
   );
   ipcMain.handle('project:readTemplates', (_e, projectDir: string) => readTemplates(projectDir));
   ipcMain.handle('project:writeTemplates', (_e, projectDir: string, yamlText: string) =>

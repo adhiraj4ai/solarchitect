@@ -1,6 +1,7 @@
 import { ShapeUtil, Rectangle2d, HTMLContainer, T, type TLBaseShape } from 'tldraw';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
 import { NodeIcon, PROVIDER_TINT } from './icons';
+import { PROVIDER_ICON_MAP } from './iconMap';
 
 export type ArchNodeShape = TLBaseShape<
   'archNode',
@@ -36,6 +37,11 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
 
   component(shape: ArchNodeShape) {
     const def = NODE_TAXONOMY.find((n) => n.id === shape.props.nodeType);
+    
+    // Check if we have an official PNG icon for this node type
+    const customIconPath = PROVIDER_ICON_MAP[shape.props.nodeType];
+    const isCustomIcon = !!customIconPath;
+    
     return (
       <HTMLContainer
         className="arch-node"
@@ -72,10 +78,19 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
             width: 34,
             height: 34,
             borderRadius: 9,
-            background: def ? PROVIDER_TINT[def.provider] : PROVIDER_TINT.generic,
+            background: isCustomIcon ? 'transparent' : (def ? PROVIDER_TINT[def.provider] : PROVIDER_TINT.generic),
           }}
         >
-          <NodeIcon type={shape.props.nodeType} size={20} />
+          {isCustomIcon ? (
+            <img 
+              src={customIconPath} 
+              alt={def?.displayName || 'Icon'} 
+              style={{ width: 22, height: 22, objectFit: 'contain' }}
+              draggable={false}
+            />
+          ) : (
+            <NodeIcon type={shape.props.nodeType} size={20} />
+          )}
         </span>
         <span style={{ fontWeight: 650, fontSize: 13.5, lineHeight: 1.15, textAlign: 'center', color: 'var(--ink, #101722)' }}>
           {shape.props.label}

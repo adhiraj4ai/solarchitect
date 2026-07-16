@@ -24,13 +24,13 @@ import {
   getArchEdgeShapes,
   edgeShapesEqual,
 } from './shapeAdapters';
-import { getAnnotationShapes, annotationToShape, shapeToAnnotation, annotationEq } from './annotationAdapters';
 import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';
 import { NODE_TAXONOMY } from '@shared/ir/taxonomy';
-import { CLUSTER_COLORS } from '@shared/ir/types';
+import { CLUSTER_COLORS, ACCENT_COLORS } from '@shared/ir/types';
 import { FRAME_PRESETS, CUSTOM_FRAME } from '@shared/ir/frames';
+import { ACCENT_HEX } from './accent';
 import { resolveNodePositions } from '@shared/ir/layout';
 import type {
   Diagram,
@@ -38,6 +38,7 @@ import type {
   DiagramCluster,
   DiagramEdge,
   DiagramFrame,
+  AccentColor,
   EdgeShape as EdgeShapeKind,
   EdgeLineStyle,
 } from '@shared/ir/types';
@@ -72,12 +73,74 @@ function LineStyleGlyph({ kind }: { kind: EdgeLineStyle }) {
   );
 }
 
+/** Accent-color picker with a leading "black & white" (none) option. */
+function ColorSwatches({ value, onPick }: { value: AccentColor | 'none'; onPick: (c: AccentColor | 'none') => void }) {
+  return (
+    <div className="swatches" role="group" aria-label="Color">
+      <button
+        type="button"
+        data-testid="color-none"
+        className={`swatch swatch--none${value === 'none' ? ' on' : ''}`}
+        title="Black & white"
+        aria-label="Black and white"
+        onClick={() => onPick('none')}
+      />
+      {ACCENT_COLORS.map((col) => (
+        <button
+          type="button"
+          key={col}
+          data-testid={`color-${col}`}
+          className={`swatch${value === col ? ' on' : ''}`}
+          style={{ background: ACCENT_HEX[col] }}
+          title={col}
+          aria-label={col}
+          onClick={() => onPick(col)}
+        />
+      ))}
+    </div>
+  );
+}
+
 /** Arrowhead on/off preview. */
 function ArrowGlyph({ on }: { on: boolean }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="2" y1="8" x2={on ? '11' : '14'} y2="8" />
       {on && <path d="M10 4.5 L14 8 L10 11.5" />}
+    </svg>
+  );
+}
+
+/** Monochrome icons for the canvas action toolbar. */
+const TOOL_ICONS = {
+  connect: (
+    <>
+      <circle cx="6" cy="18" r="2.4" />
+      <circle cx="18" cy="6" r="2.4" />
+      <path d="M8 16 L16 8" />
+    </>
+  ),
+  group: <rect x="4" y="6" width="16" height="12" rx="2" strokeDasharray="3 2.4" />,
+  template: <path d="M7 4h10v16l-5-3.6L7 20z" />,
+  frame: (
+    <>
+      <rect x="4" y="5.5" width="16" height="13" rx="1.5" />
+      <path d="M4 9.2h16" />
+    </>
+  ),
+  export: (
+    <>
+      <path d="M12 3v10" />
+      <path d="M8 9l4 4 4-4" />
+      <path d="M5 20h14" />
+    </>
+  ),
+} as const;
+
+function ToolIcon({ name }: { name: keyof typeof TOOL_ICONS }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {TOOL_ICONS[name]}
     </svg>
   );
 }
@@ -159,20 +222,17 @@ function reconcile(editor: Editor, diagram: Diagram): void {
     // Nodes (drawn on top). Use the position-resolved list so every node has x/y.
     const currentNodes = getArchNodeShapes(editor).map(shapeToNode);
     const nodeEq = (a: DiagramNode, b: DiagramNode) =>
-      a.type === b.type && a.label === b.label && a.x === b.x && a.y === b.y;
+      a.type === b.type &&
+      a.label === b.label &&
+      a.x === b.x &&
+      a.y === b.y &&
+      (a.color ?? 'none') === (b.color ?? 'none');
     const dn = diffById(currentNodes, positionedNodes, nodeEq);
     if (dn.removeIds.length) editor.deleteShapes(dn.removeIds.map((id) => createShapeId(id)));
     if (dn.add.length) editor.createShapes(nodesToShapes(dn.add));
     dn.update.forEach((n) =>
       editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
     );
-
-    // Annotations (tldraw-native note/geo/text shapes).
-    const currentAnnotations = getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s));
-    const da = diffById(currentAnnotations, diagram.annotations, annotationEq);
-    if (da.removeIds.length) editor.deleteShapes(da.removeIds.map((id) => createShapeId(id)));
-    if (da.add.length) editor.createShapes(da.add.map(annotationToShape));
-    da.update.forEach((a) => editor.updateShape(annotationToShape(a)));
 
     // Enforce paint order after any additions: frames at the very back, then
     // clusters, then edges, then nodes on top. (New shapes otherwise land on
@@ -202,10 +262,9 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
   const nodeIds = new Set(nodes.map((n) => n.id));
   // Drop edges whose endpoints were deleted; edges are otherwise IR-authoritative.
   const edges = prev.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-  const annotations = getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s));
   const frames = getArchFrameShapes(editor).map(shapeToFrame);
 
-  return { nodes, edges, clusters, annotations, frames };
+  return { nodes, edges, clusters, frames };
 }
 
 export function CanvasView({
@@ -215,10 +274,16 @@ export function CanvasView({
   onCanvasEdit,
   onSaveTemplate,
   onError,
+  animate = false,
+  presenting = false,
+  presentIndex = 0,
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
   mode: Mode;
+  animate?: boolean;
+  presenting?: boolean;
+  presentIndex?: number;
   onCanvasEdit: (next: Diagram) => void;
   onSaveTemplate: (subtree: Diagram) => void;
   onError: (msg: string) => void;
@@ -240,6 +305,9 @@ export function CanvasView({
     null,
   );
   const [frameMenuOpen, setFrameMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // All currently-selected node ids (for assigning a color to several at once).
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
   const selectedEdgeIdRef = useRef<string | null>(null);
   selectedEdgeIdRef.current = selectedEdgeId;
@@ -319,12 +387,16 @@ export function CanvasView({
 
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor;
+    editor.updateInstanceState({ isGridMode: true }); // grid background
     reconcile(editor, diagramRef.current);
 
-    editor.store.listen(() => onCanvasEditRef.current(assembleFromCanvas(editor, diagramRef.current)), {
-      source: 'user',
-      scope: 'document',
-    });
+    editor.store.listen(
+      () => onCanvasEditRef.current(assembleFromCanvas(editor, diagramRef.current)),
+      {
+        source: 'user',
+        scope: 'document',
+      },
+    );
 
     // Track the single selected object (drives the properties panel).
     react('selection', () => {
@@ -336,6 +408,12 @@ export function CanvasView({
       else if (only?.type === 'archFrame')
         setSelection({ kind: 'frame', id: (only as ArchFrameShape).props.frameId });
       else setSelection(null);
+      setSelectedNodeIds(
+        editor
+          .getSelectedShapes()
+          .filter((s): s is ArchNodeShape => s.type === 'archNode')
+          .map((s) => s.props.nodeId),
+      );
     });
   }, []);
 
@@ -352,6 +430,21 @@ export function CanvasView({
       }
     }
   }, [diagram]);
+
+  // Presentation: fit the camera to the current page frame (or the whole
+  // diagram when there are no frames) whenever presenting or the index changes.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !presenting) return;
+    editor.selectNone();
+    const frames = diagramRef.current.frames ?? [];
+    if (frames.length) {
+      const f = frames[Math.min(presentIndex, frames.length - 1)];
+      editor.zoomToBounds(new Box(f.x, f.y, f.width, f.height), { inset: 48, animation: { duration: 350 } });
+    } else {
+      editor.zoomToFit({ animation: { duration: 350 } });
+    }
+  }, [presenting, presentIndex]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     const editor = editorRef.current;
@@ -378,7 +471,6 @@ export function CanvasView({
         nodes: [...cur.nodes, ...inst.nodes],
         edges: [...cur.edges, ...inst.edges],
         clusters: [...cur.clusters, ...inst.clusters],
-        annotations: cur.annotations,
         frames: cur.frames,
       });
       return;
@@ -498,6 +590,19 @@ export function CanvasView({
     const nodes = diagramRef.current.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n));
     onCanvasEditRef.current({ ...diagramRef.current, nodes });
   }, []);
+  // Assign (or clear, when 'none') an accent color across one or more nodes.
+  const setNodesColor = useCallback((ids: string[], color: AccentColor | 'none') => {
+    const set = new Set(ids);
+    const nodes = diagramRef.current.nodes.map((n) => {
+      if (!set.has(n.id)) return n;
+      if (color === 'none') {
+        const { color: _drop, ...rest } = n;
+        return rest;
+      }
+      return { ...n, color };
+    });
+    onCanvasEditRef.current({ ...diagramRef.current, nodes });
+  }, []);
   const patchCluster = useCallback((id: string, patch: Partial<DiagramCluster>) => {
     const clusters = diagramRef.current.clusters.map((c) => (c.id === id ? { ...c, ...patch } : c));
     onCanvasEditRef.current({ ...diagramRef.current, clusters });
@@ -563,7 +668,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${mode === 'architect' ? ' connect-enabled' : ''}`}
+      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${presenting ? ' presenting' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {
@@ -573,27 +678,34 @@ export function CanvasView({
       }}
       onDropCapture={handleDrop}
     >
+      {!presenting && (
       <div className="canvas-toolbar">
         {mode === 'architect' && (
           <>
             <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
+              <ToolIcon name="connect" />
               Connect
             </button>
             <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
+              <ToolIcon name="group" />
               Group
             </button>
             <span className="sep" />
             <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
-              Save as Template
+              <ToolIcon name="template" />
+              Template
             </button>
-            <span className="sep" />
             <div className="frame-menu">
               <button
                 data-testid="add-frame-btn"
                 className="btn btn--sm"
                 aria-expanded={frameMenuOpen}
-                onClick={() => setFrameMenuOpen((v) => !v)}
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  setFrameMenuOpen((v) => !v);
+                }}
               >
+                <ToolIcon name="frame" />
                 Frame ▾
               </button>
               {frameMenuOpen && (
@@ -633,15 +745,66 @@ export function CanvasView({
             <span className="sep" />
           </>
         )}
-        <button data-testid="export-png-btn" onClick={() => handleExport('png')} className="btn btn--sm">
-          Export PNG
-        </button>
-        <button data-testid="export-svg-btn" onClick={() => handleExport('svg')} className="btn btn--sm">
-          Export SVG
-        </button>
+        <div className="frame-menu">
+          <button
+            data-testid="export-btn"
+            className="btn btn--sm"
+            aria-expanded={exportMenuOpen}
+            onClick={() => {
+              setFrameMenuOpen(false);
+              setExportMenuOpen((v) => !v);
+            }}
+          >
+            <ToolIcon name="export" />
+            Export ▾
+          </button>
+          {exportMenuOpen && (
+            <div className="frame-menu__list" role="menu">
+              <button
+                role="menuitem"
+                data-testid="export-png-btn"
+                className="frame-menu__item"
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  void handleExport('png');
+                }}
+              >
+                <span>PNG image</span>
+                <span className="frame-menu__dim">.png</span>
+              </button>
+              <button
+                role="menuitem"
+                data-testid="export-svg-btn"
+                className="frame-menu__item"
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  void handleExport('svg');
+                }}
+              >
+                <span>SVG vector</span>
+                <span className="frame-menu__dim">.svg</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+      )}
 
-      {mode === 'architect' && (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
+      {!presenting && mode === 'architect' && selectedNodeIds.length >= 2 && (
+        <aside className="props-panel" data-testid="props-panel-multi" aria-label="Properties">
+          <div className="props-panel__title">{selectedNodeIds.length} components</div>
+          <div className="props-field">
+            <span className="props-field__label">Color</span>
+            <ColorSwatches value="none" onPick={(c) => setNodesColor(selectedNodeIds, c)} />
+          </div>
+          <div className="props-field__hint">Applies to all selected components.</div>
+        </aside>
+      )}
+
+      {!presenting &&
+        mode === 'architect' &&
+        selectedNodeIds.length < 2 &&
+        (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
         <aside className="props-panel" data-testid="props-panel" aria-label="Properties">
           {selectedFrame && (
             <>
@@ -692,6 +855,13 @@ export function CanvasView({
                   onChange={(e) => patchNode(selectedNode.id, { label: e.target.value })}
                 />
               </label>
+              <div className="props-field">
+                <span className="props-field__label">Color</span>
+                <ColorSwatches
+                  value={selectedNode.color ?? 'none'}
+                  onPick={(c) => setNodesColor([selectedNode.id], c)}
+                />
+              </div>
               <div className="props-field__hint">{selectedNode.type}</div>
             </>
           )}

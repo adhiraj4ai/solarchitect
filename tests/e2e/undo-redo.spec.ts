@@ -110,41 +110,6 @@ annotations: []
   await expect(editor()).toHaveValue(/clusters: \[\]/);
 });
 
-test('undo an annotation edit', async () => {
-  await editor().fill(`nodes: []
-edges: []
-clusters: []
-annotations:
-  - id: a1
-    kind: sticky
-    x: 80
-    y: 120
-    width: 160
-    height: 100
-    content: OriginalNote
-`);
-  await expect(canvas()).toContainText('OriginalNote');
-  await win.waitForTimeout(400);
-
-  await editor().fill(`nodes: []
-edges: []
-clusters: []
-annotations:
-  - id: a1
-    kind: sticky
-    x: 80
-    y: 120
-    width: 160
-    height: 100
-    content: ChangedNote
-`);
-  await expect(editor()).toHaveValue(/content: ChangedNote/);
-  await win.waitForTimeout(400);
-
-  await undo().click();
-  await expect(editor()).toHaveValue(/content: OriginalNote/);
-});
-
 test('a single YAML edit changing multiple elements undoes as one step', async () => {
   await editor().fill(`nodes:
   - id: n1

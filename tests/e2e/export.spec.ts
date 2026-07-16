@@ -49,6 +49,7 @@ test('Export PNG writes a valid PNG file to the chosen path', async () => {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: p });
   }, target);
 
+  await win.locator('[data-testid="export-btn"]').click();
   await win.locator('[data-testid="export-png-btn"]').click();
   await expect.poll(() => fileExists(target), { timeout: 10_000 }).toBe(true);
 
@@ -63,6 +64,7 @@ test('Export SVG writes a valid SVG file to the chosen path', async () => {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: p });
   }, target);
 
+  await win.locator('[data-testid="export-btn"]').click();
   await win.locator('[data-testid="export-svg-btn"]').click();
   await expect.poll(() => fileExists(target), { timeout: 10_000 }).toBe(true);
 

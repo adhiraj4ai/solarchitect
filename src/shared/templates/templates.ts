@@ -10,7 +10,7 @@ export function extractTemplate(diagram: Diagram, selectedNodeIds: Set<string>):
   const clusterIds = new Set(nodes.map((n) => n.clusterId).filter((id): id is string => !!id));
   const clusters = diagram.clusters.filter((c) => clusterIds.has(c.id));
   const edges = diagram.edges.filter((e) => selectedNodeIds.has(e.from) && selectedNodeIds.has(e.to));
-  return { nodes, edges, clusters, annotations: [] };
+  return { nodes, edges, clusters };
 }
 
 /**
@@ -24,7 +24,7 @@ export function instantiateTemplate(
   idGenerator: () => string,
 ): Diagram {
   const positioned = [
-    ...template.nodes.map((n) => ({ x: n.x, y: n.y })),
+    ...template.nodes.filter((n) => n.x !== undefined && n.y !== undefined).map((n) => ({ x: n.x!, y: n.y! })),
     ...template.clusters.map((c) => ({ x: c.x, y: c.y })),
   ];
   const minX = positioned.length ? Math.min(...positioned.map((p) => p.x)) : 0;
@@ -38,8 +38,8 @@ export function instantiateTemplate(
   const nodes = template.nodes.map((n) => ({
     ...n,
     id: nodeIdMap.get(n.id)!,
-    x: n.x + dx,
-    y: n.y + dy,
+    ...(n.x !== undefined ? { x: n.x + dx } : {}),
+    ...(n.y !== undefined ? { y: n.y + dy } : {}),
     ...(n.clusterId ? { clusterId: clusterIdMap.get(n.clusterId)! } : {}),
   }));
   const clusters = template.clusters.map((c) => ({
@@ -55,5 +55,5 @@ export function instantiateTemplate(
     to: nodeIdMap.get(e.to)!,
   }));
 
-  return { nodes, edges, clusters, annotations: [] };
+  return { nodes, edges, clusters };
 }
