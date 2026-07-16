@@ -9,6 +9,7 @@ import { Wordmark } from './ui/Wordmark';
 import { useSyncEngine } from './hooks/useSyncEngine';
 import { useProject } from './hooks/useProject';
 import { useTemplates } from './hooks/useTemplates';
+import { useGit } from './hooks/useGit';
 import type { Mode } from './canvas/CanvasView';
 import type { Diagram } from '@shared/ir/types';
 
@@ -22,6 +23,7 @@ export default function App() {
   // Pass the stable setter directly — an inline wrapper would change every
   // render and retrigger useTemplates' load effect in a loop.
   const templates = useTemplates(project.projectDir, project.setIoError);
+  const git = useGit(project.projectDir, project.setIoError);
 
   const [mode, setMode] = useState<Mode>('architect');
   // Layout: visual = canvas only, split = canvas + source (default), code =
@@ -171,11 +173,14 @@ export default function App() {
               onNewProject={project.newProject}
               onNewDiagram={project.newDiagram}
               onOpenDiagram={project.openDiagram}
-              onSave={() => project.saveDiagram(yamlText)}
+              onSave={async () => {
+                await project.saveDiagram(yamlText);
+                void git.refresh(); // reflect the new working-tree state in the status bar
+              }}
             />
           </section>
           <section className="rail__git">
-            <GitPanel projectDir={project.projectDir} onError={project.setIoError} />
+            <GitPanel projectDir={project.projectDir} git={git} />
           </section>
           <section className="rail__shapes">
             {!showCanvas ? (
@@ -257,6 +262,26 @@ export default function App() {
               </button>
             ))}
           </div>
+
+          <span className="app__foot-spacer" />
+
+          {git.detail?.isRepo && (
+            <span className="foot-git" data-testid="foot-git" title="Version control">
+              <span className="foot-git__branch">⎇ {git.detail.branch ?? 'detached'}</span>
+              {(git.detail.ahead > 0 || git.detail.behind > 0) && (
+                <span className="foot-git__sync">
+                  {git.detail.behind > 0 && `↓${git.detail.behind}`}
+                  {git.detail.behind > 0 && git.detail.ahead > 0 && ' '}
+                  {git.detail.ahead > 0 && `↑${git.detail.ahead}`}
+                </span>
+              )}
+              <span className={`foot-git__state${git.detail.files.length > 0 ? ' dirty' : ''}`}>
+                {git.detail.files.length > 0
+                  ? `${git.detail.files.length} change${git.detail.files.length === 1 ? '' : 's'}`
+                  : 'clean'}
+              </span>
+            </span>
+          )}
         </footer>
       </div>
 

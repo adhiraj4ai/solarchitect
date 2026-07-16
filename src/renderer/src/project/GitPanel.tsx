@@ -1,49 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GitDetail } from '@shared/project/types';
+import { useState } from 'react';
+import type { GitState } from '../hooks/useGit';
 
 /** Full git surface for the open project: branch switch/create, changed files,
- *  commit with a message, push/pull, and recent history. All git runs in the
- *  main process via the preload bridge. */
-export function GitPanel({ projectDir, onError }: { projectDir: string | null; onError: (msg: string) => void }) {
-  const [detail, setDetail] = useState<GitDetail | null>(null);
+ *  commit with a message, push/pull, and recent history. Git state is shared
+ *  (via useGit) with the bottom status bar; all git runs in the main process. */
+export function GitPanel({ projectDir, git }: { projectDir: string | null; git: GitState }) {
+  const { detail, busy, status } = git;
+  const act = git.run;
   const [commitMsg, setCommitMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
   const [branchMenu, setBranchMenu] = useState(false);
   const [newBranch, setNewBranch] = useState('');
-  const seq = useRef(0);
-
-  const refresh = useCallback(async () => {
-    if (!projectDir) {
-      setDetail(null);
-      return;
-    }
-    const mine = ++seq.current;
-    const d = await window.solarchitect.gitDetail(projectDir);
-    if (mine === seq.current) setDetail(d);
-  }, [projectDir]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  // Run a git action, surface its message, then refresh.
-  const act = useCallback(
-    async (fn: () => Promise<{ ok: boolean; message: string }>) => {
-      if (busy) return;
-      setBusy(true);
-      setStatus('');
-      try {
-        const r = await fn();
-        setStatus(r.message);
-        if (!r.ok) onError(r.message);
-        await refresh();
-      } finally {
-        setBusy(false);
-      }
-    },
-    [busy, onError, refresh],
-  );
 
   if (!projectDir) return null;
 
