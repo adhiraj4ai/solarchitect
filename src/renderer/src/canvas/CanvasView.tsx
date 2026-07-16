@@ -45,37 +45,14 @@ import type {
 } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
 import { buildTimeline, DEFAULT_TIMING } from '@shared/animation/timeline';
-import { stateAt, type AnimationState } from '@shared/animation/state';
-
-/** Fully-lit, no-token state — used to reset the canvas when the preview stops. */
-const LIT_STATE: AnimationState = {
-  nodeOpacity: {},
-  edgeOpacity: {},
-  clusterOpacity: {},
-  dotPositions: {},
-  edgeDirection: {},
-};
-
-/** Apply a traversal AnimationState to the canvas shapes (opacity build-up +
- *  edge flow token). Missing entries fall back to lit/no-token, so passing
- *  LIT_STATE resets everything. Caller wraps this in mergeRemoteChanges. */
-function applyTraversalState(editor: Editor, s: AnimationState): void {
-  for (const shape of getArchNodeShapes(editor)) {
-    const op = s.nodeOpacity[shape.props.nodeId] ?? 1;
-    if (shape.opacity !== op) editor.updateShape({ id: shape.id, type: 'archNode', opacity: op });
-  }
-  for (const shape of getArchClusterShapes(editor)) {
-    const op = s.clusterOpacity[shape.props.clusterId] ?? 1;
-    if (shape.opacity !== op) editor.updateShape({ id: shape.id, type: 'archCluster', opacity: op });
-  }
-  for (const shape of getArchEdgeShapes(editor)) {
-    const op = s.edgeOpacity[shape.props.edgeId] ?? 1;
-    const dot = s.dotPositions[shape.props.edgeId];
-    const dotT = dot == null ? -1 : dot;
-    if (shape.opacity !== op || shape.props.dotT !== dotT)
-      editor.updateShape({ id: shape.id, type: 'archEdge', opacity: op, props: { dotT } });
-  }
-}
+import { stateAt } from '@shared/animation/state';
+import {
+  applyTraversalState,
+  LIT_STATE,
+  captureTraversalGif,
+  DEFAULT_GIF_OPTIONS,
+  type GifExportOptions,
+} from './captureAnimation';
 
 const assetUrls = getAssetUrlsByImport();
 
@@ -93,6 +70,39 @@ function parseStepInput(value: string): number | undefined {
   if (value.trim() === '') return undefined;
   const n = Math.floor(Number(value));
   return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+/** A finite number clamped to [min,max], or `fallback` for invalid input. */
+function numOr(value: string, min: number, max: number, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** A labelled, clamped number input for the export dialog. */
+function NumField(props: {
+  label: string;
+  testid: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <label className="modal__field">
+      <span>{props.label}</span>
+      <input
+        type="number"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        data-testid={props.testid}
+        value={props.value}
+        onChange={(e) => props.onChange(numOr(e.target.value, props.min, props.max, props.value))}
+      />
+    </label>
+  );
 }
 const shapeUtils = [FrameShapeUtil, ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
@@ -383,6 +393,10 @@ export function CanvasView({
   );
   const [frameMenuOpen, setFrameMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // Animated GIF export dialog + in-progress capture state.
+  const [gifDialogOpen, setGifDialogOpen] = useState(false);
+  const [gifOptions, setGifOptions] = useState<GifExportOptions>(DEFAULT_GIF_OPTIONS);
+  const [gifProgress, setGifProgress] = useState<{ done: number; total: number } | null>(null);
   // All currently-selected node ids (for assigning a color to several at once).
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
@@ -756,6 +770,33 @@ export function CanvasView({
     }
   }, []);
 
+  const handleExportGif = useCallback(async (options: GifExportOptions) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (editor.getCurrentPageShapeIds().size === 0) {
+      onErrorRef.current('Nothing to export — the canvas is empty.');
+      return;
+    }
+    setGifProgress({ done: 0, total: 1 });
+    try {
+      const bytes = await captureTraversalGif(editor, diagramRef.current, options, (done, total) =>
+        setGifProgress({ done, total }),
+      );
+      // Base64-encode in chunks so a large buffer doesn't blow the call stack.
+      let binary = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      await window.solarchitect.exportImage(btoa(binary), 'diagram.gif');
+      setGifDialogOpen(false);
+    } catch (e) {
+      onErrorRef.current(`GIF export failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setGifProgress(null);
+    }
+  }, []);
+
   // Apply a partial change to the currently selected edge and sync it out.
   const patchSelectedEdge = useCallback((patch: Partial<DiagramEdge>) => {
     if (!selectedEdgeIdRef.current) return;
@@ -973,6 +1014,18 @@ export function CanvasView({
               >
                 <span>SVG vector</span>
                 <span className="frame-menu__dim">.svg</span>
+              </button>
+              <button
+                role="menuitem"
+                data-testid="export-gif-btn"
+                className="frame-menu__item"
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  setGifDialogOpen(true);
+                }}
+              >
+                <span>Animated GIF…</span>
+                <span className="frame-menu__dim">.gif</span>
               </button>
             </div>
           )}
@@ -1255,6 +1308,78 @@ export function CanvasView({
           <span className="scrubber__time">
             {traversalTime.toFixed(1)} / {previewTimeline.totalSeconds.toFixed(1)}s
           </span>
+        </div>
+      )}
+      {gifDialogOpen && (
+        <div className="modal-backdrop" data-testid="gif-dialog" role="dialog" aria-modal="true" aria-label="Export animated GIF">
+          <div className="modal">
+            <div className="modal__title">Export animated GIF</div>
+            <NumField
+              label="Frames per second"
+              testid="gif-fps"
+              min={5}
+              max={60}
+              step={1}
+              value={gifOptions.fps}
+              onChange={(fps) => setGifOptions((o) => ({ ...o, fps }))}
+            />
+            <NumField
+              label="Seconds per step"
+              testid="gif-sps"
+              min={0.2}
+              max={10}
+              step={0.1}
+              value={gifOptions.secondsPerStep}
+              onChange={(secondsPerStep) => setGifOptions((o) => ({ ...o, secondsPerStep }))}
+            />
+            <NumField
+              label="End hold (seconds)"
+              testid="gif-hold"
+              min={0}
+              max={10}
+              step={0.5}
+              value={gifOptions.endHoldSeconds}
+              onChange={(endHoldSeconds) => setGifOptions((o) => ({ ...o, endHoldSeconds }))}
+            />
+            <NumField
+              label="Scale"
+              testid="gif-scale"
+              min={1}
+              max={4}
+              step={1}
+              value={gifOptions.scale}
+              onChange={(scale) => setGifOptions((o) => ({ ...o, scale }))}
+            />
+            <label className="modal__field">
+              <span>Loop</span>
+              <select
+                data-testid="gif-loop"
+                value={gifOptions.loop}
+                onChange={(e) => setGifOptions((o) => ({ ...o, loop: e.target.value as 'once' | 'forever' }))}
+              >
+                <option value="once">Play once</option>
+                <option value="forever">Loop forever</option>
+              </select>
+            </label>
+            {gifProgress && (
+              <div className="modal__progress" data-testid="gif-progress">
+                Rendering frame {gifProgress.done} / {gifProgress.total}…
+              </div>
+            )}
+            <div className="modal__actions">
+              <button className="btn btn--sm" disabled={!!gifProgress} onClick={() => setGifDialogOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn--sm btn--on"
+                data-testid="gif-export-confirm"
+                disabled={!!gifProgress}
+                onClick={() => void handleExportGif(gifOptions)}
+              >
+                {gifProgress ? 'Rendering…' : 'Export'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

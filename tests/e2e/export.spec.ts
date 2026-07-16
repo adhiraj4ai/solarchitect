@@ -71,3 +71,24 @@ test('Export SVG writes a valid SVG file to the chosen path', async () => {
   const text = (await readFile(target)).toString('utf-8');
   expect(text).toContain('<svg');
 });
+
+test('Export animated GIF writes a valid multi-frame GIF to the chosen path', async () => {
+  const target = join(dir, 'diagram.gif');
+  await app.evaluate(async ({ dialog }, p) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: p });
+  }, target);
+
+  await win.locator('[data-testid="export-btn"]').click();
+  await win.locator('[data-testid="export-gif-btn"]').click();
+  await win.locator('[data-testid="gif-dialog"]').waitFor({ state: 'visible' });
+  await win.locator('[data-testid="gif-fps"]').fill('8');
+  await win.locator('[data-testid="gif-export-confirm"]').click();
+
+  await expect.poll(() => fileExists(target), { timeout: 30_000 }).toBe(true);
+
+  const bytes = await readFile(target);
+  // GIF89a magic number.
+  expect(bytes.subarray(0, 6).toString('ascii')).toBe('GIF89a');
+  // Animated GIFs carry more than one image-descriptor block (0x2C).
+  expect([...bytes].filter((b) => b === 0x2c).length).toBeGreaterThan(1);
+});

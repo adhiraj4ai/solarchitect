@@ -1,32 +1,27 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import { ShapeUtil, Polyline2d, HTMLContainer, T, Vec, type TLBaseShape } from 'tldraw';
 import type { EdgeShape as EdgeShapeKind, EdgeLineStyle, EdgeDirection } from '@shared/ir/types';
 
-/** A flow token positioned deterministically at fraction `t` (0..1) along the
- *  path `d`. Driven by the traversal preview/capture, not SMIL, so it is
- *  frame-accurate. `t < 0` renders nothing. */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** The point at fraction `t` (0..1) along an SVG path string, measured on a
+ *  detached path element — synchronous, so it renders into both the live canvas
+ *  and the static export SVG (a layout effect would not run during export). */
+function pointAtFraction(d: string, t: number): { x: number; y: number } {
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', d);
+  const len = path.getTotalLength();
+  const pt = path.getPointAtLength(len * Math.min(1, Math.max(0, t)));
+  return { x: pt.x, y: pt.y };
+}
+
+/** The deterministic flow token: a dot at fraction `t` along `d`, driven by the
+ *  traversal preview/capture (not SMIL). `t < 0` renders nothing. The geometry
+ *  is memoized so live editing doesn't re-measure the path every render. */
 function FlowToken({ d, t }: { d: string; t: number }) {
-  const pathRef = useRef<SVGPathElement>(null);
-  const dotRef = useRef<SVGCircleElement>(null);
-  useLayoutEffect(() => {
-    const path = pathRef.current;
-    const dot = dotRef.current;
-    if (!path || !dot) return;
-    if (t < 0) {
-      dot.style.display = 'none';
-      return;
-    }
-    const pt = path.getPointAtLength(path.getTotalLength() * Math.min(1, Math.max(0, t)));
-    dot.style.display = '';
-    dot.setAttribute('cx', String(pt.x));
-    dot.setAttribute('cy', String(pt.y));
-  }, [d, t]);
-  return (
-    <>
-      <path ref={pathRef} d={d} fill="none" stroke="none" />
-      <circle ref={dotRef} className="arch-edge-token-det" r="5" fill="var(--sync, #d9822b)" stroke="none" />
-    </>
-  );
+  const pt = useMemo(() => (t < 0 ? null : pointAtFraction(d, t)), [d, t]);
+  if (!pt) return null;
+  return <circle className="arch-edge-token-det" cx={pt.x} cy={pt.y} r="5" fill="var(--sync, #d9822b)" stroke="none" />;
 }
 
 // Endpoints are stored local to the shape's (x,y) origin, which the reconciler
