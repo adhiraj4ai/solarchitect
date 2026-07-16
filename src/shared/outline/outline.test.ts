@@ -14,7 +14,6 @@ const diagram: Diagram = {
     { id: 'e2', from: 'n1', to: 'n3', direction: 'forward' },
   ],
   clusters: [{ id: 'c1', label: 'VPC', x: 0, y: 0, width: 100, height: 100 }],
-  annotations: [],
   frames: [{ id: 'f1', label: 'Page 1', x: 0, y: 0, width: 800, height: 600 }],
 };
 

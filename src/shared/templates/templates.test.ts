@@ -13,7 +13,6 @@ const diagram: Diagram = {
     { id: 'e2', from: 'n1', to: 'n3', direction: 'forward' },
   ],
   clusters: [{ id: 'c1', label: 'VPC', x: -10, y: -10, width: 300, height: 200 }],
-  annotations: [],
 };
 
 describe('extractTemplate', () => {
@@ -22,7 +21,6 @@ describe('extractTemplate', () => {
     expect(t.nodes.map((n) => n.id).sort()).toEqual(['n1', 'n2']);
     expect(t.edges).toEqual([{ id: 'e1', from: 'n1', to: 'n2', direction: 'forward', label: 'reads' }]);
     expect(t.clusters.map((c) => c.id)).toEqual(['c1']);
-    expect(t.annotations).toEqual([]);
   });
 
   it('omits edges that reach an unselected node', () => {
@@ -45,7 +43,6 @@ describe('instantiateTemplate', () => {
     ],
     edges: [{ id: 'e1', from: 'n1', to: 'n2', direction: 'forward' }],
     clusters: [{ id: 'c1', label: 'VPC', x: 0, y: 0, width: 260, height: 120 }],
-    annotations: [],
   };
 
   it('reassigns all ids and remaps edge/cluster references consistently', () => {

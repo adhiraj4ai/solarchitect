@@ -1,7 +1,29 @@
 import { useCallback, useState } from 'react';
-import { parseDiagram } from '@shared/yaml/parse';
+import { parseDiagram, extractAnnotations } from '@shared/yaml/parse';
+import { serializeDiagram } from '@shared/yaml/serialize';
 import type { Diagram } from '@shared/ir/types';
 import type { DiagramFileEntry, GitStatus } from '@shared/project/types';
+
+/**
+ * One-time migration: if a diagram's YAML still carries legacy `annotations`,
+ * stash them into the whiteboard sidecar (as pending shapes the WhiteboardView
+ * materializes on first mount) and rewrite the diagram without them. Only seeds
+ * when there's no existing sketch, so it never clobbers a real whiteboard.
+ * Best-effort — a failure here must never block opening the diagram.
+ */
+async function migrateLegacyAnnotations(dir: string, file: string, text: string, diagram: Diagram): Promise<void> {
+  try {
+    const legacy = extractAnnotations(text);
+    if (!legacy.length) return;
+    const existing = await window.solarchitect.readWhiteboard(dir, file);
+    if (!existing) {
+      await window.solarchitect.writeWhiteboard(dir, file, JSON.stringify({ pendingAnnotations: legacy }));
+    }
+    await window.solarchitect.writeDiagram(dir, file, serializeDiagram(diagram));
+  } catch {
+    /* migration is best-effort; the diagram still opens */
+  }
+}
 
 /**
  * Project = a folder of diagram YAML files. Owns the open folder, its diagram
@@ -45,6 +67,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
           if (result.ok) {
             loadDiagram(result.diagram);
             setCurrentFile(file);
+            await migrateLegacyAnnotations(dir, file, text, result.diagram);
           }
         } catch {
           /* listed with an error badge; ignore here */
@@ -84,6 +107,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
         }
         loadDiagram(result.diagram);
         setCurrentFile(fileName);
+        await migrateLegacyAnnotations(projectDir, fileName, text, result.diagram);
       } catch (e) {
         setIoError(`Could not open ${fileName}: ${(e as Error).message}`);
       }

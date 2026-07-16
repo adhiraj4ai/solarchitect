@@ -485,9 +485,19 @@ button { font-family: inherit; }
 
 /* canvas */
 .canvas { position: absolute; inset: 0; }
-/* Hide the tldraw watermark. Note: removing it for distributed/commercial use
-   requires a tldraw business license — this is a local, self-hosted tool. */
-.canvas .tl-watermark_SEE-LICENSE { display: none !important; }
+/* freeform whiteboard surface fills the stage */
+.whiteboard { position: absolute; inset: 0; }
+/* read-only diagram backdrop beneath the freeform layer, camera-synced */
+.wb-backdrop { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; opacity: 0.5; }
+.wb-backdrop__layer { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+/* tldraw paints its own background; make it transparent so the backdrop shows
+   through beneath the freeform shapes (only on the whiteboard surface). */
+.whiteboard .tl-background { background-color: transparent !important; }
+.wb-backdrop-toggle { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500; }
+/* Hide the tldraw watermark on both surfaces. Note: removing it for a
+   distributed/commercial product requires a tldraw business license — this is a
+   local, self-hosted tool. */
+.tl-watermark_SEE-LICENSE { display: none !important; }
 
 /* animate mode — a token travels from → to along each relationship. The token
    animates continuously (SMIL) but is only shown when animate mode is on. */

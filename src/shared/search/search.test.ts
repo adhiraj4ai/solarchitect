@@ -9,7 +9,6 @@ const diagram: Diagram = {
   ],
   edges: [],
   clusters: [{ id: 'c1', label: 'Web tier', x: 0, y: 0, width: 10, height: 10 }],
-  annotations: [],
   frames: [],
 };
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CanvasView } from './canvas/CanvasView';
+import { WhiteboardView } from './canvas/WhiteboardView';
 import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { ProjectSidebar } from './project/ProjectSidebar';
@@ -22,7 +23,7 @@ import type { Mode } from './canvas/CanvasView';
 import type { PanelId } from '@shared/shell/panels';
 import type { Diagram } from '@shared/ir/types';
 
-/** Which panels are on screen for the Diagram surface. Orthogonal to the surface. */
+/** How the Diagram surface is laid out (only applies to the Diagram surface). */
 type View = 'visual' | 'split' | 'code';
 
 /** Compile-time exhaustiveness guard for the panel switch. */
@@ -41,7 +42,8 @@ export default function App() {
   const { settings, update: updateSettings } = useSettings(project.setIoError);
 
   // The document surface (Diagram = architect, Whiteboard = whiteboard) doubles
-  // as the canvas-interaction mode. The activity bar switches it.
+  // as the canvas-interaction mode. The activity bar switches it. The Whiteboard
+  // is a separate freeform surface (WhiteboardView) that never shares the canvas.
   const [surface, setSurface] = useState<Mode>('architect');
   const layout = useWorkspaceLayout(surface);
 
@@ -275,11 +277,19 @@ export default function App() {
         )}
 
         <main className="stage">
-          {showCanvas ? (
+          {surface === 'whiteboard' ? (
+            <WhiteboardView
+              key={project.currentFile ?? 'untitled'}
+              projectDir={project.projectDir}
+              fileName={project.currentFile}
+              diagram={diagram}
+              onError={project.setIoError}
+            />
+          ) : showCanvas ? (
             <CanvasView
               diagram={diagram}
               templates={templates.templates}
-              mode={surface}
+              mode="architect"
               animate={animate}
               presenting={presenting}
               presentIndex={presentIndex}

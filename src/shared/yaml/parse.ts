@@ -143,18 +143,8 @@ export function parseDiagram(yamlText: string): ParseResult {
       });
     });
 
-    const annotations: DiagramAnnotation[] = asList(doc.annotations, 'annotations').map((item, i) => {
-      const a = asMapping(item, `annotations[${i}]`);
-      return {
-        id: a.id as string,
-        kind: a.kind as DiagramAnnotation['kind'],
-        x: a.x as number,
-        y: a.y as number,
-        width: a.width as number,
-        height: a.height as number,
-        content: a.content as string,
-      };
-    });
+    // A legacy `annotations` key is ignored here (not part of the Diagram
+    // anymore); the one-time migration reads it via extractAnnotations().
 
     const frames: DiagramFrame[] = asList(doc.frames, 'frames').map((item, i) => {
       const f = asMapping(item, `frames[${i}]`);
@@ -169,9 +159,35 @@ export function parseDiagram(yamlText: string): ParseResult {
       };
     });
 
-    return { ok: true, diagram: { nodes, edges, clusters, annotations, frames } };
+    return { ok: true, diagram: { nodes, edges, clusters, frames } };
   } catch (e) {
     if (e instanceof ValidationError) return { ok: false, error: { message: e.message, path: e.path } };
     return { ok: false, error: { message: `Invalid diagram: ${(e as Error).message}`, path: '' } };
+  }
+}
+
+/**
+ * Read any legacy `annotations` from a diagram's YAML, for the one-time
+ * migration onto the whiteboard. Returns [] for well-formed diagrams that have
+ * none, and swallows malformed input (migration is best-effort, never fatal).
+ */
+export function extractAnnotations(yamlText: string): DiagramAnnotation[] {
+  try {
+    const raw = parseYaml(yamlText) as { annotations?: unknown } | null;
+    const list = raw && typeof raw === 'object' ? raw.annotations : undefined;
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
+      .map((a) => ({
+        id: String(a.id ?? ''),
+        kind: (a.kind as DiagramAnnotation['kind']) ?? 'text',
+        x: Number(a.x) || 0,
+        y: Number(a.y) || 0,
+        width: Number(a.width) || 160,
+        height: Number(a.height) || 100,
+        content: String(a.content ?? ''),
+      }));
+  } catch {
+    return [];
   }
 }

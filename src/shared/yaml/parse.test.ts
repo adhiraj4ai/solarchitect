@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { parseDiagram } from './parse';
+import { parseDiagram, extractAnnotations } from './parse';
 
 describe('parseDiagram', () => {
   it('parses an empty diagram', () => {
     const result = parseDiagram('nodes: []\nedges: []\nclusters: []\nannotations: []\n');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.diagram).toEqual({ nodes: [], edges: [], clusters: [], annotations: [], frames: [] });
+      // annotations are no longer part of the diagram; a legacy key is ignored.
+      expect(result.diagram).toEqual({ nodes: [], edges: [], clusters: [], frames: [] });
+      expect('annotations' in result.diagram).toBe(false);
     }
   });
 
@@ -225,6 +227,33 @@ annotations: []
 `);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.message).toMatch(/arrow must be/i);
+  });
+
+  it('extractAnnotations reads legacy annotations for migration', () => {
+    const yaml = `nodes: []
+edges: []
+clusters: []
+annotations:
+  - id: a1
+    kind: sticky
+    x: 10
+    y: 20
+    width: 160
+    height: 100
+    content: Legacy note
+`;
+    const anns = extractAnnotations(yaml);
+    expect(anns).toHaveLength(1);
+    expect(anns[0]).toMatchObject({ id: 'a1', kind: 'sticky', content: 'Legacy note', x: 10, y: 20 });
+    // ...and the parsed diagram itself no longer carries them.
+    const parsed = parseDiagram(yaml);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect('annotations' in parsed.diagram).toBe(false);
+  });
+
+  it('extractAnnotations returns [] when there are none or the YAML is bad', () => {
+    expect(extractAnnotations('nodes: []\nedges: []\nclusters: []\n')).toEqual([]);
+    expect(extractAnnotations(':::not yaml')).toEqual([]);
   });
 
   it('parses frames (print pages)', () => {
