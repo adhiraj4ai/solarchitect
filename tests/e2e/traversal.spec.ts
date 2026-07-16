@@ -69,3 +69,28 @@ test('playing the traversal dims later steps and flows a token, then resets on s
   await expect.poll(async () => (await opacities()).every((o) => o > 0.99)).toBe(true);
   expect(await tokenVisible()).toBe(false);
 });
+
+test('the scrubber seeks and holds, and beat ticks jump', async () => {
+  await editor().fill(CHAIN);
+  await expect(canvas().getByText('Alpha')).toBeVisible();
+
+  const opacities = () =>
+    win.evaluate(() =>
+      [...document.querySelectorAll('.tl-shape')]
+        .map((el) => Number(getComputedStyle(el).opacity))
+        .filter((n) => !Number.isNaN(n)),
+    );
+
+  await win.locator('[data-testid="traversal-toggle"]').click();
+  const scrubber = win.locator('[data-testid="traversal-scrubber"]');
+  await expect(scrubber).toBeVisible();
+
+  // A 2-node/1-edge chain has 2 distinct order values → 2 beat ticks.
+  const ticks = win.locator('[data-testid="scrubber-tick"]');
+  await expect(ticks).toHaveCount(2);
+
+  // Jumping to the last beat pauses playback and holds fully lit.
+  await ticks.last().click();
+  await expect(win.locator('[data-testid="scrubber-playpause"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(async () => (await opacities()).filter((o) => o > 0.99).length).toBeGreaterThan(0);
+});

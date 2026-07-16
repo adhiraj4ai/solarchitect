@@ -1,7 +1,7 @@
 import { Tldraw, react, createShapeId, exportToBlob, Box, type Editor, type TLShapePartial } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
 import { ClusterShapeUtil, CLUSTER_COLOR_STYLE, type ArchClusterShape } from './ClusterShapeUtil';
 import { FrameShapeUtil, type ArchFrameShape } from './FrameShapeUtil';
@@ -399,6 +399,12 @@ export function CanvasView({
 
   // ---- connect-by-drag: drag from a node's port onto another node to add an edge ----
   const [connectLine, setConnectLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  // Traversal preview playback. `traversalTimeRef` is the single source of truth
+  // both the rAF loop and the scrubber write; the state mirror drives the UI.
+  const [traversalTime, setTraversalTime] = useState(0);
+  const [traversalRunning, setTraversalRunning] = useState(true);
+  const traversalTimeRef = useRef(0);
+  const traversalRunningRef = useRef(true);
   const connectFromRef = useRef<string | null>(null);
   const connectRectRef = useRef<DOMRect | null>(null);
   const connectSrcRef = useRef<{ x: number; y: number } | null>(null);
@@ -674,8 +680,14 @@ export function CanvasView({
     const editor = editorRef.current;
     if (!editor || !traversalPlaying) return;
 
+    // Entering preview restarts playback from the beginning.
+    traversalTimeRef.current = 0;
+    traversalRunningRef.current = true;
+    setTraversalTime(0);
+    setTraversalRunning(true);
+
     let raf = 0;
-    const startMs = performance.now();
+    let last = performance.now();
     // Recompute the order/timeline only when the diagram identity changes, so a
     // steady preview isn't re-running Kahn every frame — but it stays live if
     // the diagram is edited mid-play.
@@ -683,6 +695,9 @@ export function CanvasView({
     let order = resolveOrder(diagramRef.current);
     let timeline = buildTimeline(order, DEFAULT_TIMING);
     const frame = () => {
+      const now = performance.now();
+      const dt = (now - last) / 1000;
+      last = now;
       const diagram = diagramRef.current;
       if (diagram !== cachedDiagram) {
         cachedDiagram = diagram;
@@ -690,8 +705,12 @@ export function CanvasView({
         timeline = buildTimeline(order, DEFAULT_TIMING);
       }
       const total = Math.max(timeline.totalSeconds, 0.001);
-      const t = ((performance.now() - startMs) / 1000) % total;
-      const s = stateAt(diagram, order, timeline, t);
+      // Advance only while running; scrubbing writes traversalTimeRef directly.
+      if (traversalRunningRef.current) {
+        traversalTimeRef.current = (traversalTimeRef.current + dt) % total;
+        setTraversalTime(traversalTimeRef.current);
+      }
+      const s = stateAt(diagram, order, timeline, traversalTimeRef.current);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
       raf = requestAnimationFrame(frame);
     };
@@ -702,6 +721,20 @@ export function CanvasView({
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, LIT_STATE));
     };
   }, [traversalPlaying]);
+
+  // Scrubber handlers: seeking pauses and holds; play/pause toggles advance.
+  const seekTraversal = useCallback((seconds: number) => {
+    traversalTimeRef.current = seconds;
+    traversalRunningRef.current = false;
+    setTraversalTime(seconds);
+    setTraversalRunning(false);
+  }, []);
+  const toggleTraversalRunning = useCallback(() => {
+    traversalRunningRef.current = !traversalRunningRef.current;
+    setTraversalRunning(traversalRunningRef.current);
+  }, []);
+  // Timeline for the scrubber UI (total duration + beat tick positions).
+  const previewTimeline = useMemo(() => buildTimeline(resolveOrder(diagram), DEFAULT_TIMING), [diagram]);
 
   const handleExport = useCallback(async (format: 'png' | 'svg') => {
     const editor = editorRef.current;
@@ -1178,6 +1211,51 @@ export function CanvasView({
             markerEnd="url(#connect-arrow)"
           />
         </svg>
+      )}
+      {traversalPlaying && previewTimeline.totalSeconds > 0 && (
+        <div className="scrubber" data-testid="traversal-scrubber" role="group" aria-label="Traversal scrubber">
+          <button
+            className="btn btn--sm btn--icon"
+            data-testid="scrubber-playpause"
+            aria-pressed={traversalRunning}
+            aria-label={traversalRunning ? 'Pause' : 'Play'}
+            title={traversalRunning ? 'Pause' : 'Play'}
+            onClick={toggleTraversalRunning}
+          >
+            {traversalRunning ? '⏸' : '▶'}
+          </button>
+          <div className="scrubber__track">
+            <input
+              type="range"
+              className="scrubber__range"
+              data-testid="scrubber-range"
+              aria-label="Playhead"
+              min={0}
+              max={previewTimeline.totalSeconds}
+              step={0.01}
+              value={Math.min(traversalTime, previewTimeline.totalSeconds)}
+              onChange={(e) => seekTraversal(Number(e.target.value))}
+            />
+            {/* Beat markers: click to jump to (and hold on) that beat. */}
+            {previewTimeline.beatValues.map((v) => {
+              const start = previewTimeline.beatStart[v];
+              return (
+                <button
+                  key={v}
+                  className="scrubber__tick"
+                  data-testid="scrubber-tick"
+                  aria-label={`Jump to beat at ${start.toFixed(1)} seconds`}
+                  title={`Beat at ${start.toFixed(1)}s`}
+                  style={{ left: `${(start / previewTimeline.totalSeconds) * 100}%` }}
+                  onClick={() => seekTraversal(start)}
+                />
+              );
+            })}
+          </div>
+          <span className="scrubber__time">
+            {traversalTime.toFixed(1)} / {previewTimeline.totalSeconds.toFixed(1)}s
+          </span>
+        </div>
       )}
     </div>
   );
