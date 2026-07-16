@@ -92,3 +92,37 @@ test('Export animated GIF writes a valid multi-frame GIF to the chosen path', as
   // Animated GIFs carry more than one image-descriptor block (0x2C).
   expect([...bytes].filter((b) => b === 0x2c).length).toBeGreaterThan(1);
 });
+
+test('the GIF dialog offers a region selector and a viewport export works', async () => {
+  const target = join(dir, 'viewport.gif');
+  await app.evaluate(async ({ dialog }, p) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: p });
+  }, target);
+
+  await win.locator('[data-testid="export-btn"]').click();
+  await win.locator('[data-testid="export-gif-btn"]').click();
+  await win.locator('[data-testid="gif-dialog"]').waitFor({ state: 'visible' });
+  await expect(win.locator('[data-testid="gif-region"]')).toHaveValue('all');
+  await win.locator('[data-testid="gif-region"]').selectOption('viewport');
+  await win.locator('[data-testid="gif-fps"]').fill('6');
+  await win.locator('[data-testid="gif-export-confirm"]').click();
+
+  await expect.poll(() => fileExists(target), { timeout: 30_000 }).toBe(true);
+  const bytes = await readFile(target);
+  expect(bytes.subarray(0, 6).toString('ascii')).toBe('GIF89a');
+});
+
+test('right-clicking a selection offers "Export selection as animation…" preset to selection', async () => {
+  const node = win.locator('[data-testid="canvas-drop"]').getByText('ExportMe', { exact: true }).first();
+  await node.click();
+  await node.click({ button: 'right' });
+
+  // The entry is appended to tldraw's native context menu (which also keeps
+  // copy/delete/etc.), so target it by label.
+  const item = win.getByText('Export selection as animation…');
+  await expect(item).toBeVisible();
+  await item.click();
+
+  await expect(win.locator('[data-testid="gif-dialog"]')).toBeVisible();
+  await expect(win.locator('[data-testid="gif-region"]')).toHaveValue('selection');
+});

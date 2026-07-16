@@ -1,5 +1,5 @@
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
-import type { Editor } from 'tldraw';
+import type { Box, Editor, TLShapeId } from 'tldraw';
 import type { Diagram } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
 import { buildTimeline, type TimingSettings } from '@shared/animation/timeline';
@@ -36,6 +36,9 @@ export function applyTraversalState(editor: Editor, s: AnimationState): void {
   }
 }
 
+/** What area of the diagram the GIF covers. */
+export type CaptureRegion = 'all' | 'selection' | 'viewport';
+
 /** Tunable capture settings (the export dialog owns these). */
 export interface GifExportOptions extends TimingSettings {
   /** Frames per second of the GIF. */
@@ -44,6 +47,8 @@ export interface GifExportOptions extends TimingSettings {
   scale: number;
   /** Loop the GIF forever, or play once and hold the final frame. */
   loop: 'once' | 'forever';
+  /** Region to capture: whole diagram, current selection, or viewport. */
+  region: CaptureRegion;
 }
 
 export const DEFAULT_GIF_OPTIONS: GifExportOptions = {
@@ -54,7 +59,20 @@ export const DEFAULT_GIF_OPTIONS: GifExportOptions = {
   fps: 15,
   scale: 2,
   loop: 'once',
+  region: 'all',
 };
+
+/** Resolve the shapes + optional clip bounds for a capture region. Selection
+ *  falls back to the whole page when nothing is selected. */
+function resolveRegion(editor: Editor, region: CaptureRegion): { ids: TLShapeId[]; bounds?: Box } {
+  if (region === 'selection') {
+    const selected = editor.getSelectedShapeIds();
+    if (selected.length > 0) return { ids: selected };
+  }
+  const ids = [...editor.getCurrentPageShapeIds()];
+  if (region === 'viewport') return { ids, bounds: editor.getViewportPageBounds() };
+  return { ids };
+}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -77,7 +95,7 @@ export async function captureTraversalGif(
   options: GifExportOptions,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Uint8Array> {
-  const ids = [...editor.getCurrentPageShapeIds()];
+  const { ids, bounds } = resolveRegion(editor, options.region);
   if (ids.length === 0) throw new Error('EMPTY');
 
   const order = resolveOrder(diagram);
@@ -99,7 +117,7 @@ export async function captureTraversalGif(
       const s = stateAt(diagram, order, timeline, t);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
 
-      const svg = await editor.getSvgString(ids, { background: true, padding: 8 });
+      const svg = await editor.getSvgString(ids, { background: true, padding: 8, ...(bounds ? { bounds } : {}) });
       if (!svg) throw new Error('Failed to serialize the diagram.');
       if (i === 0) {
         // Size the canvas once from the first frame. Export bounds derive from

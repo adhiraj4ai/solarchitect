@@ -1,4 +1,17 @@
-import { Tldraw, react, createShapeId, exportToBlob, Box, type Editor, type TLShapePartial } from 'tldraw';
+import {
+  Tldraw,
+  react,
+  createShapeId,
+  exportToBlob,
+  Box,
+  DefaultContextMenu,
+  DefaultContextMenuContent,
+  TldrawUiMenuGroup,
+  TldrawUiMenuItem,
+  type TLUiContextMenuProps,
+  type Editor,
+  type TLShapePartial,
+} from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,6 +65,7 @@ import {
   captureTraversalGif,
   DEFAULT_GIF_OPTIONS,
   type GifExportOptions,
+  type CaptureRegion,
 } from './captureAnimation';
 
 const assetUrls = getAssetUrlsByImport();
@@ -750,6 +764,35 @@ export function CanvasView({
   // Timeline for the scrubber UI (total duration + beat tick positions).
   const previewTimeline = useMemo(() => buildTimeline(resolveOrder(diagram), DEFAULT_TIMING), [diagram]);
 
+  // Architect tldraw components: the defaults plus a context-menu entry that
+  // exports the current selection as an animation. It APPENDS to tldraw's
+  // native menu (copy/delete/…) rather than replacing it, and only shows when
+  // shapes are selected.
+  const architectComponents = useMemo(
+    () => ({
+      ...ARCHITECT_COMPONENTS,
+      ContextMenu: (props: TLUiContextMenuProps) => (
+        <DefaultContextMenu {...props}>
+          {(editorRef.current?.getSelectedShapeIds().length ?? 0) > 0 && (
+            <TldrawUiMenuGroup id="solarchitect-animation">
+              <TldrawUiMenuItem
+                id="export-selection-animation"
+                label="Export selection as animation…"
+                readonlyOk
+                onSelect={() => {
+                  setGifOptions((o) => ({ ...o, region: 'selection' }));
+                  setGifDialogOpen(true);
+                }}
+              />
+            </TldrawUiMenuGroup>
+          )}
+          <DefaultContextMenuContent />
+        </DefaultContextMenu>
+      ),
+    }),
+    [],
+  );
+
   const handleExport = useCallback(async (format: 'png' | 'svg') => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -1243,7 +1286,7 @@ export function CanvasView({
       <Tldraw
         assetUrls={assetUrls}
         shapeUtils={shapeUtils}
-        components={mode === 'architect' ? ARCHITECT_COMPONENTS : WHITEBOARD_COMPONENTS}
+        components={mode === 'architect' ? architectComponents : WHITEBOARD_COMPONENTS}
         onMount={handleMount}
       />
       {connectLine && (
@@ -1359,6 +1402,18 @@ export function CanvasView({
               >
                 <option value="once">Play once</option>
                 <option value="forever">Loop forever</option>
+              </select>
+            </label>
+            <label className="modal__field">
+              <span>Region</span>
+              <select
+                data-testid="gif-region"
+                value={gifOptions.region}
+                onChange={(e) => setGifOptions((o) => ({ ...o, region: e.target.value as CaptureRegion }))}
+              >
+                <option value="all">Whole diagram</option>
+                <option value="selection">Selection</option>
+                <option value="viewport">Viewport</option>
               </select>
             </label>
             {gifProgress && (
