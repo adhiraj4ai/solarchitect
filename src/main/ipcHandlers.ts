@@ -1,4 +1,5 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, app } from 'electron';
+import { join } from 'node:path';
 import {
   listDiagrams,
   readDiagram,
@@ -9,6 +10,8 @@ import {
   readWhiteboard,
   writeWhiteboard,
 } from './projectManager';
+import { readSettings, writeSettings } from './settingsManager';
+import type { AppSettings } from '../shared/settings/settings';
 import { writeExportedImage } from './exportService';
 import {
   gitStatus,
@@ -94,4 +97,10 @@ export function registerIpcHandlers(): void {
     await writeExportedImage(result.filePath, Buffer.from(base64Data, 'base64'));
     return result.filePath;
   });
+
+  // App settings live in a single JSON file in the user-data dir (per-machine,
+  // not per-project). The renderer never touches disk — it goes through here.
+  const settingsPath = () => join(app.getPath('userData'), 'settings.json');
+  ipcMain.handle('app:readSettings', () => readSettings(settingsPath()));
+  ipcMain.handle('app:writeSettings', (_e, settings: AppSettings) => writeSettings(settingsPath(), settings));
 }

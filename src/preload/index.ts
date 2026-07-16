@@ -28,6 +28,8 @@ const api: SolarchitectApi = {
   gitPull: (projectDir) => ipcRenderer.invoke('project:gitPull', projectDir),
   gitCreateBranch: (projectDir, name) => ipcRenderer.invoke('project:gitCreateBranch', projectDir, name),
   gitCheckoutBranch: (projectDir, name) => ipcRenderer.invoke('project:gitCheckoutBranch', projectDir, name),
+  readSettings: () => ipcRenderer.invoke('app:readSettings'),
+  writeSettings: (settings) => ipcRenderer.invoke('app:writeSettings', settings),
 };
 
 contextBridge.exposeInMainWorld('solarchitect', api);
