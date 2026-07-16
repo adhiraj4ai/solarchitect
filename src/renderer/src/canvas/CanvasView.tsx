@@ -41,9 +41,18 @@ import type {
   AccentColor,
   EdgeShape as EdgeShapeKind,
   EdgeLineStyle,
+  EdgeDirection,
 } from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
+
+// The direction toggle cycles forward → reverse → bidirectional. One map is the
+// single source for each state's glyph, tooltip, and the next state on click.
+const EDGE_DIRECTION_CYCLE: Record<EdgeDirection, { glyph: string; title: string; next: EdgeDirection }> = {
+  forward: { glyph: '→', title: 'One-way — click to reverse', next: 'reverse' },
+  reverse: { glyph: '←', title: 'Reversed — click for bidirectional', next: 'bidirectional' },
+  bidirectional: { glyph: '⇌', title: 'Bidirectional — click for one-way', next: 'forward' },
+};
 const shapeUtils = [FrameShapeUtil, ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
 export type Mode = 'architect' | 'whiteboard';
@@ -1001,16 +1010,12 @@ export function CanvasView({
                   </button>
                   <button
                     data-testid="edge-direction-toggle"
-                    className={`edge-shape-btn${selectedEdge.direction === 'bidirectional' ? ' on' : ''}`}
-                    aria-pressed={selectedEdge.direction === 'bidirectional'}
-                    title={selectedEdge.direction === 'bidirectional' ? 'Bidirectional' : 'One-way'}
-                    onClick={() =>
-                      patchSelectedEdge({
-                        direction: selectedEdge.direction === 'bidirectional' ? 'forward' : 'bidirectional',
-                      })
-                    }
+                    className={`edge-shape-btn${selectedEdge.direction !== 'forward' ? ' on' : ''}`}
+                    aria-pressed={selectedEdge.direction !== 'forward'}
+                    title={EDGE_DIRECTION_CYCLE[selectedEdge.direction].title}
+                    onClick={() => patchSelectedEdge({ direction: EDGE_DIRECTION_CYCLE[selectedEdge.direction].next })}
                   >
-                    ⇌
+                    {EDGE_DIRECTION_CYCLE[selectedEdge.direction].glyph}
                   </button>
                 </span>
               </div>

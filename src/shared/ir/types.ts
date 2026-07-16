@@ -18,11 +18,16 @@ export type EdgeShape = 'straight' | 'curved' | 'bent';
 /** Stroke style of the relationship line. Absent means 'solid'. */
 export type EdgeLineStyle = 'solid' | 'dashed' | 'dotted';
 
+/** Flow direction of an edge. `forward` is source→target (default); `reverse`
+ *  flips flow and arrowhead to target→source without swapping from/to;
+ *  `bidirectional` flows both ways with arrowheads at both ends. */
+export type EdgeDirection = 'forward' | 'reverse' | 'bidirectional';
+
 export interface DiagramEdge {
   id: string;
   from: string; // DiagramNode.id
   to: string; // DiagramNode.id
-  direction: 'forward' | 'bidirectional';
+  direction: EdgeDirection;
   label?: string;
   shape?: EdgeShape;
   /** Line stroke style. Absent means 'solid'. */

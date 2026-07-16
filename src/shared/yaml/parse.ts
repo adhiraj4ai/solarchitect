@@ -121,6 +121,13 @@ export function parseDiagram(yamlText: string): ParseResult {
       if (shape && shape !== 'straight' && shape !== 'curved' && shape !== 'bent') {
         throw new ValidationError(`Edge shape must be straight, curved, or bent (got "${shape}")`, `edges[${i}].shape`);
       }
+      const direction = e.direction as DiagramEdge['direction'] | undefined;
+      if (direction && direction !== 'forward' && direction !== 'reverse' && direction !== 'bidirectional') {
+        throw new ValidationError(
+          `Edge direction must be forward, reverse, or bidirectional (got "${direction}")`,
+          `edges[${i}].direction`,
+        );
+      }
       const lineStyle = e.lineStyle as DiagramEdge['lineStyle'];
       if (lineStyle && lineStyle !== 'solid' && lineStyle !== 'dashed' && lineStyle !== 'dotted') {
         throw new ValidationError(
@@ -135,7 +142,7 @@ export function parseDiagram(yamlText: string): ParseResult {
         id: e.id as string,
         from: e.from as string,
         to: e.to as string,
-        direction: (e.direction as DiagramEdge['direction']) ?? 'forward',
+        direction: direction ?? 'forward',
         ...(e.label ? { label: e.label as string } : {}),
         ...(shape ? { shape } : {}),
         ...(lineStyle ? { lineStyle } : {}),

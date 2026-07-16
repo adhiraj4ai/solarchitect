@@ -17,7 +17,8 @@ export function serializeDiagram(diagram: Diagram): string {
       id: e.id,
       from: e.from,
       to: e.to,
-      direction: e.direction,
+      // 'forward' is the default; omit it so existing diagrams stay unchanged.
+      ...(e.direction !== 'forward' ? { direction: e.direction } : {}),
       ...(e.label ? { label: e.label } : {}),
       ...(e.shape && e.shape !== 'straight' ? { shape: e.shape } : {}),
       ...(e.lineStyle && e.lineStyle !== 'solid' ? { lineStyle: e.lineStyle } : {}),

@@ -89,6 +89,27 @@ test('an edge label can be set from the canvas', async () => {
   await expect(editor()).toHaveValue(/label: depends on/);
 });
 
+test('the edge direction toggle cycles forward → reverse → bidirectional', async () => {
+  await editor().fill(TWO_NODES);
+  await expect(canvas().getByText('WebTier')).toHaveCount(1);
+
+  await selectNodes('WebTier', 'DataTier');
+  await win.locator('[data-testid="connect-btn"]').click(); // new edge is auto-selected
+
+  const toggle = win.locator('[data-testid="edge-direction-toggle"]');
+  // forward is the default, so it is omitted from the YAML.
+  await expect(editor()).not.toHaveValue(/direction:/);
+
+  await toggle.click();
+  await expect(editor()).toHaveValue(/direction: reverse/);
+
+  await toggle.click();
+  await expect(editor()).toHaveValue(/direction: bidirectional/);
+
+  await toggle.click(); // back to forward — direction omitted again
+  await expect(editor()).not.toHaveValue(/direction:/);
+});
+
 test('grouping selected nodes adds a cluster and sets clusterId', async () => {
   await editor().fill(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toBeVisible();

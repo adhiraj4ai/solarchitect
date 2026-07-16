@@ -32,5 +32,23 @@ describe('serializeDiagram', () => {
     const yamlText = serializeDiagram(diagram);
     expect(yamlText).toContain('clusterId: c1');
     expect(yamlText).toContain('label: loop');
+    // 'forward' is the default direction, so it is omitted from the YAML.
+    expect(yamlText).not.toContain('direction');
+  });
+
+  it('serializes non-default edge directions but omits forward', () => {
+    const yamlText = serializeDiagram({
+      nodes: [],
+      edges: [
+        { id: 'e1', from: 'n1', to: 'n2', direction: 'forward' },
+        { id: 'e2', from: 'n1', to: 'n3', direction: 'reverse' },
+        { id: 'e3', from: 'n1', to: 'n4', direction: 'bidirectional' },
+      ],
+      clusters: [],
+      annotations: [],
+    });
+    expect(yamlText).toContain('direction: reverse');
+    expect(yamlText).toContain('direction: bidirectional');
+    expect(yamlText).not.toContain('direction: forward');
   });
 });

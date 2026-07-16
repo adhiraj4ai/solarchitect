@@ -1,5 +1,5 @@
 import { ShapeUtil, Polyline2d, HTMLContainer, T, Vec, type TLBaseShape } from 'tldraw';
-import type { EdgeShape as EdgeShapeKind, EdgeLineStyle } from '@shared/ir/types';
+import type { EdgeShape as EdgeShapeKind, EdgeLineStyle, EdgeDirection } from '@shared/ir/types';
 
 // Endpoints are stored local to the shape's (x,y) origin, which the reconciler
 // sets to the min corner of the two node centers.
@@ -8,7 +8,7 @@ export type ArchEdgeShape = TLBaseShape<
   {
     edgeId: string;
     label: string;
-    direction: 'forward' | 'bidirectional';
+    direction: EdgeDirection;
     shape: EdgeShapeKind;
     lineStyle: EdgeLineStyle;
     arrow: boolean;
@@ -73,7 +73,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   static override props = {
     edgeId: T.string,
     label: T.string,
-    direction: T.literalEnum('forward', 'bidirectional'),
+    direction: T.literalEnum('forward', 'reverse', 'bidirectional'),
     shape: T.literalEnum('straight', 'curved', 'bent'),
     lineStyle: T.literalEnum('solid', 'dashed', 'dotted'),
     arrow: T.boolean,
@@ -115,6 +115,11 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const d = edgePath(kind, x1, y1, x2, y2);
+    // reverse flows target→source (arrowhead at the `from` end); bidirectional
+    // shows both heads. The animated token travels the same direction as flow.
+    const headEnd = arrow && direction !== 'reverse';
+    const headStart = arrow && (direction === 'bidirectional' || direction === 'reverse');
+    const tokenReversed = direction === 'reverse';
     return (
       <HTMLContainer style={{ pointerEvents: 'none' }}>
         <svg style={{ overflow: 'visible', position: 'absolute', left: 0, top: 0 }}>
@@ -134,13 +139,20 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             strokeWidth={2}
             strokeLinecap={lineStyle === 'dotted' ? 'round' : 'butt'}
             strokeDasharray={dashArray(lineStyle)}
-            markerEnd={arrow ? `url(#${endId})` : undefined}
-            markerStart={arrow && direction === 'bidirectional' ? `url(#${startId})` : undefined}
+            markerEnd={headEnd ? `url(#${endId})` : undefined}
+            markerStart={headStart ? `url(#${startId})` : undefined}
           />
-          {/* A token that travels from → to along the edge; only visible in
-              Animate mode (gated by the .animate-on ancestor in CSS). */}
+          {/* A token that travels along the edge in the flow direction; only
+              visible in Animate mode (gated by the .animate-on ancestor in CSS).
+              For a reverse edge it travels target → source via keyPoints. */}
           <circle className="arch-edge-token" r="4.5" fill="var(--sync, #d9822b)" stroke="none">
-            <animateMotion dur="1.7s" repeatCount="indefinite" path={d} rotate="0" />
+            <animateMotion
+              dur="1.7s"
+              repeatCount="indefinite"
+              path={d}
+              rotate="0"
+              {...(tokenReversed ? { keyPoints: '1;0', keyTimes: '0;1', calcMode: 'linear' } : {})}
+            />
           </circle>
         </svg>
         {label && (

@@ -26,4 +26,23 @@ describe('IR -> YAML -> IR round-trip', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.diagram).toEqual(original);
   });
+
+  it('round-trips reverse and bidirectional edge directions', () => {
+    const original: Diagram = {
+      nodes: [
+        { id: 'n1', type: 'aws.compute.EC2', label: 'A' },
+        { id: 'n2', type: 'aws.database.RDS', label: 'B' },
+      ],
+      edges: [
+        { id: 'e1', from: 'n1', to: 'n2', direction: 'reverse' },
+        { id: 'e2', from: 'n2', to: 'n1', direction: 'bidirectional' },
+      ],
+      clusters: [],
+      frames: [],
+      annotations: [],
+    };
+    const result = parseDiagram(serializeDiagram(original));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.diagram).toEqual(original);
+  });
 });
