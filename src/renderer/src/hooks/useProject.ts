@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { parseDiagram, extractAnnotations } from '@shared/yaml/parse';
 import { serializeDiagram } from '@shared/yaml/serialize';
 import type { Diagram } from '@shared/ir/types';
-import type { DiagramFileEntry, GitStatus } from '@shared/project/types';
+import type { DocumentEntry, GitStatus } from '@shared/project/types';
 
 /**
  * One-time migration: if a diagram's YAML still carries legacy `annotations`,
@@ -19,7 +19,7 @@ async function migrateLegacyAnnotations(dir: string, file: string, text: string,
     if (!existing) {
       await window.solarchitect.writeWhiteboard(dir, file, JSON.stringify({ pendingAnnotations: legacy }));
     }
-    await window.solarchitect.writeDiagram(dir, file, serializeDiagram(diagram));
+    await window.solarchitect.writeDocument(dir, file, serializeDiagram(diagram));
   } catch {
     /* migration is best-effort; the diagram still opens */
   }
@@ -32,7 +32,7 @@ async function migrateLegacyAnnotations(dir: string, file: string, text: string,
  */
 export function useProject(loadDiagram: (d: Diagram) => void) {
   const [projectDir, setProjectDir] = useState<string | null>(null);
-  const [entries, setEntries] = useState<DiagramFileEntry[]>([]);
+  const [entries, setEntries] = useState<DocumentEntry[]>([]);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [ioError, setIoError] = useState<string | null>(null);
   const [git, setGit] = useState<GitStatus | null>(null);
@@ -48,7 +48,10 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
 
   const refresh = useCallback(
     async (dir: string) => {
-      setEntries(await window.solarchitect.listDiagrams(dir));
+      // The store now lists all document types; this ticket keeps the current
+      // diagram-only list (the type-grouped view arrives with the surface pivot).
+      const docs = await window.solarchitect.listDocuments(dir);
+      setEntries(docs.filter((e) => e.type === 'diagram'));
       await refreshGit(dir);
     },
     [refreshGit],
@@ -62,7 +65,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
       if (file) {
         // openDiagram needs projectDir set; read directly here to avoid a stale closure.
         try {
-          const text = await window.solarchitect.readDiagram(dir, file);
+          const text = await window.solarchitect.readDocument(dir, file);
           const result = parseDiagram(text);
           if (result.ok) {
             loadDiagram(result.diagram);
@@ -99,7 +102,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
     async (fileName: string) => {
       if (!projectDir) return;
       try {
-        const text = await window.solarchitect.readDiagram(projectDir, fileName);
+        const text = await window.solarchitect.readDocument(projectDir, fileName);
         const result = parseDiagram(text);
         if (!result.ok) {
           setIoError(`${fileName}: ${result.error.message}`);
@@ -118,7 +121,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
   const newDiagram = useCallback(async () => {
     if (!projectDir) return;
     try {
-      const fileName = await window.solarchitect.createDiagram(projectDir, 'Untitled');
+      const fileName = await window.solarchitect.createDocument(projectDir, 'diagram');
       await refresh(projectDir);
       await openDiagram(fileName);
     } catch (e) {
@@ -130,7 +133,7 @@ export function useProject(loadDiagram: (d: Diagram) => void) {
     async (yamlText: string) => {
       if (!projectDir || !currentFile) return;
       try {
-        await window.solarchitect.writeDiagram(projectDir, currentFile, yamlText);
+        await window.solarchitect.writeDocument(projectDir, currentFile, yamlText);
         await refresh(projectDir);
       } catch (e) {
         setIoError(`Could not save ${currentFile}: ${(e as Error).message}`);

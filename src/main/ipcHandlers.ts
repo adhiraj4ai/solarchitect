@@ -1,15 +1,16 @@
 import { ipcMain, dialog, app } from 'electron';
 import { join } from 'node:path';
 import {
-  listDiagrams,
-  readDiagram,
-  writeDiagram,
-  createDiagram,
+  listDocuments,
+  readDocument,
+  writeDocument,
+  createDocument,
   readTemplates,
   writeTemplates,
   readWhiteboard,
   writeWhiteboard,
 } from './projectManager';
+import type { DocumentType } from '../shared/project/documentType';
 import { readSettings, writeSettings } from './settingsManager';
 import type { AppSettings } from '../shared/settings/settings';
 import { writeExportedImage } from './exportService';
@@ -50,7 +51,7 @@ export function registerIpcHandlers(): void {
     const dir = result.filePaths[0];
     const status = await gitStatus(dir);
     if (!status.isRepo) await gitInit(dir);
-    const fileName = await createDiagram(dir, 'diagram');
+    const fileName = await createDocument(dir, 'diagram');
     return { dir, fileName };
   });
 
@@ -71,15 +72,15 @@ export function registerIpcHandlers(): void {
     gitCheckoutBranch(projectDir, name),
   );
 
-  ipcMain.handle('project:listDiagrams', (_e, projectDir: string) => listDiagrams(projectDir));
-  ipcMain.handle('project:readDiagram', (_e, projectDir: string, fileName: string) =>
-    readDiagram(projectDir, fileName),
+  ipcMain.handle('project:listDocuments', (_e, projectDir: string) => listDocuments(projectDir));
+  ipcMain.handle('project:readDocument', (_e, projectDir: string, fileName: string) =>
+    readDocument(projectDir, fileName),
   );
-  ipcMain.handle('project:writeDiagram', (_e, projectDir: string, fileName: string, yamlText: string) =>
-    writeDiagram(projectDir, fileName, yamlText),
+  ipcMain.handle('project:writeDocument', (_e, projectDir: string, fileName: string, text: string) =>
+    writeDocument(projectDir, fileName, text),
   );
-  ipcMain.handle('project:createDiagram', (_e, projectDir: string, displayName: string) =>
-    createDiagram(projectDir, displayName),
+  ipcMain.handle('project:createDocument', (_e, projectDir: string, type: DocumentType) =>
+    createDocument(projectDir, type),
   );
   ipcMain.handle('project:readWhiteboard', (_e, projectDir: string, diagramFileName: string) =>
     readWhiteboard(projectDir, diagramFileName),

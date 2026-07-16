@@ -1,9 +1,19 @@
 import type { AppSettings, SettingsReadResult } from '../settings/settings';
+import type { DocumentType } from './documentType';
 export type { AppSettings, SettingsReadResult };
 
 /** A diagram file discovered in a project folder, with its validation status. */
 export interface DiagramFileEntry {
   fileName: string;
+  status: 'ok' | 'error';
+  errorMessage?: string;
+}
+
+/** A document discovered in a project folder, with its type and validation
+ *  status. Only diagrams are validated; whiteboards and markdown are always 'ok'. */
+export interface DocumentEntry {
+  fileName: string;
+  type: DocumentType;
   status: 'ok' | 'error';
   errorMessage?: string;
 }
@@ -56,10 +66,14 @@ export interface NewProjectResult {
  */
 export interface SolarchitectApi {
   openFolder(): Promise<string | null>;
-  listDiagrams(projectDir: string): Promise<DiagramFileEntry[]>;
-  readDiagram(projectDir: string, fileName: string): Promise<string>;
-  writeDiagram(projectDir: string, fileName: string, yamlText: string): Promise<void>;
-  createDiagram(projectDir: string, displayName: string): Promise<string>;
+  /** List every document in the project, tagged with its type. */
+  listDocuments(projectDir: string): Promise<DocumentEntry[]>;
+  /** Read any document's raw text. */
+  readDocument(projectDir: string, fileName: string): Promise<string>;
+  /** Write any document's raw text. */
+  writeDocument(projectDir: string, fileName: string, text: string): Promise<void>;
+  /** Create a new auto-named document of the given type; returns its file name. */
+  createDocument(projectDir: string, type: DocumentType): Promise<string>;
   readTemplates(projectDir: string): Promise<string>;
   writeTemplates(projectDir: string, yamlText: string): Promise<void>;
   /** Read a diagram's freeform whiteboard snapshot, or null if it has none. */

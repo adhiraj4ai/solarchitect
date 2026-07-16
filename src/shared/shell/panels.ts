@@ -5,6 +5,8 @@
  * than tangled into React state.
  */
 
+import type { DocumentType } from '../project/documentType';
+
 /** A document surface. Mirrors the canvas interaction Mode: the Diagram surface
  *  is 'architect' (structured shapes), the Whiteboard surface is 'whiteboard'
  *  (freeform). A whiteboard has no structured shapes or instantiable diagram
@@ -74,4 +76,32 @@ export function resolveActivePanel(
 ): PanelId {
   const preferred = preferredBySurface[surface] ?? DEFAULT_PANEL;
   return isPanelAvailable(preferred, surface) ? preferred : DEFAULT_PANEL;
+}
+
+// --- Panel availability keyed by document type ---------------------------------
+// The document-type model that supersedes the surface toggle. Added alongside the
+// Surface API above during the migration; the renderer switches over (and the
+// Surface variants are removed) once documents are opened by type.
+
+/** Panels that only make sense on the structured Diagram document. */
+const TYPE_DIAGRAM_ONLY: ReadonlySet<PanelId> = new Set<PanelId>(['shapes', 'templates']);
+/** Panels tied to document structure (diagram nodes or markdown headings). */
+const TYPE_STRUCTURE_PANELS: ReadonlySet<PanelId> = new Set<PanelId>(['outline', 'search']);
+
+export function isPanelAvailableForType(panel: PanelId, type: DocumentType): boolean {
+  if (TYPE_DIAGRAM_ONLY.has(panel)) return type === 'diagram';
+  if (TYPE_STRUCTURE_PANELS.has(panel)) return type === 'diagram' || type === 'markdown';
+  return true; // project, git, settings, help — universal
+}
+
+export function panelsForType(type: DocumentType): PanelMeta[] {
+  return PANELS.filter((p) => isPanelAvailableForType(p.id, type));
+}
+
+export function resolveActivePanelForType(
+  type: DocumentType,
+  preferredByType: Partial<Record<DocumentType, PanelId>>,
+): PanelId {
+  const preferred = preferredByType[type] ?? DEFAULT_PANEL;
+  return isPanelAvailableForType(preferred, type) ? preferred : DEFAULT_PANEL;
 }

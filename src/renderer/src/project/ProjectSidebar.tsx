@@ -1,4 +1,4 @@
-import type { DiagramFileEntry } from '@shared/project/types';
+import type { DocumentEntry } from '@shared/project/types';
 
 const basename = (dir: string) => dir.split(/[/\\]/).filter(Boolean).pop() ?? dir;
 
@@ -14,7 +14,7 @@ export function ProjectSidebar({
   onSave,
 }: {
   projectDir: string | null;
-  entries: DiagramFileEntry[];
+  entries: DocumentEntry[];
   currentFile: string | null;
   canSave: boolean;
   onOpenProject: () => void;

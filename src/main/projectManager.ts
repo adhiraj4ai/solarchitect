@@ -3,32 +3,18 @@ import path from 'node:path';
 import { serializeDiagram } from '../shared/yaml/serialize';
 import { parseDiagram } from '../shared/yaml/parse';
 import { emptyDiagram } from '../shared/ir/types';
-import type { DiagramFileEntry } from '../shared/project/types';
+import {
+  documentTypeForFile,
+  documentExtension,
+  defaultBaseName,
+  TEMPLATES_FILE,
+  type DocumentType,
+} from '../shared/project/documentType';
+import { serializeWhiteboardFile, emptyWhiteboardFile } from '../shared/whiteboard/whiteboardFile';
+import type { DocumentEntry } from '../shared/project/types';
 
-export const TEMPLATES_FILE = 'templates.yaml';
-export type { DiagramFileEntry };
-
-/** List diagram files in a project folder, validating each so a corrupt file is
- *  flagged (errored) rather than blocking the whole project from opening. */
-export async function listDiagrams(projectDir: string): Promise<DiagramFileEntry[]> {
-  const names = (await readdir(projectDir))
-    .filter((f) => f.endsWith('.yaml') && f !== TEMPLATES_FILE)
-    .sort();
-
-  const entries: DiagramFileEntry[] = [];
-  for (const fileName of names) {
-    try {
-      const text = await readFile(path.join(projectDir, fileName), 'utf-8');
-      const result = parseDiagram(text);
-      entries.push(
-        result.ok ? { fileName, status: 'ok' } : { fileName, status: 'error', errorMessage: result.error.message },
-      );
-    } catch (e) {
-      entries.push({ fileName, status: 'error', errorMessage: (e as Error).message });
-    }
-  }
-  return entries;
-}
+export { TEMPLATES_FILE };
+export type { DocumentEntry };
 
 /**
  * Resolve fileName inside projectDir, refusing any path that escapes it. The
@@ -44,16 +30,82 @@ function resolveInProject(projectDir: string, fileName: string): string {
   return resolved;
 }
 
-export async function readDiagram(projectDir: string, fileName: string): Promise<string> {
+/** List every document in a project folder, tagged with its type. Only diagrams
+ *  are validated, so a corrupt diagram is flagged (errored) rather than blocking
+ *  the project; whiteboards and markdown are always 'ok'. */
+export async function listDocuments(projectDir: string): Promise<DocumentEntry[]> {
+  const names = (await readdir(projectDir)).sort();
+  const entries: DocumentEntry[] = [];
+  for (const fileName of names) {
+    const type = documentTypeForFile(fileName);
+    if (!type) continue; // templates.yaml, assets, unknown files
+    if (type !== 'diagram') {
+      entries.push({ fileName, type, status: 'ok' });
+      continue;
+    }
+    try {
+      const text = await readFile(path.join(projectDir, fileName), 'utf-8');
+      const result = parseDiagram(text);
+      entries.push(
+        result.ok
+          ? { fileName, type, status: 'ok' }
+          : { fileName, type, status: 'error', errorMessage: result.error.message },
+      );
+    } catch (e) {
+      entries.push({ fileName, type, status: 'error', errorMessage: (e as Error).message });
+    }
+  }
+  return entries;
+}
+
+/** Read any document's raw text. */
+export async function readDocument(projectDir: string, fileName: string): Promise<string> {
   return readFile(resolveInProject(projectDir, fileName), 'utf-8');
 }
 
-export async function writeDiagram(projectDir: string, fileName: string, yamlText: string): Promise<void> {
-  await writeFile(resolveInProject(projectDir, fileName), yamlText, 'utf-8');
+/** Write any document's raw text. */
+export async function writeDocument(projectDir: string, fileName: string, text: string): Promise<void> {
+  await writeFile(resolveInProject(projectDir, fileName), text, 'utf-8');
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function starterContent(type: DocumentType): string {
+  switch (type) {
+    case 'diagram':
+      return serializeDiagram(emptyDiagram());
+    case 'whiteboard':
+      return serializeWhiteboardFile(emptyWhiteboardFile());
+    case 'markdown':
+      return '# Untitled\n\n';
+  }
+}
+
+/** Create a new auto-named document of the given type, disambiguating so an
+ *  existing file is never overwritten. Returns the created file name. */
+export async function createDocument(projectDir: string, type: DocumentType): Promise<string> {
+  const base = defaultBaseName(type);
+  const ext = documentExtension(type);
+  let fileName = `${base}${ext}`;
+  let n = 2;
+  while (await fileExists(path.join(projectDir, fileName))) {
+    fileName = `${base}-${n}${ext}`;
+    n += 1;
+  }
+  await writeDocument(projectDir, fileName, starterContent(type));
+  return fileName;
 }
 
 /** The freeform-whiteboard sidecar that accompanies a diagram file:
- *  `payments.yaml` → `payments.whiteboard.json`. */
+ *  `payments.yaml` → `payments.whiteboard.json`. (Legacy sidecar model; the
+ *  standalone whiteboard document replaces this in a later change.) */
 export function whiteboardName(diagramFileName: string): string {
   return `${diagramFileName.replace(/\.ya?ml$/i, '')}.whiteboard.json`;
 }
@@ -85,24 +137,6 @@ export async function writeWhiteboard(
   await writeFile(p, snapshot, 'utf-8');
 }
 
-function slugify(name: string): string {
-  const base = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return base || 'diagram';
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Read the project's shared templates file (empty document if it doesn't exist yet). */
 export async function readTemplates(projectDir: string): Promise<string> {
   return readFile(path.join(projectDir, TEMPLATES_FILE), 'utf-8').catch(() => 'templates: []\n');
@@ -111,18 +145,4 @@ export async function readTemplates(projectDir: string): Promise<string> {
 /** Write the project's shared templates file. */
 export async function writeTemplates(projectDir: string, yamlText: string): Promise<void> {
   await writeFile(path.join(projectDir, TEMPLATES_FILE), yamlText, 'utf-8');
-}
-
-/** Create a new empty diagram file, disambiguating the name so an existing file
- *  is never overwritten. Returns the created file name. */
-export async function createDiagram(projectDir: string, displayName: string): Promise<string> {
-  const slug = slugify(displayName);
-  let fileName = `${slug}.yaml`;
-  let n = 2;
-  while (await fileExists(path.join(projectDir, fileName))) {
-    fileName = `${slug}-${n}.yaml`;
-    n += 1;
-  }
-  await writeDiagram(projectDir, fileName, serializeDiagram(emptyDiagram()));
-  return fileName;
 }

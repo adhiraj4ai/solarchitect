@@ -1,17 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  listDiagrams,
-  readDiagram,
-  writeDiagram,
-  createDiagram,
+  listDocuments,
+  readDocument,
+  writeDocument,
+  createDocument,
   readWhiteboard,
   writeWhiteboard,
   whiteboardName,
 } from './projectManager';
-import { access } from 'node:fs/promises';
 
 async function exists(p: string): Promise<boolean> {
   try {
@@ -22,7 +21,7 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
-const EMPTY_DOC = 'nodes: []\nedges: []\nclusters: []\nannotations: []\n';
+const EMPTY_DIAGRAM = 'nodes: []\nedges: []\nclusters: []\n';
 
 let projectDir: string;
 
@@ -34,79 +33,76 @@ afterEach(async () => {
   await rm(projectDir, { recursive: true, force: true });
 });
 
-describe('projectManager', () => {
-  it('writes and reads back a diagram file verbatim', async () => {
-    const yaml = `nodes:
-  - id: n1
-    type: aws.compute.EC2
-    label: Web
-    x: 42
-    y: 99
-edges: []
-clusters: []
-annotations: []
-`;
-    await writeDiagram(projectDir, 'overview.yaml', yaml);
-    expect(await readDiagram(projectDir, 'overview.yaml')).toBe(yaml);
+describe('projectManager documents', () => {
+  it('writes and reads back any document verbatim', async () => {
+    await writeDocument(projectDir, 'notes.md', '# Title\n');
+    expect(await readDocument(projectDir, 'notes.md')).toBe('# Title\n');
   });
 
-  it('lists diagram files, marking a corrupt one as errored without blocking the rest', async () => {
-    await writeDiagram(projectDir, 'ok.yaml', EMPTY_DOC);
-    await writeDiagram(projectDir, 'bad.yaml', 'nodes: [this is not: valid yaml');
+  it('lists documents of every type with their type, ignoring templates.yaml', async () => {
+    await writeDocument(projectDir, 'a.yaml', EMPTY_DIAGRAM);
+    await writeDocument(projectDir, 'b.whiteboard.json', '{"version":1,"snapshot":null,"backdropDiagram":null}');
+    await writeDocument(projectDir, 'c.md', '# hi');
+    await writeFile(path.join(projectDir, 'templates.yaml'), 'templates: []\n');
 
-    const entries = await listDiagrams(projectDir);
-    const ok = entries.find((e) => e.fileName === 'ok.yaml');
-    const bad = entries.find((e) => e.fileName === 'bad.yaml');
+    const entries = await listDocuments(projectDir);
+    const byName = Object.fromEntries(entries.map((e) => [e.fileName, e.type]));
+    expect(byName).toEqual({ 'a.yaml': 'diagram', 'b.whiteboard.json': 'whiteboard', 'c.md': 'markdown' });
+  });
 
-    expect(entries).toHaveLength(2);
-    expect(ok?.status).toBe('ok');
-    expect(bad?.status).toBe('error');
-    expect(bad?.errorMessage).toBeTruthy();
+  it('validates only diagrams; a corrupt diagram is errored, others always ok', async () => {
+    await writeDocument(projectDir, 'bad.yaml', 'nodes: [this is not: valid');
+    await writeDocument(projectDir, 'x.whiteboard.json', '{not json'); // still ok: not validated
+    const entries = await listDocuments(projectDir);
+    expect(entries.find((e) => e.fileName === 'bad.yaml')?.status).toBe('error');
+    expect(entries.find((e) => e.fileName === 'bad.yaml')?.errorMessage).toBeTruthy();
+    expect(entries.find((e) => e.fileName === 'x.whiteboard.json')?.status).toBe('ok');
   });
 
   it('marks a diagram with an unknown node type as errored', async () => {
-    await writeDiagram(projectDir, 'unknown.yaml', 'nodes:\n  - id: n1\n    type: not.a.type\n    label: X\n    x: 0\n    y: 0\nedges: []\nclusters: []\nannotations: []\n');
-    const [entry] = await listDiagrams(projectDir);
+    await writeDocument(
+      projectDir,
+      'unknown.yaml',
+      'nodes:\n  - id: n1\n    type: not.a.type\n    label: X\n    x: 0\n    y: 0\nedges: []\nclusters: []\n',
+    );
+    const [entry] = await listDocuments(projectDir);
     expect(entry.status).toBe('error');
     expect(entry.errorMessage).toMatch(/Unknown node type/);
   });
 
-  it('ignores non-yaml files and the templates file when listing', async () => {
-    await writeDiagram(projectDir, 'a.yaml', EMPTY_DOC);
-    await writeFile(path.join(projectDir, 'readme.md'), '# notes');
-    await writeFile(path.join(projectDir, 'templates.yaml'), 'templates: []\n');
-    const entries = await listDiagrams(projectDir);
-    expect(entries.map((e) => e.fileName)).toEqual(['a.yaml']);
+  it('creates an auto-named document per type, disambiguating collisions', async () => {
+    expect(await createDocument(projectDir, 'diagram')).toBe('untitled.yaml');
+    expect(await createDocument(projectDir, 'diagram')).toBe('untitled-2.yaml');
+    expect(await createDocument(projectDir, 'whiteboard')).toBe('untitled.whiteboard.json');
+    expect(await createDocument(projectDir, 'markdown')).toBe('untitled.md');
   });
 
-  it('creates a new empty diagram file and returns its name', async () => {
-    const fileName = await createDiagram(projectDir, 'My Diagram');
-    expect(fileName).toMatch(/\.yaml$/);
-    const text = await readDiagram(projectDir, fileName);
-    expect(text).toContain('nodes: []');
+  it('seeds an empty diagram, a wrapped-empty whiteboard, and a starter markdown', async () => {
+    const wb = await createDocument(projectDir, 'whiteboard');
+    expect(JSON.parse(await readDocument(projectDir, wb))).toEqual({
+      version: 1,
+      snapshot: null,
+      backdropDiagram: null,
+    });
+    const md = await createDocument(projectDir, 'markdown');
+    expect(await readDocument(projectDir, md)).toContain('#');
+    const dg = await createDocument(projectDir, 'diagram');
+    expect(await readDocument(projectDir, dg)).toContain('nodes: []');
   });
 
   it('refuses to read or write a path that escapes the project (traversal)', async () => {
-    await expect(readDiagram(projectDir, '../../etc/hosts')).rejects.toThrow(/outside the project/);
-    await expect(writeDiagram(projectDir, '../escape.yaml', 'x')).rejects.toThrow(/outside the project/);
+    await expect(readDocument(projectDir, '../../etc/hosts')).rejects.toThrow(/outside the project/);
+    await expect(writeDocument(projectDir, '../escape.yaml', 'x')).rejects.toThrow(/outside the project/);
   });
 
-  it('does not overwrite an existing file when creating a same-named diagram', async () => {
-    const first = await createDiagram(projectDir, 'dup');
-    const second = await createDiagram(projectDir, 'dup');
-    expect(second).not.toBe(first);
-    const entries = await listDiagrams(projectDir);
-    expect(entries).toHaveLength(2);
-  });
-
-  describe('whiteboard sidecar', () => {
+  describe('whiteboard sidecar (legacy, still supported)', () => {
     it('derives the sidecar name from the diagram file', () => {
       expect(whiteboardName('payments.yaml')).toBe('payments.whiteboard.json');
       expect(whiteboardName('a.yml')).toBe('a.whiteboard.json');
     });
 
     it('round-trips a snapshot', async () => {
-      await writeDiagram(projectDir, 'd.yaml', EMPTY_DOC);
+      await writeDocument(projectDir, 'd.yaml', EMPTY_DIAGRAM);
       const snap = '{"store":{"shape:1":{"typeName":"shape"}}}';
       await writeWhiteboard(projectDir, 'd.yaml', snap);
       expect(await readWhiteboard(projectDir, 'd.yaml')).toBe(snap);
@@ -126,13 +122,6 @@ annotations: []
 
       await writeWhiteboard(projectDir, 'd.yaml', ''); // emptied → removed
       expect(await exists(sidecar)).toBe(false);
-    });
-
-    it('is excluded from the diagram list', async () => {
-      await writeDiagram(projectDir, 'd.yaml', EMPTY_DOC);
-      await writeWhiteboard(projectDir, 'd.yaml', '{"store":{}}');
-      const entries = await listDiagrams(projectDir);
-      expect(entries.map((e) => e.fileName)).toEqual(['d.yaml']);
     });
 
     it('refuses a path that escapes the project', async () => {
