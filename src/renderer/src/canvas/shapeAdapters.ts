@@ -7,9 +7,10 @@ import type { DiagramNode, DiagramCluster, DiagramEdge, DiagramFrame } from '@sh
 
 // ---- Nodes ----
 
-/** The tldraw shape props that represent an IR node. */
+/** The tldraw shape props that represent an IR node. `order` is a derived
+ *  value synced separately by reconcile, so it starts at 0 here. */
 export function nodeToShapeProps(n: DiagramNode): ArchNodeShape['props'] {
-  return { nodeId: n.id, nodeType: n.type, label: n.label, w: NODE_DEFAULT_WIDTH, h: NODE_DEFAULT_HEIGHT };
+  return { nodeId: n.id, nodeType: n.type, label: n.label, w: NODE_DEFAULT_WIDTH, h: NODE_DEFAULT_HEIGHT, order: 0 };
 }
 
 export function nodesToShapes(nodes: DiagramNode[]): TLShapePartial[] {
@@ -127,6 +128,8 @@ export function edgeToShape(edge: DiagramEdge, nodeById: Map<string, DiagramNode
       shape: edge.shape ?? 'straight',
       lineStyle: edge.lineStyle ?? 'solid',
       arrow: edge.arrow ?? true,
+      // Derived value synced separately by reconcile; starts at 0 here.
+      order: 0,
       x1: a.x - originX,
       y1: a.y - originY,
       x2: b.x - originX,

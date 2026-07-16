@@ -43,6 +43,7 @@ import type {
   EdgeLineStyle,
   EdgeDirection,
 } from '@shared/ir/types';
+import { resolveOrder } from '@shared/animation/order';
 
 const assetUrls = getAssetUrlsByImport();
 
@@ -53,6 +54,14 @@ const EDGE_DIRECTION_CYCLE: Record<EdgeDirection, { glyph: string; title: string
   reverse: { glyph: '←', title: 'Reversed — click for bidirectional', next: 'bidirectional' },
   bidirectional: { glyph: '⇌', title: 'Bidirectional — click for one-way', next: 'forward' },
 };
+
+// Parse a step-order input: empty clears the explicit step (order becomes
+// derived); otherwise a non-negative integer.
+function parseStepInput(value: string): number | undefined {
+  if (value.trim() === '') return undefined;
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
 const shapeUtils = [FrameShapeUtil, ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
 export type Mode = 'architect' | 'whiteboard';
@@ -243,6 +252,20 @@ function reconcile(editor: Editor, diagram: Diagram): void {
       editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
     );
 
+    // Sync the derived traversal order onto each shape's `order` prop. It is a
+    // computed value (not an IR field), so topology or step changes can move a
+    // shape's order without changing its own IR fields — hence a dedicated pass
+    // rather than folding it into the IR diffs above.
+    const order = resolveOrder(diagram);
+    for (const s of getArchNodeShapes(editor)) {
+      const want = order.nodeOrder[s.props.nodeId] ?? 0;
+      if (s.props.order !== want) editor.updateShape({ id: s.id, type: 'archNode', props: { order: want } });
+    }
+    for (const s of getArchEdgeShapes(editor)) {
+      const want = order.edgeOrder[s.props.edgeId] ?? 0;
+      if (s.props.order !== want) editor.updateShape({ id: s.id, type: 'archEdge', props: { order: want } });
+    }
+
     // Enforce paint order after any additions: frames at the very back, then
     // clusters, then edges, then nodes on top. (New shapes otherwise land on
     // top of their neighbours.)
@@ -284,6 +307,7 @@ export function CanvasView({
   onSaveTemplate,
   onError,
   animate = false,
+  showSteps = false,
   presenting = false,
   presentIndex = 0,
   grid = true,
@@ -293,6 +317,8 @@ export function CanvasView({
   templates: NamedTemplate[];
   mode: Mode;
   animate?: boolean;
+  /** Overlay each node/edge's resolved traversal order as a badge. */
+  showSteps?: boolean;
   presenting?: boolean;
   presentIndex?: number;
   /** Show the canvas grid background (from app settings). */
@@ -597,6 +623,14 @@ export function CanvasView({
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
+  // When Steps is on, surface the non-blocking hint if the graph has no natural
+  // starting node (a cycle, or every node has an incoming edge).
+  useEffect(() => {
+    if (!showSteps) return;
+    const { warning } = resolveOrder(diagram);
+    if (warning) onErrorRef.current(warning);
+  }, [showSteps, diagram]);
+
   const handleExport = useCallback(async (format: 'png' | 'svg') => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -719,7 +753,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${presenting ? ' presenting' : ''}`}
+      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${showSteps ? ' steps-on' : ''}${presenting ? ' presenting' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {
@@ -913,6 +947,18 @@ export function CanvasView({
                   onPick={(c) => setNodesColor([selectedNode.id], c)}
                 />
               </div>
+              <label className="props-field">
+                <span className="props-field__label">Step</span>
+                <input
+                  type="number"
+                  min={0}
+                  data-testid="prop-node-step"
+                  className="props-input"
+                  placeholder="auto"
+                  value={selectedNode.step ?? ''}
+                  onChange={(e) => patchNode(selectedNode.id, { step: parseStepInput(e.target.value) })}
+                />
+              </label>
               <div className="props-field__hint">{selectedNode.type}</div>
             </>
           )}
@@ -962,6 +1008,18 @@ export function CanvasView({
                   placeholder="Label this relationship…"
                   value={selectedEdgeLabel}
                   onChange={(e) => handleLabelChange(e.target.value)}
+                />
+              </label>
+              <label className="props-field">
+                <span className="props-field__label">Step</span>
+                <input
+                  type="number"
+                  min={0}
+                  data-testid="prop-edge-step"
+                  className="props-input"
+                  placeholder="auto"
+                  value={selectedEdge.step ?? ''}
+                  onChange={(e) => patchSelectedEdge({ step: parseStepInput(e.target.value) })}
                 />
               </label>
               <div className="props-field">

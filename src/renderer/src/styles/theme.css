@@ -504,6 +504,33 @@ button { font-family: inherit; }
 .arch-edge-token { visibility: hidden; }
 .canvas.animate-on .arch-edge-token { visibility: visible; }
 
+/* Traversal-order badge: a small numbered chip on each node/edge, shown only
+   when Steps mode is on. */
+.arch-step-badge {
+  display: none;
+  position: absolute;
+  top: -9px;
+  left: -9px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--blueprint, #2f6df6);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(16, 23, 34, 0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+.arch-step-badge--edge { transform: translate(-50%, -50%); }
+.canvas.steps-on .arch-step-badge { display: inline-block; }
+
 /* presentation: hide all chrome, canvas fills the window */
 .app--presenting .app__bar,
 .app--presenting .actbar,

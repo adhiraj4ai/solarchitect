@@ -292,6 +292,48 @@ clusters: []
     if (!result.ok) expect(result.error.message).toMatch(/direction must be/i);
   });
 
+  it('parses explicit node and edge steps', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+    step: 2
+edges:
+  - id: e1
+    from: n1
+    to: n1
+    step: 3
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.diagram.nodes[0].step).toBe(2);
+      expect(result.diagram.edges[0].step).toBe(3);
+    }
+  });
+
+  it('rejects a non-numeric edge step', () => {
+    const result = parseDiagram(`nodes:
+  - id: n1
+    type: aws.compute.EC2
+    label: A
+    x: 0
+    y: 0
+edges:
+  - id: e1
+    from: n1
+    to: n1
+    step: soon
+clusters: []
+annotations: []
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toMatch(/step must be/i);
+  });
+
   it('parses frames (print pages)', () => {
     const result = parseDiagram(`nodes: []
 edges: []

@@ -60,6 +60,8 @@ export default function App() {
   // Animate: flow the relationship lines. Present: full-screen, chrome-free,
   // stepping through page frames (or fit-to-content when there are none).
   const [animate, setAnimate] = useState(false);
+  // Steps: overlay the resolved traversal order as badges on nodes/edges.
+  const [showSteps, setShowSteps] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [presentIndex, setPresentIndex] = useState(0);
   const frames = diagram.frames ?? [];
@@ -245,6 +247,15 @@ export default function App() {
             >
               {animate ? '◉ Animating' : '◎ Animate'}
             </button>
+            <button
+              data-testid="steps-toggle"
+              className={`btn btn--sm${showSteps ? ' btn--on' : ''}`}
+              aria-pressed={showSteps}
+              onClick={() => setShowSteps((v) => !v)}
+              title="Show the traversal step order on nodes and edges"
+            >
+              {showSteps ? '① Steps' : '◇ Steps'}
+            </button>
             <button data-testid="present-btn" className="btn btn--sm" onClick={startPresenting} title="Present full screen">
               ▷ Present
             </button>
@@ -291,6 +302,7 @@ export default function App() {
               templates={templates.templates}
               mode="architect"
               animate={animate}
+              showSteps={showSteps}
               presenting={presenting}
               presentIndex={presentIndex}
               grid={settings.grid}

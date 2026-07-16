@@ -12,6 +12,7 @@ export type ArchEdgeShape = TLBaseShape<
     shape: EdgeShapeKind;
     lineStyle: EdgeLineStyle;
     arrow: boolean;
+    order: number;
     x1: number;
     y1: number;
     x2: number;
@@ -77,6 +78,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     shape: T.literalEnum('straight', 'curved', 'bent'),
     lineStyle: T.literalEnum('solid', 'dashed', 'dotted'),
     arrow: T.boolean,
+    order: T.number,
     x1: T.number,
     y1: T.number,
     x2: T.number,
@@ -91,6 +93,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
       shape: 'straight',
       lineStyle: 'solid',
       arrow: true,
+      order: 0,
       x1: 0,
       y1: 0,
       x2: 100,
@@ -107,7 +110,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   override canBind = () => false;
 
   component(shape: ArchEdgeShape) {
-    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, edgeId } = shape.props;
+    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, order, edgeId } = shape.props;
     const minX = Math.min(x1, x2);
     const minY = Math.min(y1, y2);
     const startId = `arrow-start-${edgeId}`;
@@ -175,6 +178,14 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             {label}
           </div>
         )}
+        {/* Traversal-order badge; shown only when Steps is on (.steps-on ancestor). */}
+        <span
+          className="arch-step-badge arch-step-badge--edge"
+          title={`Step ${order}`}
+          style={{ position: 'absolute', left: midX - minX, top: midY - minY - 16 }}
+        >
+          {order}
+        </span>
       </HTMLContainer>
     );
   }

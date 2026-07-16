@@ -12,6 +12,7 @@ export function serializeDiagram(diagram: Diagram): string {
       ...(typeof n.y === 'number' ? { y: n.y } : {}),
       ...(n.clusterId ? { clusterId: n.clusterId } : {}),
       ...(n.color ? { color: n.color } : {}),
+      ...(typeof n.step === 'number' ? { step: n.step } : {}),
     })),
     edges: diagram.edges.map((e) => ({
       id: e.id,
@@ -23,6 +24,7 @@ export function serializeDiagram(diagram: Diagram): string {
       ...(e.shape && e.shape !== 'straight' ? { shape: e.shape } : {}),
       ...(e.lineStyle && e.lineStyle !== 'solid' ? { lineStyle: e.lineStyle } : {}),
       ...(e.arrow === false ? { arrow: false } : {}),
+      ...(typeof e.step === 'number' ? { step: e.step } : {}),
     })),
     clusters: diagram.clusters.map((c) => ({
       id: c.id,

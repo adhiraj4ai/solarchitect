@@ -10,6 +10,9 @@ export interface DiagramNode {
   clusterId?: string;
   /** User-assigned accent color. Absent means the node renders black & white. */
   color?: AccentColor;
+  /** Explicit traversal step (order). Absent means the order is derived from
+   *  the graph topology. See animation/order.ts. */
+  step?: number;
 }
 
 /** How an edge is routed between its two nodes. Absent means 'straight'. */
@@ -34,6 +37,9 @@ export interface DiagramEdge {
   lineStyle?: EdgeLineStyle;
   /** Whether to draw arrowheads at all. Absent means true (arrow shown). */
   arrow?: boolean;
+  /** Explicit traversal step (order). Absent means the order is derived from
+   *  the graph topology. See animation/order.ts. */
+  step?: number;
 }
 
 /** The shared accent-color vocabulary, used for both node and cluster colors.
