@@ -2,6 +2,7 @@ import type { Diagram, EdgeDirection } from '../ir/types';
 import type { ResolvedOrder } from './order';
 import type { Timeline } from './timeline';
 import type { AnimationStyle } from './presets';
+import type { DiagramPath } from './paths';
 
 /** Opacity of an element that has not been reached yet. */
 export const DIM_OPACITY = 0.15;
@@ -35,8 +36,10 @@ function litLevel(beatStart: number, t: number, fadeSeconds: number): number {
  *  - build-up (dim→lit cumulative) is on only for `control-flow`; other styles
  *    keep every element fully lit and just move tokens.
  *  - tokens are `all-at-once` (all edges flow continuously) for `all-edges`,
- *    else `by-order` (each edge's token flows during its beat). `end-to-end`
- *    (by-path) is handled by its own strategy in #37; here it reads as by-order.
+ *    else `by-order` (each edge's token flows during its beat).
+ *
+ * `end-to-end` has its own path-walking strategy (see stateAtByPath); callers
+ * route it there. If passed here it falls back to the by-order token treatment.
  */
 export function stateAt(
   diagram: Diagram,
@@ -81,6 +84,64 @@ export function stateAt(
     } else {
       dotPositions[e.id] = geom(e.direction, Math.min(1, Math.max(0, (t - start) / dotTravelSeconds)));
     }
+  }
+
+  return { nodeOpacity, edgeOpacity, clusterOpacity, dotPositions, edgeDirection };
+}
+
+/** Total duration of the end-to-end (by-path) animation: every edge of every
+ *  path takes one token-travel, walked back to back. */
+export function byPathDuration(paths: DiagramPath[], dotTravelSeconds: number): number {
+  const edges = paths.reduce((sum, p) => sum + p.edgeIds.length, 0);
+  return edges * dotTravelSeconds;
+}
+
+/**
+ * The end-to-end state at time `t`: a single token walks each path's edges in
+ * turn (one edge per `dotTravelSeconds`), path after path, looping. Nothing
+ * dims — only the one active edge carries a token; the rest is lit context.
+ */
+export function stateAtByPath(
+  diagram: Diagram,
+  paths: DiagramPath[],
+  dotTravelSeconds: number,
+  t: number,
+): AnimationState {
+  const nodeOpacity: Record<string, number> = {};
+  for (const n of diagram.nodes) nodeOpacity[n.id] = 1;
+  const clusterOpacity: Record<string, number> = {};
+  for (const c of diagram.clusters) clusterOpacity[c.id] = 1;
+  const edgeOpacity: Record<string, number> = {};
+  const dotPositions: Record<string, number | null> = {};
+  const edgeDirection: Record<string, EdgeDirection> = {};
+  for (const e of diagram.edges) {
+    edgeOpacity[e.id] = 1;
+    edgeDirection[e.id] = e.direction;
+    dotPositions[e.id] = null;
+  }
+
+  const totalEdges = paths.reduce((sum, p) => sum + p.edgeIds.length, 0);
+  if (totalEdges === 0 || dotTravelSeconds <= 0) {
+    return { nodeOpacity, edgeOpacity, clusterOpacity, dotPositions, edgeDirection };
+  }
+
+  const period = totalEdges * dotTravelSeconds;
+  const tt = ((t % period) + period) % period;
+  const globalIdx = Math.min(totalEdges - 1, Math.floor(tt / dotTravelSeconds));
+  const flow = Math.min(1, Math.max(0, (tt - globalIdx * dotTravelSeconds) / dotTravelSeconds));
+
+  // Map the global edge index to the active edge across concatenated paths.
+  let acc = 0;
+  let activeEdgeId: string | undefined;
+  for (const p of paths) {
+    if (globalIdx < acc + p.edgeIds.length) {
+      activeEdgeId = p.edgeIds[globalIdx - acc];
+      break;
+    }
+    acc += p.edgeIds.length;
+  }
+  if (activeEdgeId !== undefined && activeEdgeId in dotPositions) {
+    dotPositions[activeEdgeId] = edgeDirection[activeEdgeId] === 'reverse' ? 1 - flow : flow;
   }
 
   return { nodeOpacity, edgeOpacity, clusterOpacity, dotPositions, edgeDirection };

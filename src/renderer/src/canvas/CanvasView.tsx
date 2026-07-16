@@ -58,7 +58,8 @@ import type {
 } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
 import { buildTimeline, presetTiming, animationPeriod } from '@shared/animation/timeline';
-import { stateAt } from '@shared/animation/state';
+import { stateAt, stateAtByPath, byPathDuration } from '@shared/animation/state';
+import { enumeratePaths, type DiagramPath } from '@shared/animation/paths';
 import type { AnimationPreset } from '@shared/animation/presets';
 import {
   applyTraversalState,
@@ -727,6 +728,7 @@ export function CanvasView({
     let cachedPreset: AnimationPreset | null = null;
     let order = resolveOrder(diagramRef.current);
     let timeline = buildTimeline(order, presetTiming(activePresetRef.current));
+    let paths: DiagramPath[] = [];
     const frame = () => {
       const now = performance.now();
       const dt = (now - last) / 1000;
@@ -739,14 +741,22 @@ export function CanvasView({
         cachedPreset = preset;
         order = resolveOrder(diagram);
         timeline = buildTimeline(order, presetTiming(preset));
+        paths = preset.style === 'end-to-end' ? enumeratePaths(diagram).paths : [];
       }
-      const total = Math.max(animationPeriod(preset.style, timeline), 0.001);
+      const travel = timeline.timing.dotTravelSeconds;
+      const total = Math.max(
+        preset.style === 'end-to-end' ? byPathDuration(paths, travel) : animationPeriod(preset.style, timeline),
+        0.001,
+      );
       // Advance only while running; scrubbing writes traversalTimeRef directly.
       if (traversalRunningRef.current) {
         traversalTimeRef.current = (traversalTimeRef.current + dt) % total;
         setTraversalTime(traversalTimeRef.current);
       }
-      const s = stateAt(diagram, order, timeline, traversalTimeRef.current, preset.style);
+      const s =
+        preset.style === 'end-to-end'
+          ? stateAtByPath(diagram, paths, travel, traversalTimeRef.current)
+          : stateAt(diagram, order, timeline, traversalTimeRef.current, preset.style);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
       raf = requestAnimationFrame(frame);
     };
@@ -774,9 +784,23 @@ export function CanvasView({
     () => buildTimeline(resolveOrder(diagram), presetTiming(activePreset)),
     [diagram, activePreset],
   );
-  const previewPeriod = animationPeriod(activePreset.style, previewTimeline);
-  // Beat ticks are meaningless for the continuous all-edges style.
-  const showBeatTicks = activePreset.style !== 'all-edges';
+  const previewPaths = useMemo(
+    () => (activePreset.style === 'end-to-end' ? enumeratePaths(diagram) : { paths: [], truncated: false }),
+    [diagram, activePreset.style],
+  );
+  const previewPeriod =
+    activePreset.style === 'end-to-end'
+      ? byPathDuration(previewPaths.paths, presetTiming(activePreset).dotTravelSeconds)
+      : animationPeriod(activePreset.style, previewTimeline);
+  // Beat ticks only make sense for the by-order styles (control-flow, dataflow).
+  const showBeatTicks = activePreset.style !== 'all-edges' && activePreset.style !== 'end-to-end';
+
+  // End-to-end can enumerate very many paths on a dense graph; surface the cap.
+  useEffect(() => {
+    if (traversalPlaying && activePreset.style === 'end-to-end' && previewPaths.truncated) {
+      onErrorRef.current(`Showing the first ${previewPaths.paths.length} paths; the diagram has more.`);
+    }
+  }, [traversalPlaying, activePreset.style, previewPaths]);
 
   // Architect tldraw components: the defaults plus a context-menu entry that
   // exports the current selection as an animation. It APPENDS to tldraw's

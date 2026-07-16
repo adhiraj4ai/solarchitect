@@ -14,7 +14,7 @@ export interface ResolvedOrder {
 /** The (source, target) an edge flows between, honouring its direction.
  *  `reverse` swaps the endpoints; `bidirectional` is treated as forward for the
  *  purpose of deriving a linear order. */
-function effectiveEnds(edge: DiagramEdge): { src: string; dst: string } {
+export function effectiveEnds(edge: DiagramEdge): { src: string; dst: string } {
   if (edge.direction === 'reverse') return { src: edge.to, dst: edge.from };
   return { src: edge.from, dst: edge.to };
 }

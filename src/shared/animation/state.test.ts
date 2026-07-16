@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { stateAt, DIM_OPACITY } from './state';
+import { stateAt, stateAtByPath, byPathDuration, DIM_OPACITY } from './state';
 import { buildTimeline } from './timeline';
 import { resolveOrder } from './order';
+import { enumeratePaths } from './paths';
 import type { Diagram, DiagramEdge, DiagramNode } from '../ir/types';
 
 const TIMING = { secondsPerStep: 1, fadeSeconds: 0.3, dotTravelSeconds: 0.9, endHoldSeconds: 1 };
@@ -107,6 +108,24 @@ describe('stateAt', () => {
     expect(s.nodeOpacity.c).toBe(1);
     expect(s.dotPositions.e1).not.toBeNull();
     expect(s.dotPositions.e2).toBeNull();
+  });
+
+  it('end-to-end: one token walks each path edge in turn, nothing dims', () => {
+    const d = chain(); // a→b→c, one path of 2 edges
+    const { paths } = enumeratePaths(d);
+    const travel = 0.9;
+    expect(byPathDuration(paths, travel)).toBe(2 * travel);
+
+    // First segment: e1 active, e2 idle.
+    const s0 = stateAtByPath(d, paths, travel, travel * 0.5);
+    expect(Object.values(s0.nodeOpacity).every((o) => o === 1)).toBe(true);
+    expect(s0.dotPositions.e1).not.toBeNull();
+    expect(s0.dotPositions.e2).toBeNull();
+
+    // Second segment: e2 active, e1 idle.
+    const s1 = stateAtByPath(d, paths, travel, travel * 1.5);
+    expect(s1.dotPositions.e1).toBeNull();
+    expect(s1.dotPositions.e2).not.toBeNull();
   });
 
   it('lights a cluster with its first member', () => {
