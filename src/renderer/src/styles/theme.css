@@ -87,6 +87,7 @@ button { font-family: inherit; }
 .app__foot .segmented { padding: 2px; }
 .app__foot .segmented__btn { font-size: 11.5px; padding: 4px 12px; }
 .app__foot-spacer { flex: 1; }
+.foot-surface { font-family: var(--mono); font-size: 11.5px; color: var(--slate); padding-left: 4px; }
 
 /* git status in the bottom status bar */
 .foot-git {
@@ -146,6 +147,8 @@ button { font-family: inherit; }
 .app__body--visual { grid-template-columns: 264px 1fr; }
 /* rail · editor (the editor takes the whole main pane) */
 .app__body--code { grid-template-columns: 264px 1fr; }
+/* rail · whiteboard (freeform surface fills the main pane) */
+.app__body--whiteboard { grid-template-columns: 264px 1fr; }
 .rail { grid-column: 1; grid-row: 1 / -1; }
 .app__foot { grid-column: 2 / -1; grid-row: 2; }
 
@@ -491,9 +494,12 @@ button { font-family: inherit; }
 
 /* canvas */
 .canvas { position: absolute; inset: 0; }
-/* Hide the tldraw watermark. Note: removing it for distributed/commercial use
-   requires a tldraw business license — this is a local, self-hosted tool. */
-.canvas .tl-watermark_SEE-LICENSE { display: none !important; }
+/* freeform whiteboard surface fills the stage */
+.whiteboard { position: absolute; inset: 0; }
+/* Hide the tldraw watermark on both surfaces. Note: removing it for a
+   distributed/commercial product requires a tldraw business license — this is a
+   local, self-hosted tool. */
+.tl-watermark_SEE-LICENSE { display: none !important; }
 
 /* animate mode — a token travels from → to along each relationship. The token
    animates continuously (SMIL) but is only shown when animate mode is on. */

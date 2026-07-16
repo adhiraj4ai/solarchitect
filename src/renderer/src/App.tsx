@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CanvasView } from './canvas/CanvasView';
+import { WhiteboardView } from './canvas/WhiteboardView';
 import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { ProjectSidebar } from './project/ProjectSidebar';
@@ -10,10 +11,11 @@ import { useSyncEngine } from './hooks/useSyncEngine';
 import { useProject } from './hooks/useProject';
 import { useTemplates } from './hooks/useTemplates';
 import { useGit } from './hooks/useGit';
-import type { Mode } from './canvas/CanvasView';
 import type { Diagram } from '@shared/ir/types';
 
-/** Which panels are on screen. Orthogonal to the canvas-interaction Mode. */
+/** The two editing surfaces of a document — never share a canvas. */
+type Surface = 'diagram' | 'whiteboard';
+/** How the Diagram surface is laid out (only applies to the Diagram surface). */
 type View = 'visual' | 'split' | 'code';
 
 export default function App() {
@@ -25,11 +27,13 @@ export default function App() {
   const templates = useTemplates(project.projectDir, project.setIoError);
   const git = useGit(project.projectDir, project.setIoError);
 
-  const [mode, setMode] = useState<Mode>('architect');
-  // Layout: visual = canvas only, split = canvas + source (default), code =
-  // source editor only. Independent of the canvas-interaction mode above.
+  // Which surface is open. Diagram = structured; Whiteboard = freeform sketch.
+  const [surface, setSurface] = useState<Surface>('diagram');
+  const isWhiteboard = surface === 'whiteboard';
+  // Layout of the Diagram surface: visual = canvas only, split = canvas +
+  // source (default), code = source editor only. Ignored on the Whiteboard.
   const [view, setView] = useState<View>('split');
-  const showCanvas = view !== 'code';
+  const showCanvas = !isWhiteboard && view !== 'code';
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
@@ -102,29 +106,27 @@ export default function App() {
       <header className="app__bar">
         <Wordmark />
         <span className="topsep" />
-        {showCanvas && (
-          <>
-            <div className="segmented" role="tablist" aria-label="Mode">
-              <button
-                role="tab"
-                aria-selected={mode === 'architect'}
-                className={`segmented__btn${mode === 'architect' ? ' on' : ''}`}
-                onClick={() => setMode('architect')}
-              >
-                Architect
-              </button>
-              <button
-                role="tab"
-                aria-selected={mode === 'whiteboard'}
-                className={`segmented__btn${mode === 'whiteboard' ? ' on' : ''}`}
-                onClick={() => setMode('whiteboard')}
-              >
-                Whiteboard
-              </button>
-            </div>
-            <span className="topsep" />
-          </>
-        )}
+        <div className="segmented" role="tablist" aria-label="Surface">
+          <button
+            role="tab"
+            data-testid="surface-diagram"
+            aria-selected={surface === 'diagram'}
+            className={`segmented__btn${surface === 'diagram' ? ' on' : ''}`}
+            onClick={() => setSurface('diagram')}
+          >
+            Diagram
+          </button>
+          <button
+            role="tab"
+            data-testid="surface-whiteboard"
+            aria-selected={surface === 'whiteboard'}
+            className={`segmented__btn${surface === 'whiteboard' ? ' on' : ''}`}
+            onClick={() => setSurface('whiteboard')}
+          >
+            Whiteboard
+          </button>
+        </div>
+        <span className="topsep" />
         <div className="topgroup">
           <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm btn--icon" title="Undo (⌘Z)">
             ↩
@@ -161,7 +163,7 @@ export default function App() {
         </span>
       </header>
 
-      <div className={`app__body app__body--${view}`}>
+      <div className={`app__body app__body--${isWhiteboard ? 'whiteboard' : view}`}>
         <aside className="rail">
           <section className="rail__proj">
             <ProjectSidebar
@@ -183,18 +185,18 @@ export default function App() {
             <GitPanel projectDir={project.projectDir} git={git} />
           </section>
           <section className="rail__shapes">
-            {!showCanvas ? (
+            {isWhiteboard ? (
+              <div className="rail__hint">
+                <span className="eyebrow">Whiteboard</span>
+                <p>Sketch freely with the drawing tools. Your sketch is saved beside the diagram. Switch to Diagram to place cloud shapes.</p>
+              </div>
+            ) : view === 'code' ? (
               <div className="rail__hint">
                 <span className="eyebrow">Code</span>
                 <p>Editing the diagram as YAML. Invalid YAML freezes sync and shows the error — nothing is lost. Switch to Split or Visual to place shapes.</p>
               </div>
-            ) : mode === 'architect' ? (
-              <ShapeLibrary />
             ) : (
-              <div className="rail__hint">
-                <span className="eyebrow">Whiteboard</span>
-                <p>Sketch freely with the drawing tools on the canvas. Switch to Architect to place cloud shapes.</p>
-              </div>
+              <ShapeLibrary />
             )}
           </section>
           <section className="rail__tpl">
@@ -208,11 +210,18 @@ export default function App() {
         </aside>
 
         <main className="stage">
-          {showCanvas ? (
+          {isWhiteboard ? (
+            <WhiteboardView
+              key={project.currentFile ?? 'untitled'}
+              projectDir={project.projectDir}
+              fileName={project.currentFile}
+              onError={project.setIoError}
+            />
+          ) : showCanvas ? (
             <CanvasView
               diagram={diagram}
               templates={templates.templates}
-              mode={mode}
+              mode="architect"
               animate={animate}
               presenting={presenting}
               presentIndex={presentIndex}
@@ -231,7 +240,7 @@ export default function App() {
           )}
         </main>
 
-        {view === 'split' && (
+        {!isWhiteboard && view === 'split' && (
           <YamlCodeEditor
             yamlText={yamlText}
             yamlError={yamlError}
@@ -241,27 +250,31 @@ export default function App() {
         )}
 
         <footer className="app__foot">
-          <div className="segmented" role="tablist" aria-label="View">
-            {(
-              [
-                ['visual', 'Visual'],
-                ['split', 'Split'],
-                ['code', 'Code'],
-              ] as const
-            ).map(([v, label]) => (
-              <button
-                key={v}
-                role="tab"
-                data-testid={`view-${v}`}
-                aria-selected={view === v}
-                className={`segmented__btn${view === v ? ' on' : ''}`}
-                onClick={() => setView(v)}
-                title={`${label} view`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {isWhiteboard ? (
+            <span className="foot-surface">Whiteboard — freeform sketch</span>
+          ) : (
+            <div className="segmented" role="tablist" aria-label="View">
+              {(
+                [
+                  ['visual', 'Visual'],
+                  ['split', 'Split'],
+                  ['code', 'Code'],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  role="tab"
+                  data-testid={`view-${v}`}
+                  aria-selected={view === v}
+                  className={`segmented__btn${view === v ? ' on' : ''}`}
+                  onClick={() => setView(v)}
+                  title={`${label} view`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <span className="app__foot-spacer" />
 
