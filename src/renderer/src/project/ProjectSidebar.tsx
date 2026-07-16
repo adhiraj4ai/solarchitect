@@ -1,5 +1,5 @@
 import { NewDocumentMenu } from './NewDocumentMenu';
-import { type DocumentType } from '@shared/project/documentType';
+import { DOCUMENT_TYPES, type DocumentType } from '@shared/project/documentType';
 import type { DocumentEntry } from '@shared/project/types';
 
 const basename = (dir: string) => dir.split(/[/\\]/).filter(Boolean).pop() ?? dir;
@@ -64,13 +64,8 @@ export function ProjectSidebar({
   onOpenDocument: (fileName: string) => void;
   onSave: () => void;
 }) {
-  // Order the groups as offered, then any other types (e.g. markdown created
-  // outside the app) after, so nothing is ever hidden entirely.
-  const groupOrder: DocumentType[] = [
-    ...OFFERED_TYPES,
-    ...(['markdown'] as DocumentType[]).filter((t) => !OFFERED_TYPES.includes(t)),
-  ];
-
+  // Groups appear in the canonical type order, so a type created outside the app
+  // (e.g. a markdown file) is still listed rather than hidden.
   return (
     <>
       <div className="sidebar__head">
@@ -105,7 +100,7 @@ export function ProjectSidebar({
             No documents yet — use “New” to create one.
           </div>
         )}
-        {groupOrder.map((type) => {
+        {DOCUMENT_TYPES.map((type) => {
           const group = entries.filter((e) => e.type === type);
           if (group.length === 0) return null;
           return (

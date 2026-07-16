@@ -11,6 +11,13 @@ export type DocumentType = 'diagram' | 'whiteboard' | 'markdown';
 
 export const DOCUMENT_TYPES: DocumentType[] = ['diagram', 'whiteboard', 'markdown'];
 
+/** Human-facing singular name for each document type (menu items, type badge). */
+export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
+  diagram: 'Diagram',
+  whiteboard: 'Whiteboard',
+  markdown: 'Markdown',
+};
+
 export const TEMPLATES_FILE = 'templates.yaml';
 
 /** The canonical extension written for each type when creating a document. */

@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { DocumentType } from '@shared/project/documentType';
-
-const LABEL: Record<DocumentType, string> = {
-  diagram: 'Diagram',
-  whiteboard: 'Whiteboard',
-  markdown: 'Markdown',
-};
+import { DOCUMENT_TYPE_LABEL, type DocumentType } from '@shared/project/documentType';
 
 /** The "New" button and its type menu. Picking a type creates and opens a
  *  document of that type. `types` is the set of types offered (so a type whose
@@ -56,7 +50,7 @@ export function NewDocumentMenu({
                 onNew(t);
               }}
             >
-              {LABEL[t]}
+              {DOCUMENT_TYPE_LABEL[t]}
             </button>
           ))}
         </div>

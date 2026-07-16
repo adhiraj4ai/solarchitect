@@ -1,5 +1,5 @@
 import { panelsForType, type PanelId } from '@shared/shell/panels';
-import type { DocumentType } from '@shared/project/documentType';
+import { DOCUMENT_TYPE_LABEL, type DocumentType } from '@shared/project/documentType';
 
 /**
  * The far-left icon strip. A read-only badge for the open document's type sits at
@@ -95,12 +95,6 @@ const ICONS: Record<PanelId | DocumentType, JSX.Element> = {
   ),
 };
 
-const TYPE_LABEL: Record<DocumentType, string> = {
-  diagram: 'Diagram',
-  whiteboard: 'Whiteboard',
-  markdown: 'Markdown',
-};
-
 export function ActivityBar({
   documentType,
   activePanel,
@@ -143,8 +137,8 @@ export function ActivityBar({
           <div
             className="actbar__group actbar__typebadge"
             role="img"
-            aria-label={`${TYPE_LABEL[documentType]} document`}
-            title={`${TYPE_LABEL[documentType]} document`}
+            aria-label={`${DOCUMENT_TYPE_LABEL[documentType]} document`}
+            title={`${DOCUMENT_TYPE_LABEL[documentType]} document`}
             data-testid={`doctype-${documentType}`}
           >
             <Icon name={documentType} />
