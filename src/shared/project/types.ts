@@ -2,13 +2,6 @@ import type { AppSettings, SettingsReadResult } from '../settings/settings';
 import type { DocumentType } from './documentType';
 export type { AppSettings, SettingsReadResult };
 
-/** A diagram file discovered in a project folder, with its validation status. */
-export interface DiagramFileEntry {
-  fileName: string;
-  status: 'ok' | 'error';
-  errorMessage?: string;
-}
-
 /** A document discovered in a project folder, with its type and validation
  *  status. Only diagrams are validated; whiteboards and markdown are always 'ok'. */
 export interface DocumentEntry {

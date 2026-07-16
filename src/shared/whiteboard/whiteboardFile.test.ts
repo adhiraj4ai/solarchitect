@@ -47,6 +47,12 @@ describe('whiteboardFile', () => {
     expect(parseWhiteboardFile('{not json')).toEqual(emptyWhiteboardFile());
   });
 
+  it('treats an unrecognized object (no store, not versioned) as empty', () => {
+    expect(parseWhiteboardFile('{"foo":1}')).toEqual(emptyWhiteboardFile());
+    expect(parseWhiteboardFile('[]')).toEqual(emptyWhiteboardFile());
+    expect(parseWhiteboardFile('42')).toEqual(emptyWhiteboardFile());
+  });
+
   it('reports emptiness for the blank file and non-emptiness once it has content', () => {
     expect(isWhiteboardEmpty(emptyWhiteboardFile())).toBe(true);
     expect(isWhiteboardEmpty({ version: 1, snapshot: { store: {} }, backdropDiagram: null })).toBe(false);

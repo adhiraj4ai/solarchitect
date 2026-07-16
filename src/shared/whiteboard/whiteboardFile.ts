@@ -66,6 +66,9 @@ export function parseWhiteboardFile(text: string | null): WhiteboardFile {
     };
   }
 
-  // Legacy bare tldraw snapshot (has a `store`): migrate to wrapped, no backdrop.
-  return { version: 1, snapshot: obj, backdropDiagram: null };
+  // Legacy bare tldraw snapshot, identified by its `store`: migrate to wrapped,
+  // no backdrop. Any other unrecognized object is treated as empty (never throw),
+  // honoring the corrupt-input contract.
+  if ('store' in obj) return { version: 1, snapshot: obj, backdropDiagram: null };
+  return emptyWhiteboardFile();
 }
