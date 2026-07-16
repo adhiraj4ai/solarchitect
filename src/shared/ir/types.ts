@@ -67,6 +67,8 @@ export interface DiagramFrame {
 
 export type AnnotationKind = 'sticky' | 'shape' | 'text';
 
+/** Legacy structured annotation. No longer part of the Diagram — kept only so
+ *  the one-time migration can carry old annotations onto the whiteboard. */
 export interface DiagramAnnotation {
   id: string;
   kind: AnnotationKind;
@@ -81,12 +83,11 @@ export interface Diagram {
   nodes: DiagramNode[];
   edges: DiagramEdge[];
   clusters: DiagramCluster[];
-  annotations: DiagramAnnotation[];
   /** Print pages / artboards. Optional for backward compatibility; treated as
    *  [] when absent. */
   frames?: DiagramFrame[];
 }
 
 export function emptyDiagram(): Diagram {
-  return { nodes: [], edges: [], clusters: [], annotations: [], frames: [] };
+  return { nodes: [], edges: [], clusters: [], frames: [] };
 }

@@ -24,7 +24,6 @@ import {
   getArchEdgeShapes,
   edgeShapesEqual,
 } from './shapeAdapters';
-import { getAnnotationShapes, annotationToShape, shapeToAnnotation, annotationEq } from './annotationAdapters';
 import { diffById } from '@shared/sync/diff';
 import { extractTemplate, instantiateTemplate } from '@shared/templates/templates';
 import type { NamedTemplate } from '@shared/templates/templatesFile';
@@ -174,7 +173,7 @@ function selectedNodes(editor: Editor): ArchNodeShape[] {
  * mergeRemoteChanges so they're tagged 'remote' and don't re-fire the
  * user-scoped store listener (which would otherwise loop or churn).
  */
-function reconcile(editor: Editor, diagram: Diagram, showAnnotations: boolean): void {
+function reconcile(editor: Editor, diagram: Diagram): void {
   editor.store.mergeRemoteChanges(() => {
     // Frames (print pages — drawn behind everything).
     const frames = diagram.frames ?? [];
@@ -235,20 +234,6 @@ function reconcile(editor: Editor, diagram: Diagram, showAnnotations: boolean): 
       editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
     );
 
-    // Annotations (tldraw-native note/geo/text shapes) live only on the
-    // Whiteboard. In Architect the surface is strictly structured, so any
-    // annotation shapes are removed from the canvas (they stay in the IR and
-    // reappear on the Whiteboard).
-    const currentAnnotations = getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s));
-    if (showAnnotations) {
-      const da = diffById(currentAnnotations, diagram.annotations, annotationEq);
-      if (da.removeIds.length) editor.deleteShapes(da.removeIds.map((id) => createShapeId(id)));
-      if (da.add.length) editor.createShapes(da.add.map(annotationToShape));
-      da.update.forEach((a) => editor.updateShape(annotationToShape(a)));
-    } else if (currentAnnotations.length) {
-      editor.deleteShapes(getAnnotationShapes(editor).map((s) => s.id));
-    }
-
     // Enforce paint order after any additions: frames at the very back, then
     // clusters, then edges, then nodes on top. (New shapes otherwise land on
     // top of their neighbours.)
@@ -264,7 +249,7 @@ function reconcile(editor: Editor, diagram: Diagram, showAnnotations: boolean): 
 }
 
 /** Rebuild a consistent IR from the current canvas shapes (after a user move/delete). */
-function assembleFromCanvas(editor: Editor, prev: Diagram, readAnnotations: boolean): Diagram {
+function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
   const clusters = getArchClusterShapes(editor).map(shapeToCluster);
   const clusterIds = new Set(clusters.map((c) => c.id));
   const prevNodeById = new Map(prev.nodes.map((n) => [n.id, n]));
@@ -277,14 +262,9 @@ function assembleFromCanvas(editor: Editor, prev: Diagram, readAnnotations: bool
   const nodeIds = new Set(nodes.map((n) => n.id));
   // Drop edges whose endpoints were deleted; edges are otherwise IR-authoritative.
   const edges = prev.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-  // Annotations are only on-canvas in Whiteboard; in Architect they aren't
-  // rendered, so preserve the prior ones rather than reading an empty canvas.
-  const annotations = readAnnotations
-    ? getAnnotationShapes(editor).map((s) => shapeToAnnotation(editor, s))
-    : prev.annotations;
   const frames = getArchFrameShapes(editor).map(shapeToFrame);
 
-  return { nodes, edges, clusters, annotations, frames };
+  return { nodes, edges, clusters, frames };
 }
 
 export function CanvasView({
@@ -408,11 +388,10 @@ export function CanvasView({
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor;
     editor.updateInstanceState({ isGridMode: true }); // grid background
-    reconcile(editor, diagramRef.current, modeRef.current === 'whiteboard');
+    reconcile(editor, diagramRef.current);
 
     editor.store.listen(
-      () =>
-        onCanvasEditRef.current(assembleFromCanvas(editor, diagramRef.current, modeRef.current === 'whiteboard')),
+      () => onCanvasEditRef.current(assembleFromCanvas(editor, diagramRef.current)),
       {
         source: 'user',
         scope: 'document',
@@ -441,7 +420,7 @@ export function CanvasView({
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    reconcile(editor, diagram, mode === 'whiteboard');
+    reconcile(editor, diagram);
     // Select a just-connected edge so its label input appears.
     if (pendingSelectRef.current) {
       const shapeId = createShapeId(pendingSelectRef.current);
@@ -450,8 +429,7 @@ export function CanvasView({
         pendingSelectRef.current = null;
       }
     }
-    // `mode` is a dep so switching Architect/Whiteboard re-reconciles annotations.
-  }, [diagram, mode]);
+  }, [diagram]);
 
   // Presentation: fit the camera to the current page frame (or the whole
   // diagram when there are no frames) whenever presenting or the index changes.
@@ -493,7 +471,6 @@ export function CanvasView({
         nodes: [...cur.nodes, ...inst.nodes],
         edges: [...cur.edges, ...inst.edges],
         clusters: [...cur.clusters, ...inst.clusters],
-        annotations: cur.annotations,
         frames: cur.frames,
       });
       return;

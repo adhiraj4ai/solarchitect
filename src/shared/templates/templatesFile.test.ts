@@ -10,7 +10,6 @@ const templates: NamedTemplate[] = [
       edges: [],
       clusters: [{ id: 'c1', label: 'VPC', x: -10, y: -10, width: 200, height: 120 }],
       frames: [],
-      annotations: [],
     },
   },
 ];
@@ -46,7 +45,6 @@ describe('templates file', () => {
           y: 0
       edges: []
       clusters: []
-      annotations: []
 `;
     const result = parseTemplates(bad);
     expect(result.ok).toBe(false);

@@ -2,6 +2,8 @@ import { Tldraw, getSnapshot, loadSnapshot, type Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
 import { useCallback, useRef } from 'react';
+import { annotationToShape } from './annotationAdapters';
+import type { DiagramAnnotation } from '@shared/ir/types';
 
 const assetUrls = getAssetUrlsByImport();
 const SAVE_DEBOUNCE_MS = 500;
@@ -30,7 +32,21 @@ export function WhiteboardView({
         void window.solarchitect.readWhiteboard(projectDir, fileName).then((snap) => {
           if (!snap) return;
           try {
-            loadSnapshot(editor.store, JSON.parse(snap));
+            const parsed = JSON.parse(snap) as unknown;
+            const pending = (parsed as { pendingAnnotations?: DiagramAnnotation[] }).pendingAnnotations;
+            if (Array.isArray(pending)) {
+              // One-time migration: materialize legacy annotations as real
+              // tldraw shapes, then persist a proper snapshot in their place.
+              const shapes = pending.map(annotationToShape);
+              if (shapes.length) editor.createShapes(shapes);
+              void window.solarchitect.writeWhiteboard(
+                projectDir,
+                fileName,
+                shapes.length ? JSON.stringify(getSnapshot(editor.store)) : null,
+              );
+            } else {
+              loadSnapshot(editor.store, parsed as Parameters<typeof loadSnapshot>[1]);
+            }
           } catch {
             /* corrupt sidecar → start blank; the diagram is unaffected */
           }

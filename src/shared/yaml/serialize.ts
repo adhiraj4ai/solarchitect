@@ -32,15 +32,6 @@ export function serializeDiagram(diagram: Diagram): string {
       height: c.height,
       ...(c.color && c.color !== 'blueprint' ? { color: c.color } : {}),
     })),
-    annotations: diagram.annotations.map((a) => ({
-      id: a.id,
-      kind: a.kind,
-      x: a.x,
-      y: a.y,
-      width: a.width,
-      height: a.height,
-      content: a.content,
-    })),
     // Frames only appear once at least one exists, so existing diagrams' YAML
     // is unchanged.
     ...(diagram.frames && diagram.frames.length

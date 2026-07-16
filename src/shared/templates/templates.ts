@@ -10,7 +10,7 @@ export function extractTemplate(diagram: Diagram, selectedNodeIds: Set<string>):
   const clusterIds = new Set(nodes.map((n) => n.clusterId).filter((id): id is string => !!id));
   const clusters = diagram.clusters.filter((c) => clusterIds.has(c.id));
   const edges = diagram.edges.filter((e) => selectedNodeIds.has(e.from) && selectedNodeIds.has(e.to));
-  return { nodes, edges, clusters, annotations: [] };
+  return { nodes, edges, clusters };
 }
 
 /**
@@ -55,5 +55,5 @@ export function instantiateTemplate(
     to: nodeIdMap.get(e.to)!,
   }));
 
-  return { nodes, edges, clusters, annotations: [] };
+  return { nodes, edges, clusters };
 }
