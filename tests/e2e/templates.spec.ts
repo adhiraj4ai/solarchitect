@@ -33,7 +33,13 @@ test.beforeAll(async () => {
   }, projectDir);
   win = await app.firstWindow();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  // Reset persisted sidebar layout so the Project panel (with Open…) is showing.
+  await win.evaluate(() => localStorage.clear());
+  await win.reload();
+  await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
   await win.locator('[data-testid="open-project-btn"]').click();
+  // Templates live in their own activity-bar panel now; open it.
+  await win.locator('[data-testid="activity-templates"]').click();
 });
 
 test.afterAll(async () => {

@@ -32,6 +32,11 @@ test.beforeAll(async () => {
   }, projectDir);
   win = await app.firstWindow();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  // Persisted sidebar layout can carry over from a prior spec; reset so the
+  // Project panel (with the diagram list) is the one showing.
+  await win.evaluate(() => localStorage.clear());
+  await win.reload();
+  await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
 });
 
 test.afterAll(async () => {

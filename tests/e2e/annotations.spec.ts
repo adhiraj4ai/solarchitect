@@ -20,8 +20,9 @@ const editor = () => win.locator('textarea[aria-label="Diagram YAML"]');
 const canvas = () => win.locator('[data-testid="canvas-drop"]');
 
 test('all three annotation kinds typed in YAML render on the canvas', async () => {
-  // Annotations live on the Whiteboard, not in Architect.
-  await win.getByRole('tab', { name: 'Whiteboard' }).click();
+  // Author annotations in YAML on the Diagram surface (a whiteboard has no
+  // source pane), then switch to the Whiteboard surface to see them rendered.
+  await win.locator('[data-testid="surface-architect"]').click();
   await editor().fill(`nodes: []
 edges: []
 clusters: []
@@ -48,19 +49,21 @@ annotations:
     height: 30
     content: TextLabelHere
 `);
+  await win.locator('[data-testid="surface-whiteboard"]').click();
   await expect(canvas()).toContainText('StickyNoteHere');
   await expect(canvas()).toContainText('BoxLabelHere');
   await expect(canvas()).toContainText('TextLabelHere');
 });
 
 test('placing a sticky note on the canvas adds an annotation to the YAML', async () => {
-  // Annotations are a Whiteboard capability.
-  await win.getByRole('tab', { name: 'Whiteboard' }).click();
+  // Start clean on the Diagram surface, then sketch a sticky on the Whiteboard.
+  await win.locator('[data-testid="surface-architect"]').click();
   await editor().fill(`nodes: []
 edges: []
 clusters: []
 annotations: []
 `);
+  await win.locator('[data-testid="surface-whiteboard"]').click();
   // Focus the canvas, choose the note tool (keyboard 'n'), place it, exit edit mode.
   // Use upper-middle coords, clear of tldraw's own UI (menus, toolbars, panels).
   await canvas().click({ position: { x: 300, y: 170 } });
@@ -68,5 +71,7 @@ annotations: []
   await canvas().click({ position: { x: 340, y: 230 } });
   await win.keyboard.press('Escape');
 
+  // Back to the Diagram surface to read the annotation back out of the YAML.
+  await win.locator('[data-testid="surface-architect"]').click();
   await expect(editor()).toHaveValue(/kind: sticky/);
 });
