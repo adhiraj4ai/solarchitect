@@ -1,19 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CanvasView } from './canvas/CanvasView';
 import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
 import { ProjectSidebar } from './project/ProjectSidebar';
 import { GitPanel } from './project/GitPanel';
 import { TemplatesPanel } from './project/TemplatesPanel';
+import { SearchPanel } from './project/SearchPanel';
+import { OutlinePanel } from './project/OutlinePanel';
+import { SettingsPanel } from './project/SettingsPanel';
+import { HelpPanel } from './ui/HelpPanel';
+import { ActivityBar } from './ui/ActivityBar';
+import { Sidebar } from './ui/Sidebar';
 import { Wordmark } from './ui/Wordmark';
 import { useSyncEngine } from './hooks/useSyncEngine';
 import { useProject } from './hooks/useProject';
 import { useTemplates } from './hooks/useTemplates';
 import { useGit } from './hooks/useGit';
+import { useWorkspaceLayout } from './hooks/useWorkspaceLayout';
+import { useSettings } from './hooks/useSettings';
 import type { Mode } from './canvas/CanvasView';
+import type { PanelId } from '@shared/shell/panels';
 import type { Diagram } from '@shared/ir/types';
 
-/** Which panels are on screen. Orthogonal to the canvas-interaction Mode. */
+/** Which panels are on screen for the Diagram surface. Orthogonal to the surface. */
 type View = 'visual' | 'split' | 'code';
 
 export default function App() {
@@ -24,12 +33,20 @@ export default function App() {
   // render and retrigger useTemplates' load effect in a loop.
   const templates = useTemplates(project.projectDir, project.setIoError);
   const git = useGit(project.projectDir, project.setIoError);
+  const { settings, update: updateSettings } = useSettings(project.setIoError);
 
-  const [mode, setMode] = useState<Mode>('architect');
-  // Layout: visual = canvas only, split = canvas + source (default), code =
-  // source editor only. Independent of the canvas-interaction mode above.
+  // The document surface (Diagram = architect, Whiteboard = whiteboard) doubles
+  // as the canvas-interaction mode. The activity bar switches it.
+  const [surface, setSurface] = useState<Mode>('architect');
+  const layout = useWorkspaceLayout(surface);
+
+  // Visual / Split / Code applies only to the Diagram surface. A whiteboard has
+  // no meaningful YAML, so it always shows the canvas alone.
   const [view, setView] = useState<View>('split');
-  const showCanvas = view !== 'code';
+  const effectiveView: View = surface === 'whiteboard' ? 'visual' : view;
+  const showCanvas = effectiveView !== 'code';
+  const showSource = effectiveView === 'split';
+
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
@@ -40,6 +57,27 @@ export default function App() {
   const [presentIndex, setPresentIndex] = useState(0);
   const frames = diagram.frames ?? [];
 
+  // A shape the Outline/Search panel asked to reveal on the canvas. The nonce
+  // makes revealing the same id twice still fire.
+  const [revealTarget, setRevealTarget] = useState<{ id: string; nonce: number } | null>(null);
+  const revealNonce = useRef(0);
+  const reveal = useCallback(
+    (id: string) => {
+      // Reveal happens on the canvas; make sure it's visible.
+      if (surface === 'architect' && view === 'code') setView('split');
+      revealNonce.current += 1;
+      setRevealTarget({ id, nonce: revealNonce.current });
+    },
+    [surface, view],
+  );
+
+  const openDiagramFromSearch = useCallback(
+    (fileName: string) => {
+      void project.openDiagram(fileName);
+    },
+    [project],
+  );
+
   function startPresenting() {
     setPresentIndex(0);
     setPresenting(true);
@@ -47,6 +85,16 @@ export default function App() {
   function stepPresent(delta: number) {
     setPresentIndex((i) => Math.max(0, Math.min(frames.length - 1, i + delta)));
   }
+
+  // Autosave the open diagram after edits, when enabled and the YAML is valid.
+  useEffect(() => {
+    if (!settings.autosave || !project.currentFile || yamlError) return;
+    const t = setTimeout(() => {
+      void project.saveDiagram(yamlText).then(() => git.refresh());
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.autosave, yamlText, project.currentFile, yamlError]);
 
   // Presentation keyboard controls: Esc exits, arrows step through frames.
   useEffect(() => {
@@ -80,6 +128,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
   }, [undo, redo]);
 
+  // Cmd/Ctrl+B toggles the sidebar (VS Code parity).
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        e.stopPropagation();
+        layout.toggleCollapsed();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
+  }, [layout]);
+
   function beginSaveTemplate(subtree: Diagram) {
     setPendingTemplate(subtree);
     setTemplateName('');
@@ -97,34 +158,62 @@ export default function App() {
     setPendingTemplate(null);
   }
 
+  function renderPanel(panel: PanelId) {
+    switch (panel) {
+      case 'project':
+        return (
+          <ProjectSidebar
+            projectDir={project.projectDir}
+            entries={project.entries}
+            currentFile={project.currentFile}
+            canSave={!!project.currentFile && !yamlError}
+            onOpenProject={project.openProject}
+            onNewProject={project.newProject}
+            onNewDiagram={project.newDiagram}
+            onOpenDiagram={project.openDiagram}
+            onSave={async () => {
+              await project.saveDiagram(yamlText);
+              void git.refresh(); // reflect the new working-tree state in the status bar
+            }}
+          />
+        );
+      case 'search':
+        return (
+          <SearchPanel
+            fileNames={project.entries.map((e) => e.fileName)}
+            diagram={project.currentFile ? diagram : null}
+            hasProject={!!project.projectDir}
+            onOpenDiagram={openDiagramFromSearch}
+            onReveal={reveal}
+          />
+        );
+      case 'outline':
+        return <OutlinePanel diagram={diagram} onReveal={reveal} />;
+      case 'shapes':
+        return <ShapeLibrary defaultProvider={settings.defaultProvider} />;
+      case 'templates':
+        return (
+          <TemplatesPanel
+            templates={templates.templates}
+            templatesText={templates.templatesText}
+            yamlError={templates.yamlError}
+            onApplyYaml={templates.applyTemplatesYaml}
+          />
+        );
+      case 'git':
+        return <GitPanel projectDir={project.projectDir} git={git} />;
+      case 'settings':
+        return <SettingsPanel settings={settings} onUpdate={updateSettings} />;
+      case 'help':
+        return <HelpPanel />;
+    }
+  }
+
   return (
     <div className={`app${presenting ? ' app--presenting' : ''}`}>
       <header className="app__bar">
         <Wordmark />
         <span className="topsep" />
-        {showCanvas && (
-          <>
-            <div className="segmented" role="tablist" aria-label="Mode">
-              <button
-                role="tab"
-                aria-selected={mode === 'architect'}
-                className={`segmented__btn${mode === 'architect' ? ' on' : ''}`}
-                onClick={() => setMode('architect')}
-              >
-                Architect
-              </button>
-              <button
-                role="tab"
-                aria-selected={mode === 'whiteboard'}
-                className={`segmented__btn${mode === 'whiteboard' ? ' on' : ''}`}
-                onClick={() => setMode('whiteboard')}
-              >
-                Whiteboard
-              </button>
-            </div>
-            <span className="topsep" />
-          </>
-        )}
         <div className="topgroup">
           <button data-testid="undo-btn" onClick={undo} disabled={!canUndo} className="btn btn--sm btn--icon" title="Undo (⌘Z)">
             ↩
@@ -161,61 +250,32 @@ export default function App() {
         </span>
       </header>
 
-      <div className={`app__body app__body--${view}`}>
-        <aside className="rail">
-          <section className="rail__proj">
-            <ProjectSidebar
-              projectDir={project.projectDir}
-              entries={project.entries}
-              currentFile={project.currentFile}
-              canSave={!!project.currentFile && !yamlError}
-              onOpenProject={project.openProject}
-              onNewProject={project.newProject}
-              onNewDiagram={project.newDiagram}
-              onOpenDiagram={project.openDiagram}
-              onSave={async () => {
-                await project.saveDiagram(yamlText);
-                void git.refresh(); // reflect the new working-tree state in the status bar
-              }}
-            />
-          </section>
-          <section className="rail__git">
-            <GitPanel projectDir={project.projectDir} git={git} />
-          </section>
-          <section className="rail__shapes">
-            {!showCanvas ? (
-              <div className="rail__hint">
-                <span className="eyebrow">Code</span>
-                <p>Editing the diagram as YAML. Invalid YAML freezes sync and shows the error — nothing is lost. Switch to Split or Visual to place shapes.</p>
-              </div>
-            ) : mode === 'architect' ? (
-              <ShapeLibrary />
-            ) : (
-              <div className="rail__hint">
-                <span className="eyebrow">Whiteboard</span>
-                <p>Sketch freely with the drawing tools on the canvas. Switch to Architect to place cloud shapes.</p>
-              </div>
-            )}
-          </section>
-          <section className="rail__tpl">
-            <TemplatesPanel
-              templates={templates.templates}
-              templatesText={templates.templatesText}
-              yamlError={templates.yamlError}
-              onApplyYaml={templates.applyTemplatesYaml}
-            />
-          </section>
-        </aside>
+      <div className={`app__body app__body--${effectiveView}`}>
+        <ActivityBar
+          surface={surface}
+          onSurfaceChange={setSurface}
+          activePanel={layout.activePanel}
+          collapsed={layout.collapsed}
+          onSelectPanel={layout.selectPanel}
+        />
+
+        {!layout.collapsed && (
+          <Sidebar width={layout.width} onResize={layout.setWidth}>
+            {renderPanel(layout.activePanel)}
+          </Sidebar>
+        )}
 
         <main className="stage">
           {showCanvas ? (
             <CanvasView
               diagram={diagram}
               templates={templates.templates}
-              mode={mode}
+              mode={surface}
               animate={animate}
               presenting={presenting}
               presentIndex={presentIndex}
+              grid={settings.grid}
+              revealTarget={revealTarget}
               onCanvasEdit={onCanvasEdit}
               onSaveTemplate={beginSaveTemplate}
               onError={project.setIoError}
@@ -231,7 +291,7 @@ export default function App() {
           )}
         </main>
 
-        {view === 'split' && (
+        {showSource && (
           <YamlCodeEditor
             yamlText={yamlText}
             yamlError={yamlError}
@@ -239,8 +299,10 @@ export default function App() {
             onYamlEdit={onYamlEdit}
           />
         )}
+      </div>
 
-        <footer className="app__foot">
+      <footer className="app__foot">
+        {surface === 'architect' && (
           <div className="segmented" role="tablist" aria-label="View">
             {(
               [
@@ -262,28 +324,28 @@ export default function App() {
               </button>
             ))}
           </div>
+        )}
 
-          <span className="app__foot-spacer" />
+        <span className="app__foot-spacer" />
 
-          {git.detail?.isRepo && (
-            <span className="foot-git" data-testid="foot-git" title="Version control">
-              <span className="foot-git__branch">⎇ {git.detail.branch ?? 'detached'}</span>
-              {(git.detail.ahead > 0 || git.detail.behind > 0) && (
-                <span className="foot-git__sync">
-                  {git.detail.behind > 0 && `↓${git.detail.behind}`}
-                  {git.detail.behind > 0 && git.detail.ahead > 0 && ' '}
-                  {git.detail.ahead > 0 && `↑${git.detail.ahead}`}
-                </span>
-              )}
-              <span className={`foot-git__state${git.detail.files.length > 0 ? ' dirty' : ''}`}>
-                {git.detail.files.length > 0
-                  ? `${git.detail.files.length} change${git.detail.files.length === 1 ? '' : 's'}`
-                  : 'clean'}
+        {git.detail?.isRepo && (
+          <span className="foot-git" data-testid="foot-git" title="Version control">
+            <span className="foot-git__branch">⎇ {git.detail.branch ?? 'detached'}</span>
+            {(git.detail.ahead > 0 || git.detail.behind > 0) && (
+              <span className="foot-git__sync">
+                {git.detail.behind > 0 && `↓${git.detail.behind}`}
+                {git.detail.behind > 0 && git.detail.ahead > 0 && ' '}
+                {git.detail.ahead > 0 && `↑${git.detail.ahead}`}
               </span>
+            )}
+            <span className={`foot-git__state${git.detail.files.length > 0 ? ' dirty' : ''}`}>
+              {git.detail.files.length > 0
+                ? `${git.detail.files.length} change${git.detail.files.length === 1 ? '' : 's'}`
+                : 'clean'}
             </span>
-          )}
-        </footer>
-      </div>
+          </span>
+        )}
+      </footer>
 
       {presenting && (
         <div className="present-bar" role="toolbar" aria-label="Presentation">

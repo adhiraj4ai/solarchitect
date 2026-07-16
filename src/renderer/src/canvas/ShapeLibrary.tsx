@@ -62,7 +62,7 @@ const PROVIDER_NAME: Record<Provider, string> = {
   generic: 'Generic',
 };
 
-export function ShapeLibrary() {
+export function ShapeLibrary({ defaultProvider = null }: { defaultProvider?: string | null }) {
   const [query, setQuery] = useState('');
   // Categories are collapsed by default so the long catalog stays scannable.
   // A search auto-expands every matching group; manual toggles apply otherwise.
@@ -79,18 +79,24 @@ export function ShapeLibrary() {
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return PROVIDER_ORDER.map((provider) => ({
-      provider,
-      nodes: NODE_TAXONOMY.filter(
-        (n) =>
-          n.provider === provider &&
-          (q === '' ||
-            n.displayName.toLowerCase().includes(q) ||
-            n.category.toLowerCase().includes(q) ||
-            n.id.toLowerCase().includes(q)),
-      ),
-    })).filter((g) => g.nodes.length > 0);
-  }, [query]);
+    // A default-provider filter narrows the catalog to one provider — but an
+    // active search always spans every provider so nothing is hidden mid-search.
+    const providers =
+      defaultProvider && q === '' ? PROVIDER_ORDER.filter((p) => p === defaultProvider) : PROVIDER_ORDER;
+    return providers
+      .map((provider) => ({
+        provider,
+        nodes: NODE_TAXONOMY.filter(
+          (n) =>
+            n.provider === provider &&
+            (q === '' ||
+              n.displayName.toLowerCase().includes(q) ||
+              n.category.toLowerCase().includes(q) ||
+              n.id.toLowerCase().includes(q)),
+        ),
+      }))
+      .filter((g) => g.nodes.length > 0);
+  }, [query, defaultProvider]);
 
   return (
     <div className="library">
