@@ -12,6 +12,11 @@ test.beforeAll(async () => {
   app = await electron.launch({ args: [MAIN] });
   win = await app.firstWindow();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  // Reset persisted sidebar layout, then open the Shapes panel for the drop test.
+  await win.evaluate(() => localStorage.clear());
+  await win.reload();
+  await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  await win.locator('[data-testid="activity-shapes"]').click();
 });
 
 test.afterAll(async () => {

@@ -10,6 +10,12 @@ test.beforeAll(async () => {
   app = await electron.launch({ args: [MAIN] });
   win = await app.firstWindow();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  // Sidebar layout persists across launches; start from a known state, then open
+  // the Shapes panel (one panel shows at a time in the activity-bar shell).
+  await win.evaluate(() => localStorage.clear());
+  await win.reload();
+  await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  await win.locator('[data-testid="activity-shapes"]').click();
 });
 
 test.afterAll(async () => {

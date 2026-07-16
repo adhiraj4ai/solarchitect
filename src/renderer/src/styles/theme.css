@@ -87,7 +87,6 @@ button { font-family: inherit; }
 .app__foot .segmented { padding: 2px; }
 .app__foot .segmented__btn { font-size: 11.5px; padding: 4px 12px; }
 .app__foot-spacer { flex: 1; }
-.foot-surface { font-family: var(--mono); font-size: 11.5px; color: var(--slate); padding-left: 4px; }
 
 /* git status in the bottom status bar */
 .foot-git {
@@ -133,24 +132,16 @@ button { font-family: inherit; }
 }
 .app__file .state.error { color: var(--danger-ink); border-color: var(--danger); background: var(--danger-soft); }
 
+/* activity bar · sidebar · canvas · source, left to right. The footer is a
+   sibling below (full width). */
 .app__body {
   flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  /* content row + status-bar row. The rail spans both; the footer spans only
-     the content columns, so the view switcher sits under the content, not the
-     sidebar. */
-  grid-template-rows: 1fr auto;
+  display: flex;
 }
-/* rail · canvas · source — the source panel only exists in split */
-.app__body--split { grid-template-columns: 264px 1fr 420px; }
-.app__body--visual { grid-template-columns: 264px 1fr; }
-/* rail · editor (the editor takes the whole main pane) */
-.app__body--code { grid-template-columns: 264px 1fr; }
-/* rail · whiteboard (freeform surface fills the main pane) */
-.app__body--whiteboard { grid-template-columns: 264px 1fr; }
-.rail { grid-column: 1; grid-row: 1 / -1; }
-.app__foot { grid-column: 2 / -1; grid-row: 2; }
+/* the split source panel is a direct child of the body (the full-pane editor in
+   Code view is nested inside .stage instead) */
+.app__body > .code { flex: 0 0 420px; }
 
 .app__bar .topsep { width: 1px; height: 20px; background: var(--line); }
 .topgroup { display: flex; gap: 4px; }
@@ -227,8 +218,8 @@ button { font-family: inherit; }
 .rail__shapes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .rail__tpl { flex: 0 0 auto; }
 
-/* canvas stage */
-.stage { position: relative; min-width: 0; min-height: 0; background: var(--paper); }
+/* canvas stage — grows to fill the space between sidebar and source panel */
+.stage { flex: 1 1 auto; position: relative; min-width: 0; min-height: 0; background: var(--paper); }
 
 /* node connection ports — drag from one onto another node to draw an edge.
    Only shown in architect mode (the .connect-enabled ancestor). */
@@ -515,12 +506,12 @@ button { font-family: inherit; }
 
 /* presentation: hide all chrome, canvas fills the window */
 .app--presenting .app__bar,
-.app--presenting .rail,
+.app--presenting .actbar,
+.app--presenting .sidebar-shell,
 .app--presenting .app__foot,
 .app--presenting .code {
   display: none;
 }
-.app--presenting .app__body { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .app--presenting .stage { background: var(--panel); }
 
 .present-bar {
@@ -574,10 +565,12 @@ button { font-family: inherit; }
   min-width: 120px;
 }
 .edge-label::placeholder { color: var(--slate); }
-/* floating properties panel (top-right of the canvas) for the selected object */
+/* floating properties panel (top-right of the canvas) for the selected object.
+   Sits below the toolbar row so the two never overlap on a narrow canvas (e.g.
+   split view with the sidebar open). */
 .props-panel {
   position: absolute;
-  top: 10px;
+  top: 60px;
   right: 10px;
   z-index: 1000;
   width: 232px;
@@ -782,6 +775,91 @@ button { font-family: inherit; }
 .modal__input:focus { border-color: var(--blueprint); box-shadow: 0 0 0 3px var(--blueprint-ring); }
 .modal__warn { color: var(--sync); font-size: 12px; margin-top: 8px; }
 .modal__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* ---------------- activity bar ---------------- */
+.actbar {
+  flex: 0 0 48px;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+.actbar__group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.actbar__sep { width: 24px; height: 1px; background: var(--line); margin: 6px 0; }
+.actbar__spacer { flex: 1 1 auto; }
+.actbar__btn {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border: none; background: transparent; color: var(--slate);
+  border-radius: 8px; cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.actbar__btn:hover { color: var(--ink); background: var(--panel-2); }
+.actbar__btn.on { color: var(--blueprint-ink); background: var(--blueprint-soft); box-shadow: inset 0 0 0 1px var(--blueprint-ring); }
+
+/* ---------------- sidebar shell ---------------- */
+.sidebar-shell {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-2);
+  border-right: 1px solid var(--line);
+}
+.sidebar-shell__content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-shell__resize {
+  position: absolute; top: 0; right: -3px; width: 6px; height: 100%;
+  cursor: col-resize; z-index: 5; background: transparent;
+  transition: background 0.12s;
+}
+.sidebar-shell__resize:hover { background: var(--blueprint-ring); }
+
+/* ---------------- generic panel (search / outline / settings / help) ---------------- */
+.panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.panel__head { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.panel__body { overflow-y: auto; flex: 1 1 auto; min-height: 0; padding: 6px 0; }
+
+/* outline / result rows */
+.outline { display: flex; flex-direction: column; overflow-y: auto; flex: 1 1 auto; min-height: 0; padding: 6px 0; }
+.outline__section { padding: 8px 14px 4px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; }
+.outline__cluster { display: flex; flex-direction: column; }
+.outline__row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  text-align: left; border: none; background: transparent;
+  padding: 5px 14px; font-family: var(--mono); font-size: 12px; color: var(--ink); cursor: pointer;
+}
+.outline__row:hover { background: var(--panel); color: var(--blueprint-ink); }
+.outline__row--child { padding-left: 28px; }
+.outline__row--group { font-weight: 600; }
+.outline__glyph { color: var(--faint); flex: 0 0 auto; }
+.outline__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* settings */
+.settings { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.settings__row { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.settings__row--col { flex-direction: column; gap: 6px; }
+.settings__label { display: block; color: var(--ink); font-weight: 500; }
+.settings__hint { display: block; color: var(--slate); font-size: 11.5px; margin-top: 2px; }
+.settings input[type='checkbox'] { margin-top: 2px; }
+
+/* help */
+.help { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.help__brand { display: flex; align-items: center; justify-content: space-between; }
+.help__version { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.help__section { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); }
+.help__keys { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.help__keys li { display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: var(--slate); }
+.help__keys kbd {
+  font-family: var(--mono); font-size: 11px; background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: 4px; padding: 2px 6px; color: var(--ink);
+  min-width: 96px; text-align: center;
+}
+.help__docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-size: 11px; color: var(--slate); word-break: break-all; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

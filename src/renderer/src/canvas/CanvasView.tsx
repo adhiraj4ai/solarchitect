@@ -277,6 +277,8 @@ export function CanvasView({
   animate = false,
   presenting = false,
   presentIndex = 0,
+  grid = true,
+  revealTarget = null,
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
@@ -284,6 +286,11 @@ export function CanvasView({
   animate?: boolean;
   presenting?: boolean;
   presentIndex?: number;
+  /** Show the canvas grid background (from app settings). */
+  grid?: boolean;
+  /** A shape to select and center on the canvas; the nonce forces re-reveal of
+   *  the same id. Driven by the Outline and Search panels. */
+  revealTarget?: { id: string; nonce: number } | null;
   onCanvasEdit: (next: Diagram) => void;
   onSaveTemplate: (subtree: Diagram) => void;
   onError: (msg: string) => void;
@@ -385,9 +392,12 @@ export function CanvasView({
     [onConnectMove, onConnectUp],
   );
 
+  const gridRef = useRef(grid);
+  gridRef.current = grid;
+
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor;
-    editor.updateInstanceState({ isGridMode: true }); // grid background
+    editor.updateInstanceState({ isGridMode: gridRef.current }); // grid background (from settings)
     reconcile(editor, diagramRef.current);
 
     editor.store.listen(
@@ -430,6 +440,38 @@ export function CanvasView({
       }
     }
   }, [diagram]);
+
+  // Presentation: fit the camera to the current page frame (or the whole
+  // diagram when there are no frames) whenever presenting or the index changes.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !presenting) return;
+    editor.selectNone();
+    const frames = diagramRef.current.frames ?? [];
+    if (frames.length) {
+      const f = frames[Math.min(presentIndex, frames.length - 1)];
+      editor.zoomToBounds(new Box(f.x, f.y, f.width, f.height), { inset: 48, animation: { duration: 350 } });
+    } else {
+      editor.zoomToFit({ animation: { duration: 350 } });
+    }
+  }, [presenting, presentIndex]);
+
+  // Reflect the grid setting on the live editor.
+  useEffect(() => {
+    editorRef.current?.updateInstanceState({ isGridMode: grid });
+  }, [grid]);
+
+  // Reveal (select + center) a shape when the Outline/Search panel asks. The
+  // nonce is the dep so revealing the same id twice still fires.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !revealTarget) return;
+    const shapeId = createShapeId(revealTarget.id);
+    if (!editor.getShape(shapeId)) return;
+    editor.select(shapeId);
+    editor.zoomToSelection({ animation: { duration: 300 } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealTarget?.nonce]);
 
   // Presentation: fit the camera to the current page frame (or the whole
   // diagram when there are no frames) whenever presenting or the index changes.
