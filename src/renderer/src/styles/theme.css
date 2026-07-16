@@ -493,7 +493,38 @@ button { font-family: inherit; }
 /* tldraw paints its own background; make it transparent so the backdrop shows
    through beneath the freeform shapes (only on the whiteboard surface). */
 .whiteboard .tl-background { background-color: transparent !important; }
-.wb-backdrop-toggle { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500; }
+/* whiteboard controls: backdrop picker + show/hide toggle, top-centre */
+.wb-controls { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500; display: flex; gap: 8px; }
+
+/* document editor empty / placeholder states */
+.stage__empty {
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: center; justify-content: center; height: 100%;
+  text-align: center; color: var(--ink);
+}
+.stage__empty .muted { color: var(--faint); }
+
+/* activity-bar document-type badge (read-only) */
+.actbar__typebadge { color: var(--faint); padding: 2px 0; }
+
+/* "New ▾" menu */
+.newmenu { position: relative; }
+.newmenu__list {
+  position: absolute; z-index: 600; margin-top: 4px; min-width: 160px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(16, 23, 34, 0.14); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.newmenu__item { text-align: left; padding: 8px 12px; background: none; border: 0; cursor: pointer; color: var(--ink); font: inherit; }
+.newmenu__item:hover { background: var(--panel-2); }
+
+/* type-grouped document list */
+.list__group { margin-bottom: 8px; }
+.list__grouphead {
+  padding: 6px 14px 2px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--faint);
+}
+.diagram-item__icon { flex: none; margin-right: 6px; vertical-align: middle; }
 /* Hide the tldraw watermark on both surfaces. Note: removing it for a
    distributed/commercial product requires a tldraw business license — this is a
    local, self-hosted tool. */

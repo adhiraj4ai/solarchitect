@@ -11,10 +11,6 @@ const api: SolarchitectApi = {
   writeDocument: (projectDir, fileName, text) =>
     ipcRenderer.invoke('project:writeDocument', projectDir, fileName, text),
   createDocument: (projectDir, type) => ipcRenderer.invoke('project:createDocument', projectDir, type),
-  readWhiteboard: (projectDir, diagramFileName) =>
-    ipcRenderer.invoke('project:readWhiteboard', projectDir, diagramFileName),
-  writeWhiteboard: (projectDir, diagramFileName, snapshot) =>
-    ipcRenderer.invoke('project:writeWhiteboard', projectDir, diagramFileName, snapshot),
   readTemplates: (projectDir) => ipcRenderer.invoke('project:readTemplates', projectDir),
   writeTemplates: (projectDir, yamlText) => ipcRenderer.invoke('project:writeTemplates', projectDir, yamlText),
   exportImage: (base64Data, suggestedName) => ipcRenderer.invoke('project:exportImage', base64Data, suggestedName),

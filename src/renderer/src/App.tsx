@@ -19,7 +19,6 @@ import { useTemplates } from './hooks/useTemplates';
 import { useGit } from './hooks/useGit';
 import { useWorkspaceLayout } from './hooks/useWorkspaceLayout';
 import { useSettings } from './hooks/useSettings';
-import type { Mode } from './canvas/CanvasView';
 import type { PanelId } from '@shared/shell/panels';
 import type { Diagram } from '@shared/ir/types';
 
@@ -41,18 +40,19 @@ export default function App() {
   const git = useGit(project.projectDir, project.setIoError);
   const { settings, update: updateSettings } = useSettings(project.setIoError);
 
-  // The document surface (Diagram = architect, Whiteboard = whiteboard) doubles
-  // as the canvas-interaction mode. The activity bar switches it. The Whiteboard
-  // is a separate freeform surface (WhiteboardView) that never shares the canvas.
-  const [surface, setSurface] = useState<Mode>('architect');
-  const layout = useWorkspaceLayout(surface);
+  // The open document's type fixes which editor is shown — there is no surface
+  // toggle. With no document open we fall back to 'diagram' so the shell (panels,
+  // layout) has a sensible default.
+  const docType = project.currentType ?? 'diagram';
+  const isDiagram = docType === 'diagram';
+  const layout = useWorkspaceLayout(docType);
 
-  // Visual / Split / Code applies only to the Diagram surface. A whiteboard has
-  // no meaningful YAML, so it always shows the canvas alone.
+  // Visual / Split / Code applies only to the Diagram surface. Whiteboard and
+  // markdown are single-pane and have no YAML source.
   const [view, setView] = useState<View>('split');
-  const effectiveView: View = surface === 'whiteboard' ? 'visual' : view;
-  const showCanvas = effectiveView !== 'code';
-  const showSource = effectiveView === 'split';
+  const bodyView: View = isDiagram ? view : 'visual';
+  const showCanvas = isDiagram && view !== 'code';
+  const showSource = isDiagram && view === 'split';
 
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
@@ -71,16 +71,16 @@ export default function App() {
   const reveal = useCallback(
     (id: string) => {
       // Reveal happens on the canvas; make sure it's visible.
-      if (surface === 'architect' && view === 'code') setView('split');
+      if (isDiagram && view === 'code') setView('split');
       revealNonce.current += 1;
       setRevealTarget({ id, nonce: revealNonce.current });
     },
-    [surface, view],
+    [isDiagram, view],
   );
 
-  const openDiagramFromSearch = useCallback(
+  const openDocumentFromSearch = useCallback(
     (fileName: string) => {
-      void project.openDiagram(fileName);
+      void project.openDocument(fileName);
     },
     [project],
   );
@@ -94,14 +94,15 @@ export default function App() {
   }
 
   // Autosave the open diagram after edits, when enabled and the YAML is valid.
+  // Whiteboard and markdown documents own their own autosave.
   useEffect(() => {
-    if (!settings.autosave || !project.currentFile || yamlError) return;
+    if (!settings.autosave || !project.currentFile || !isDiagram || yamlError) return;
     const t = setTimeout(() => {
-      void project.saveDiagram(yamlText).then(() => git.refresh());
+      void project.saveDocument(yamlText).then(() => git.refresh());
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.autosave, yamlText, project.currentFile, yamlError]);
+  }, [settings.autosave, yamlText, project.currentFile, isDiagram, yamlError]);
 
   // Presentation keyboard controls: Esc exits, arrows step through frames.
   useEffect(() => {
@@ -173,13 +174,13 @@ export default function App() {
             projectDir={project.projectDir}
             entries={project.entries}
             currentFile={project.currentFile}
-            canSave={!!project.currentFile && !yamlError}
+            canSave={!!project.currentFile && isDiagram && !yamlError}
             onOpenProject={project.openProject}
             onNewProject={project.newProject}
-            onNewDiagram={project.newDiagram}
-            onOpenDiagram={project.openDiagram}
+            onNewDocument={project.newDocument}
+            onOpenDocument={project.openDocument}
             onSave={async () => {
-              await project.saveDiagram(yamlText);
+              await project.saveDocument(yamlText);
               void git.refresh(); // reflect the new working-tree state in the status bar
             }}
           />
@@ -190,7 +191,7 @@ export default function App() {
             fileNames={project.entries.map((e) => e.fileName)}
             diagram={diagram}
             hasProject={!!project.projectDir}
-            onOpenDiagram={openDiagramFromSearch}
+            onOpenDiagram={openDocumentFromSearch}
             onReveal={reveal}
           />
         );
@@ -257,14 +258,18 @@ export default function App() {
           ) : (
             <span className="muted">untitled — not in a project</span>
           )}
-          {yamlError ? <span className="state error">YAML error</span> : <span className="state ok">canvas ⇄ source</span>}
+          {isDiagram &&
+            (yamlError ? (
+              <span className="state error">YAML error</span>
+            ) : (
+              <span className="state ok">canvas ⇄ source</span>
+            ))}
         </span>
       </header>
 
-      <div className={`app__body app__body--${effectiveView}`}>
+      <div className={`app__body app__body--${bodyView}`}>
         <ActivityBar
-          surface={surface}
-          onSurfaceChange={setSurface}
+          documentType={project.currentType}
           activePanel={layout.activePanel}
           collapsed={layout.collapsed}
           onSelectPanel={layout.selectPanel}
@@ -277,14 +282,26 @@ export default function App() {
         )}
 
         <main className="stage">
-          {surface === 'whiteboard' ? (
+          {project.projectDir && !project.currentFile ? (
+            <div className="stage__empty" data-testid="no-document">
+              <p>No document open.</p>
+              <p className="muted">
+                Use <strong>New</strong> in the Project panel to create a diagram or whiteboard.
+              </p>
+            </div>
+          ) : docType === 'whiteboard' ? (
             <WhiteboardView
-              key={project.currentFile ?? 'untitled'}
+              key={project.currentFile}
               projectDir={project.projectDir}
               fileName={project.currentFile}
-              diagram={diagram}
+              entries={project.entries}
               onError={project.setIoError}
             />
+          ) : docType === 'markdown' ? (
+            <div className="stage__empty" data-testid="markdown-unsupported">
+              <p>Markdown documents open in a dedicated editor.</p>
+              <p className="muted">That editor is coming in a follow-up change.</p>
+            </div>
           ) : showCanvas ? (
             <CanvasView
               diagram={diagram}
@@ -321,7 +338,7 @@ export default function App() {
       </div>
 
       <footer className="app__foot">
-        {surface === 'architect' && (
+        {isDiagram && (
           <div className="segmented" role="tablist" aria-label="View">
             {(
               [

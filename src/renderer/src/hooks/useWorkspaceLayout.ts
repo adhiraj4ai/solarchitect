@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { resolveActivePanel, type PanelId, type Surface } from '@shared/shell/panels';
+import { resolveActivePanelForType, type PanelId } from '@shared/shell/panels';
+import type { DocumentType } from '@shared/project/documentType';
 
 /**
  * Owns the activity-bar/sidebar layout: which panel is active (remembered per
  * surface), whether the sidebar is collapsed, and its width. This is ephemeral,
  * per-machine UI state, so it lives in localStorage rather than crossing into
  * the main process's file store. The active panel is derived through the pure
- * resolveActivePanel so a panel unavailable on the current surface (e.g. Shapes
- * on the Whiteboard) falls back without discarding the remembered preference.
+ * resolveActivePanelForType so a panel unavailable on the current document type
+ * (e.g. Shapes on a Whiteboard) falls back without discarding the remembered
+ * preference.
  */
 
-const LS_KEY = 'solarchitect.layout.v1';
+const LS_KEY = 'solarchitect.layout.v2';
 const DEFAULT_WIDTH = 264;
 export const MIN_SIDEBAR_WIDTH = 200;
 export const MAX_SIDEBAR_WIDTH = 560;
 
 interface LayoutState {
-  preferredBySurface: Partial<Record<Surface, PanelId>>;
+  preferredByType: Partial<Record<DocumentType, PanelId>>;
   collapsed: boolean;
   width: number;
 }
@@ -24,15 +26,15 @@ interface LayoutState {
 const clampWidth = (w: number) => Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, Math.round(w)));
 
 function load(): LayoutState {
-  const fallback: LayoutState = { preferredBySurface: {}, collapsed: false, width: DEFAULT_WIDTH };
+  const fallback: LayoutState = { preferredByType: {}, collapsed: false, width: DEFAULT_WIDTH };
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<LayoutState>;
     return {
-      preferredBySurface:
-        typeof parsed.preferredBySurface === 'object' && parsed.preferredBySurface
-          ? parsed.preferredBySurface
+      preferredByType:
+        typeof parsed.preferredByType === 'object' && parsed.preferredByType
+          ? parsed.preferredByType
           : {},
       collapsed: typeof parsed.collapsed === 'boolean' ? parsed.collapsed : false,
       width: typeof parsed.width === 'number' ? clampWidth(parsed.width) : DEFAULT_WIDTH,
@@ -42,7 +44,7 @@ function load(): LayoutState {
   }
 }
 
-export function useWorkspaceLayout(surface: Surface) {
+export function useWorkspaceLayout(type: DocumentType) {
   const [state, setState] = useState<LayoutState>(load);
 
   useEffect(() => {
@@ -53,19 +55,19 @@ export function useWorkspaceLayout(surface: Surface) {
     }
   }, [state]);
 
-  const activePanel = resolveActivePanel(surface, state.preferredBySurface);
+  const activePanel = resolveActivePanelForType(type, state.preferredByType);
 
   // Selecting the already-active panel collapses the sidebar (VS Code behavior);
-  // selecting any other panel opens it and remembers the choice for this surface.
+  // selecting any other panel opens it and remembers the choice for this type.
   const selectPanel = useCallback(
     (panel: PanelId) => {
       setState((s) => {
-        const current = resolveActivePanel(surface, s.preferredBySurface);
+        const current = resolveActivePanelForType(type, s.preferredByType);
         if (!s.collapsed && panel === current) return { ...s, collapsed: true };
-        return { ...s, collapsed: false, preferredBySurface: { ...s.preferredBySurface, [surface]: panel } };
+        return { ...s, collapsed: false, preferredByType: { ...s.preferredByType, [type]: panel } };
       });
     },
-    [surface],
+    [type],
   );
 
   const toggleCollapsed = useCallback(() => setState((s) => ({ ...s, collapsed: !s.collapsed })), []);

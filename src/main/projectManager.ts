@@ -1,4 +1,4 @@
-import { readFile, writeFile, readdir, access, rm } from 'node:fs/promises';
+import { readFile, writeFile, readdir, access } from 'node:fs/promises';
 import path from 'node:path';
 import { serializeDiagram } from '../shared/yaml/serialize';
 import { parseDiagram } from '../shared/yaml/parse';
@@ -101,40 +101,6 @@ export async function createDocument(projectDir: string, type: DocumentType): Pr
   }
   await writeDocument(projectDir, fileName, starterContent(type));
   return fileName;
-}
-
-/** The freeform-whiteboard sidecar that accompanies a diagram file:
- *  `payments.yaml` → `payments.whiteboard.json`. (Legacy sidecar model; the
- *  standalone whiteboard document replaces this in a later change.) */
-export function whiteboardName(diagramFileName: string): string {
-  return `${diagramFileName.replace(/\.ya?ml$/i, '')}.whiteboard.json`;
-}
-
-/** Read a diagram's whiteboard snapshot, or null when there is no sidecar
- *  (a missing sidecar means a blank whiteboard, never an error). */
-export async function readWhiteboard(projectDir: string, diagramFileName: string): Promise<string | null> {
-  const p = resolveInProject(projectDir, whiteboardName(diagramFileName));
-  try {
-    return await readFile(p, 'utf-8');
-  } catch {
-    return null;
-  }
-}
-
-/** Write a diagram's whiteboard snapshot. Lazily: a null/empty snapshot leaves
- *  no file (and removes an existing one), so a diagram with no sketch has no
- *  sidecar. The renderer passes null when the sketch is empty. */
-export async function writeWhiteboard(
-  projectDir: string,
-  diagramFileName: string,
-  snapshot: string | null,
-): Promise<void> {
-  const p = resolveInProject(projectDir, whiteboardName(diagramFileName));
-  if (snapshot == null || snapshot.trim() === '') {
-    if (await fileExists(p)) await rm(p);
-    return;
-  }
-  await writeFile(p, snapshot, 'utf-8');
 }
 
 /** Read the project's shared templates file (empty document if it doesn't exist yet). */

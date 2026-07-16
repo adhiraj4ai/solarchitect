@@ -38,6 +38,10 @@ test.beforeAll(async () => {
   // of any persisted state) to reach Open…, load the project, then open Templates.
   await openPanel(win, 'project');
   await win.locator('[data-testid="open-project-btn"]').click();
+  // A project starts with no open document; create a diagram to edit.
+  await win.locator('[data-testid="new-document-btn"]').click();
+  await win.locator('[data-testid="new-diagram"]').click();
+  await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
   await openPanel(win, 'templates');
 });
 
