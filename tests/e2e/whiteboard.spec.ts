@@ -20,7 +20,7 @@ const diagramCanvas = () => win.locator('[data-testid="canvas-drop"]');
 const whiteboard = () => win.locator('[data-testid="whiteboard"]');
 
 test('defaults to the Diagram surface', async () => {
-  await expect(win.locator('[data-testid="surface-diagram"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(win.locator('[data-testid="surface-architect"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(diagramCanvas()).toBeVisible();
   await expect(whiteboard()).toHaveCount(0);
 });
@@ -35,7 +35,7 @@ test('switching to Whiteboard shows a separate freeform canvas', async () => {
 });
 
 test('switching back to Diagram restores the structured canvas', async () => {
-  await win.locator('[data-testid="surface-diagram"]').click();
+  await win.locator('[data-testid="surface-architect"]').click();
   await expect(diagramCanvas()).toBeVisible();
   await expect(whiteboard()).toHaveCount(0);
   await expect(win.locator('[data-testid="view-split"]')).toBeVisible();
@@ -43,7 +43,7 @@ test('switching back to Diagram restores the structured canvas', async () => {
 
 test('the whiteboard shows a read-only diagram backdrop that toggles', async () => {
   // Give the diagram some content, then open the whiteboard.
-  await win.locator('[data-testid="surface-diagram"]').click();
+  await win.locator('[data-testid="surface-architect"]').click();
   await win.locator('textarea[aria-label="Diagram YAML"]').fill(`nodes:
   - id: a
     type: aws.compute.EC2
