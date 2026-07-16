@@ -491,6 +491,9 @@ button { font-family: inherit; }
 
 /* canvas */
 .canvas { position: absolute; inset: 0; }
+/* Hide the tldraw watermark. Note: removing it for distributed/commercial use
+   requires a tldraw business license — this is a local, self-hosted tool. */
+.canvas .tl-watermark_SEE-LICENSE { display: none !important; }
 
 /* animate mode — a token travels from → to along each relationship. The token
    animates continuously (SMIL) but is only shown when animate mode is on. */

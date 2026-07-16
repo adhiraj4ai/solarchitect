@@ -407,6 +407,7 @@ export function CanvasView({
 
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor;
+    editor.updateInstanceState({ isGridMode: true }); // grid background
     reconcile(editor, diagramRef.current, modeRef.current === 'whiteboard');
 
     editor.store.listen(
