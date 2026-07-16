@@ -65,8 +65,8 @@ import {
   applyTraversalState,
   LIT_STATE,
   captureTraversalGif,
-  DEFAULT_GIF_OPTIONS,
-  type GifExportOptions,
+  DEFAULT_GIF_OUTPUT,
+  type GifOutputOptions,
   type CaptureRegion,
 } from './captureAnimation';
 
@@ -367,6 +367,7 @@ export function CanvasView({
   showSteps = false,
   traversalPlaying = false,
   activePreset,
+  presets,
   presenting = false,
   presentIndex = 0,
   grid = true,
@@ -381,6 +382,8 @@ export function CanvasView({
   traversalPlaying?: boolean;
   /** The active animation preset (its motion timing drives play + scrub). */
   activePreset: AnimationPreset;
+  /** All presets (built-ins + custom), for the export dialog's picker. */
+  presets: AnimationPreset[];
   presenting?: boolean;
   presentIndex?: number;
   /** Show the canvas grid background (from app settings). */
@@ -412,9 +415,11 @@ export function CanvasView({
   );
   const [frameMenuOpen, setFrameMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  // Animated GIF export dialog + in-progress capture state.
+  // Animated GIF export dialog + in-progress capture state. Output params live
+  // here; the chosen preset supplies style + motion timing.
   const [gifDialogOpen, setGifDialogOpen] = useState(false);
-  const [gifOptions, setGifOptions] = useState<GifExportOptions>(DEFAULT_GIF_OPTIONS);
+  const [gifOutput, setGifOutput] = useState<GifOutputOptions>(DEFAULT_GIF_OUTPUT);
+  const [gifPresetId, setGifPresetId] = useState<string>(activePreset.id);
   const [gifProgress, setGifProgress] = useState<{ done: number; total: number } | null>(null);
   // All currently-selected node ids (for assigning a color to several at once).
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -818,7 +823,8 @@ export function CanvasView({
                 label="Export selection as animation…"
                 readonlyOk
                 onSelect={() => {
-                  setGifOptions((o) => ({ ...o, region: 'selection' }));
+                  setGifOutput((o) => ({ ...o, region: 'selection' }));
+                  setGifPresetId(activePreset.id);
                   setGifDialogOpen(true);
                 }}
               />
@@ -851,16 +857,19 @@ export function CanvasView({
     }
   }, []);
 
-  const handleExportGif = useCallback(async (options: GifExportOptions) => {
+  const presetsRef = useRef(presets);
+  presetsRef.current = presets;
+  const handleExportGif = useCallback(async (output: GifOutputOptions, presetId: string) => {
     const editor = editorRef.current;
     if (!editor) return;
     if (editor.getCurrentPageShapeIds().size === 0) {
       onErrorRef.current('Nothing to export — the canvas is empty.');
       return;
     }
+    const preset = presetsRef.current.find((p) => p.id === presetId) ?? activePresetRef.current;
     setGifProgress({ done: 0, total: 1 });
     try {
-      const bytes = await captureTraversalGif(editor, diagramRef.current, options, (done, total) =>
+      const bytes = await captureTraversalGif(editor, diagramRef.current, preset, output, (done, total) =>
         setGifProgress({ done, total }),
       );
       // Base64-encode in chunks so a large buffer doesn't blow the call stack.
@@ -1102,6 +1111,7 @@ export function CanvasView({
                 className="frame-menu__item"
                 onClick={() => {
                   setExportMenuOpen(false);
+                  setGifPresetId(activePreset.id);
                   setGifDialogOpen(true);
                 }}
               >
@@ -1396,32 +1406,24 @@ export function CanvasView({
         <div className="modal-backdrop" data-testid="gif-dialog" role="dialog" aria-modal="true" aria-label="Export animated GIF">
           <div className="modal">
             <div className="modal__title">Export animated GIF</div>
+            <label className="modal__field">
+              <span>Animation</span>
+              <select data-testid="gif-preset" value={gifPresetId} onChange={(e) => setGifPresetId(e.target.value)}>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <NumField
               label="Frames per second"
               testid="gif-fps"
               min={5}
               max={60}
               step={1}
-              value={gifOptions.fps}
-              onChange={(fps) => setGifOptions((o) => ({ ...o, fps }))}
-            />
-            <NumField
-              label="Seconds per step"
-              testid="gif-sps"
-              min={0.2}
-              max={10}
-              step={0.1}
-              value={gifOptions.secondsPerStep}
-              onChange={(secondsPerStep) => setGifOptions((o) => ({ ...o, secondsPerStep }))}
-            />
-            <NumField
-              label="End hold (seconds)"
-              testid="gif-hold"
-              min={0}
-              max={10}
-              step={0.5}
-              value={gifOptions.endHoldSeconds}
-              onChange={(endHoldSeconds) => setGifOptions((o) => ({ ...o, endHoldSeconds }))}
+              value={gifOutput.fps}
+              onChange={(fps) => setGifOutput((o) => ({ ...o, fps }))}
             />
             <NumField
               label="Scale"
@@ -1429,26 +1431,15 @@ export function CanvasView({
               min={1}
               max={4}
               step={1}
-              value={gifOptions.scale}
-              onChange={(scale) => setGifOptions((o) => ({ ...o, scale }))}
+              value={gifOutput.scale}
+              onChange={(scale) => setGifOutput((o) => ({ ...o, scale }))}
             />
-            <label className="modal__field">
-              <span>Loop</span>
-              <select
-                data-testid="gif-loop"
-                value={gifOptions.loop}
-                onChange={(e) => setGifOptions((o) => ({ ...o, loop: e.target.value as 'once' | 'forever' }))}
-              >
-                <option value="once">Play once</option>
-                <option value="forever">Loop forever</option>
-              </select>
-            </label>
             <label className="modal__field">
               <span>Region</span>
               <select
                 data-testid="gif-region"
-                value={gifOptions.region}
-                onChange={(e) => setGifOptions((o) => ({ ...o, region: e.target.value as CaptureRegion }))}
+                value={gifOutput.region}
+                onChange={(e) => setGifOutput((o) => ({ ...o, region: e.target.value as CaptureRegion }))}
               >
                 <option value="all">Whole diagram</option>
                 <option value="selection">Selection</option>
@@ -1468,7 +1459,7 @@ export function CanvasView({
                 className="btn btn--sm btn--on"
                 data-testid="gif-export-confirm"
                 disabled={!!gifProgress}
-                onClick={() => void handleExportGif(gifOptions)}
+                onClick={() => void handleExportGif(gifOutput, gifPresetId)}
               >
                 {gifProgress ? 'Rendering…' : 'Export'}
               </button>

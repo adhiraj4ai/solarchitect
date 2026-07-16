@@ -364,6 +364,7 @@ export default function App() {
               showSteps={showSteps}
               traversalPlaying={traversalPlaying}
               activePreset={activePreset}
+              presets={presets}
               presenting={presenting}
               presentIndex={presentIndex}
               grid={settings.grid}

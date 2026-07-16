@@ -112,6 +112,25 @@ test('the GIF dialog offers a region selector and a viewport export works', asyn
   expect(bytes.subarray(0, 6).toString('ascii')).toBe('GIF89a');
 });
 
+for (const style of ['All edges', 'Dataflow', 'Control flow', 'End-to-end']) {
+  test(`the GIF dialog exports the ${style} preset to a valid GIF`, async () => {
+    const target = join(dir, `${style.replace(/\s+/g, '-')}.gif`);
+    await app.evaluate(async ({ dialog }, p) => {
+      dialog.showSaveDialog = async () => ({ canceled: false, filePath: p });
+    }, target);
+
+    await win.locator('[data-testid="export-btn"]').click();
+    await win.locator('[data-testid="export-gif-btn"]').click();
+    await win.locator('[data-testid="gif-dialog"]').waitFor({ state: 'visible' });
+    await win.locator('[data-testid="gif-preset"]').selectOption({ label: style });
+    await win.locator('[data-testid="gif-fps"]').fill('6');
+    await win.locator('[data-testid="gif-export-confirm"]').click();
+
+    await expect.poll(() => fileExists(target), { timeout: 30_000 }).toBe(true);
+    expect((await readFile(target)).subarray(0, 6).toString('ascii')).toBe('GIF89a');
+  });
+}
+
 test('right-clicking a selection offers "Export selection as animation…" preset to selection', async () => {
   const node = win.locator('[data-testid="canvas-drop"]').getByText('ExportMe', { exact: true }).first();
   await node.click();

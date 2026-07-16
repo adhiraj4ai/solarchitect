@@ -2,8 +2,10 @@ import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import type { Box, Editor, TLShapeId } from 'tldraw';
 import type { Diagram } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
-import { buildTimeline, type TimingSettings } from '@shared/animation/timeline';
-import { stateAt, type AnimationState } from '@shared/animation/state';
+import { buildTimeline, presetTiming, animationPeriod } from '@shared/animation/timeline';
+import { stateAt, stateAtByPath, byPathDuration, type AnimationState } from '@shared/animation/state';
+import { enumeratePaths } from '@shared/animation/paths';
+import type { AnimationPreset } from '@shared/animation/presets';
 import { getArchNodeShapes, getArchClusterShapes, getArchEdgeShapes } from './shapeAdapters';
 
 /** Fully-lit, no-token state — resets the canvas after a capture / on stop. */
@@ -39,28 +41,17 @@ export function applyTraversalState(editor: Editor, s: AnimationState): void {
 /** What area of the diagram the GIF covers. */
 export type CaptureRegion = 'all' | 'selection' | 'viewport';
 
-/** Tunable capture settings (the export dialog owns these). */
-export interface GifExportOptions extends TimingSettings {
+/** Output settings the export dialog owns (the preset owns style + motion). */
+export interface GifOutputOptions {
   /** Frames per second of the GIF. */
   fps: number;
   /** Resolution multiplier on the diagram's natural size. */
   scale: number;
-  /** Loop the GIF forever, or play once and hold the final frame. */
-  loop: 'once' | 'forever';
   /** Region to capture: whole diagram, current selection, or viewport. */
   region: CaptureRegion;
 }
 
-export const DEFAULT_GIF_OPTIONS: GifExportOptions = {
-  secondsPerStep: 1,
-  fadeSeconds: 0.35,
-  dotTravelSeconds: 0.9,
-  endHoldSeconds: 1,
-  fps: 15,
-  scale: 2,
-  loop: 'once',
-  region: 'all',
-};
+export const DEFAULT_GIF_OUTPUT: GifOutputOptions = { fps: 15, scale: 2, region: 'all' };
 
 /** Resolve the shapes + optional clip bounds for a capture region. Selection
  *  falls back to the whole page when nothing is selected. */
@@ -84,25 +75,33 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Capture the staged traversal of the current page as an animated GIF. Each
- * frame is the pure stateAt() applied to the shapes, serialized via tldraw and
- * rasterized to RGBA, then quantized and written with gifenc. The canvas is
- * restored to fully-lit afterwards. Throws 'EMPTY' if there is nothing to export.
+ * Capture a preset's animation of the current page as an animated GIF. The
+ * preset supplies the style + motion timing (and loop); the output options give
+ * fps / scale / region. Each frame is the pure animation state applied to the
+ * shapes, serialized via tldraw, rasterized to RGBA, quantized, and written with
+ * gifenc. The canvas is restored fully-lit afterwards. Throws 'EMPTY' if there is
+ * nothing to export.
  */
 export async function captureTraversalGif(
   editor: Editor,
   diagram: Diagram,
-  options: GifExportOptions,
+  preset: AnimationPreset,
+  output: GifOutputOptions,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Uint8Array> {
-  const { ids, bounds } = resolveRegion(editor, options.region);
+  const { ids, bounds } = resolveRegion(editor, output.region);
   if (ids.length === 0) throw new Error('EMPTY');
 
   const order = resolveOrder(diagram);
-  const timeline = buildTimeline(order, options);
-  const total = Math.max(timeline.totalSeconds, 0.001);
-  const frameCount = Math.max(1, Math.ceil(options.fps * total));
-  const delayMs = Math.round(1000 / options.fps);
+  const timeline = buildTimeline(order, presetTiming(preset));
+  const travel = timeline.timing.dotTravelSeconds;
+  const paths = preset.style === 'end-to-end' ? enumeratePaths(diagram).paths : [];
+  const period = Math.max(
+    preset.style === 'end-to-end' ? byPathDuration(paths, travel) : animationPeriod(preset.style, timeline),
+    0.001,
+  );
+  const frameCount = Math.max(1, Math.ceil(output.fps * period));
+  const delayMs = Math.round(1000 / output.fps);
 
   const gif = GIFEncoder();
   const canvas = document.createElement('canvas');
@@ -113,18 +112,21 @@ export async function captureTraversalGif(
 
   try {
     for (let i = 0; i < frameCount; i++) {
-      const t = i / options.fps;
-      const s = stateAt(diagram, order, timeline, t);
+      const t = i / output.fps;
+      const s =
+        preset.style === 'end-to-end'
+          ? stateAtByPath(diagram, paths, travel, t)
+          : stateAt(diagram, order, timeline, t, preset.style);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
 
       const svg = await editor.getSvgString(ids, { background: true, padding: 8, ...(bounds ? { bounds } : {}) });
       if (!svg) throw new Error('Failed to serialize the diagram.');
       if (i === 0) {
         // Size the canvas once from the first frame. Export bounds derive from
-        // shape geometry (positions), which the traversal never changes — only
+        // shape geometry (positions), which the animation never changes — only
         // opacity/dot props — so every frame has identical dimensions.
-        w = Math.max(1, Math.ceil(svg.width * options.scale));
-        h = Math.max(1, Math.ceil(svg.height * options.scale));
+        w = Math.max(1, Math.ceil(svg.width * output.scale));
+        h = Math.max(1, Math.ceil(svg.height * output.scale));
         canvas.width = w;
         canvas.height = h;
       }
@@ -139,7 +141,7 @@ export async function captureTraversalGif(
         palette,
         delay: delayMs,
         // The first frame carries the loop count: 0 = forever, -1 = play once.
-        ...(i === 0 ? { repeat: options.loop === 'forever' ? 0 : -1 } : {}),
+        ...(i === 0 ? { repeat: preset.loop === 'forever' ? 0 : -1 } : {}),
       });
       onProgress?.(i + 1, frameCount);
     }
