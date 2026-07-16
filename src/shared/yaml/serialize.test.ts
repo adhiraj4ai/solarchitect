@@ -45,7 +45,6 @@ describe('serializeDiagram', () => {
         { id: 'e3', from: 'n1', to: 'n4', direction: 'bidirectional' },
       ],
       clusters: [],
-      annotations: [],
     });
     expect(yamlText).toContain('direction: reverse');
     expect(yamlText).toContain('direction: bidirectional');

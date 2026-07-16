@@ -18,7 +18,6 @@ function chain(): Diagram {
     nodes: [node('a'), node('b'), node('c')],
     edges: [edge('e1', 'a', 'b'), edge('e2', 'b', 'c')],
     clusters: [],
-    annotations: [],
     frames: [],
   };
 }
@@ -77,7 +76,6 @@ describe('stateAt', () => {
       nodes: [node('a'), node('b')],
       edges: [edge('e1', 'a', 'b', { direction: 'reverse' })],
       clusters: [],
-      annotations: [],
       frames: [],
     };
     const { order, timeline } = build(d);
@@ -133,7 +131,6 @@ describe('stateAt', () => {
       nodes: [node('a', { clusterId: 'c1' }), node('b', { clusterId: 'c1' }), node('src')],
       edges: [edge('e1', 'src', 'a'), edge('e2', 'a', 'b')],
       clusters: [{ id: 'c1', label: 'VPC', x: 0, y: 0, width: 10, height: 10 }],
-      annotations: [],
       frames: [],
     };
     const { order, timeline } = build(d);

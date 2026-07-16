@@ -36,7 +36,6 @@ describe('IR -> YAML -> IR round-trip', () => {
       edges: [{ id: 'e1', from: 'n1', to: 'n2', direction: 'forward', step: 1 }],
       clusters: [],
       frames: [],
-      annotations: [],
     };
     const result = parseDiagram(serializeDiagram(original));
     expect(result.ok).toBe(true);
@@ -55,7 +54,6 @@ describe('IR -> YAML -> IR round-trip', () => {
       ],
       clusters: [],
       frames: [],
-      annotations: [],
     };
     const result = parseDiagram(serializeDiagram(original));
     expect(result.ok).toBe(true);

@@ -9,7 +9,7 @@ function edge(id: string, from: string, to: string, extra: Partial<DiagramEdge> 
   return { id, from, to, direction: 'forward', ...extra };
 }
 function diagram(nodes: DiagramNode[], edges: DiagramEdge[], clusters: Diagram['clusters'] = []): Diagram {
-  return { nodes, edges, clusters, annotations: [], frames: [] };
+  return { nodes, edges, clusters, frames: [] };
 }
 
 describe('resolveOrder', () => {
