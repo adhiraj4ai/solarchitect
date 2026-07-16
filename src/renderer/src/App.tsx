@@ -215,6 +215,7 @@ export default function App() {
               key={project.currentFile ?? 'untitled'}
               projectDir={project.projectDir}
               fileName={project.currentFile}
+              diagram={diagram}
               onError={project.setIoError}
             />
           ) : showCanvas ? (
