@@ -52,9 +52,17 @@ test.afterAll(async () => {
 const editor = () => win.locator('textarea[aria-label="Diagram YAML"]');
 const canvas = () => win.locator('[data-testid="canvas-drop"]');
 
+// Open a panel deterministically (switch away first) so re-selecting an already
+// active panel never toggle-collapses the sidebar.
+async function openPanel(id: string) {
+  const other = id === 'project' ? 'help' : 'project';
+  await win.locator(`[data-testid="activity-${other}"]`).click();
+  await win.locator(`[data-testid="activity-${id}"]`).click();
+}
+
 test('the Outline panel lists the diagram structure and reveals on click', async () => {
   await editor().fill(DIAGRAM);
-  await win.locator('[data-testid="activity-outline"]').click();
+  await openPanel('outline');
 
   const outline = win.locator('[data-testid="outline"]');
   await expect(outline).toContainText('DataTier'); // cluster
@@ -68,7 +76,7 @@ test('the Outline panel lists the diagram structure and reveals on click', async
 });
 
 test('Search finds elements in the open diagram and reveals them', async () => {
-  await win.locator('[data-testid="activity-search"]').click();
+  await openPanel('search');
   await win.locator('[data-testid="search-input"]').fill('WebServer');
 
   const results = win.locator('[data-testid="search-results"]');
@@ -80,7 +88,7 @@ test('Search finds elements in the open diagram and reveals them', async () => {
 });
 
 test('Search shows an empty state when nothing matches', async () => {
-  await win.locator('[data-testid="activity-search"]').click();
+  await openPanel('search');
   await win.locator('[data-testid="search-input"]').fill('nothing-matches-zzz');
   await expect(win.locator('[data-testid="search-results"]')).toContainText('No matches');
 });

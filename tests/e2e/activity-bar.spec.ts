@@ -24,6 +24,14 @@ test.afterAll(async () => {
 
 const sidebar = () => win.locator('[data-testid="sidebar"]');
 
+// Open a panel regardless of current state (switch away first, then to it) so we
+// never accidentally toggle-collapse an already-active panel.
+async function openPanel(id: string) {
+  const other = id === 'project' ? 'help' : 'project';
+  await win.locator(`[data-testid="activity-${other}"]`).click();
+  await win.locator(`[data-testid="activity-${id}"]`).click();
+}
+
 test('the activity bar opens one panel at a time', async () => {
   // Project is the default panel.
   await expect(win.locator('[data-testid="sidebar"] .sidebar__head')).toBeVisible();
@@ -62,7 +70,7 @@ test('clicking the active panel and ⌘B collapse/expand the sidebar', async () 
 });
 
 test('the sidebar width persists across a reload', async () => {
-  await win.locator('[data-testid="activity-project"]').click();
+  await openPanel('project');
   const before = await sidebar().boundingBox();
   if (!before) throw new Error('no sidebar box');
 
@@ -105,7 +113,7 @@ test('the Whiteboard surface hides Shapes, Templates, and the Visual/Split/Code 
 test('a panel unavailable on the whiteboard falls back, and is restored on return', async () => {
   // Choose Shapes on the Diagram surface.
   await win.locator('[data-testid="surface-architect"]').click();
-  await win.locator('[data-testid="activity-shapes"]').click();
+  await openPanel('shapes');
   await expect(win.locator('[data-testid="lib-group-aws"]')).toBeVisible();
 
   // Switching to the Whiteboard falls back to Project (Shapes is unavailable).
