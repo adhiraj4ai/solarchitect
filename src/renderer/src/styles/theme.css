@@ -218,8 +218,8 @@ button { font-family: inherit; }
 .rail__shapes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .rail__tpl { flex: 0 0 auto; }
 
-/* canvas stage */
-.stage { position: relative; min-width: 0; min-height: 0; background: var(--paper); }
+/* canvas stage — grows to fill the space between sidebar and source panel */
+.stage { flex: 1 1 auto; position: relative; min-width: 0; min-height: 0; background: var(--paper); }
 
 /* node connection ports — drag from one onto another node to draw an edge.
    Only shown in architect mode (the .connect-enabled ancestor). */
@@ -555,10 +555,12 @@ button { font-family: inherit; }
   min-width: 120px;
 }
 .edge-label::placeholder { color: var(--slate); }
-/* floating properties panel (top-right of the canvas) for the selected object */
+/* floating properties panel (top-right of the canvas) for the selected object.
+   Sits below the toolbar row so the two never overlap on a narrow canvas (e.g.
+   split view with the sidebar open). */
 .props-panel {
   position: absolute;
-  top: 10px;
+  top: 60px;
   right: 10px;
   z-index: 1000;
   width: 232px;

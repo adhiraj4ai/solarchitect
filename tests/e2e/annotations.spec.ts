@@ -49,6 +49,9 @@ annotations:
     height: 30
     content: TextLabelHere
 `);
+  // Let the debounced YAML edit commit before switching surface (switching
+  // unmounts the source pane, which would cancel a still-pending edit).
+  await win.waitForTimeout(400);
   await win.locator('[data-testid="surface-whiteboard"]').click();
   await expect(canvas()).toContainText('StickyNoteHere');
   await expect(canvas()).toContainText('BoxLabelHere');
@@ -63,6 +66,7 @@ edges: []
 clusters: []
 annotations: []
 `);
+  await win.waitForTimeout(400);
   await win.locator('[data-testid="surface-whiteboard"]').click();
   // Focus the canvas, choose the note tool (keyboard 'n'), place it, exit edit mode.
   // Use upper-middle coords, clear of tldraw's own UI (menus, toolbars, panels).

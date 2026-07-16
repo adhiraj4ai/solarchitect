@@ -22,10 +22,13 @@ export function useSettings(onError: (msg: string) => void) {
   }, []);
 
   const update = useCallback(async (patch: Partial<AppSettings>) => {
+    // Update the ref synchronously so rapid successive updates compose off the
+    // latest value rather than a render-lagged one.
     const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
     setSettings(next); // optimistic
     try {
-      setSettings(await window.solarchitect.writeSettings(next));
+      await window.solarchitect.writeSettings(next);
     } catch (e) {
       onErrorRef.current(`Could not save settings: ${(e as Error).message}`);
     }

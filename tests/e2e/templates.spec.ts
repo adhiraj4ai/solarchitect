@@ -33,14 +33,20 @@ test.beforeAll(async () => {
   }, projectDir);
   win = await app.firstWindow();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
-  // Reset persisted sidebar layout so the Project panel (with Open…) is showing.
-  await win.evaluate(() => localStorage.clear());
-  await win.reload();
-  await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
+  // Only one panel shows at a time; open Project (deterministically, regardless
+  // of any persisted state) to reach Open…, load the project, then open Templates.
+  await openPanel('project');
   await win.locator('[data-testid="open-project-btn"]').click();
-  // Templates live in their own activity-bar panel now; open it.
-  await win.locator('[data-testid="activity-templates"]').click();
+  await openPanel('templates');
 });
+
+// Open a panel regardless of current state: switch to another panel first, then
+// the target, so we never toggle-collapse an already-active one.
+async function openPanel(id: string) {
+  const other = id === 'project' ? 'help' : 'project';
+  await win.locator(`[data-testid="activity-${other}"]`).click();
+  await win.locator(`[data-testid="activity-${id}"]`).click();
+}
 
 test.afterAll(async () => {
   await app.close();
@@ -49,6 +55,16 @@ test.afterAll(async () => {
 
 const editor = () => win.locator('textarea[aria-label="Diagram YAML"]');
 const canvas = () => win.locator('[data-testid="canvas-drop"]');
+
+// Author the diagram in Split (source visible), let the debounced edit commit,
+// then work the canvas in Visual — with sidebar + source both open the split
+// canvas is too narrow for reliable tldraw pointer interaction.
+async function setDiagram(yaml: string) {
+  await win.locator('[data-testid="view-split"]').click();
+  await editor().fill(yaml);
+  await win.waitForTimeout(400);
+  await win.locator('[data-testid="view-visual"]').click();
+}
 
 async function selectNodes(...labels: string[]) {
   await win.keyboard.press('Escape');
@@ -61,7 +77,7 @@ async function selectNodes(...labels: string[]) {
 }
 
 test('saving a selection as a template adds it to the templates panel', async () => {
-  await editor().fill(TWO_NODES);
+  await setDiagram(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toBeVisible();
 
   await selectNodes('WebTier', 'DataTier');
@@ -74,7 +90,7 @@ test('saving a selection as a template adds it to the templates panel', async ()
 
 test('dragging a template onto the canvas instantiates it with fresh ids', async () => {
   // Start from a single pre-existing node so we can see the template add two more.
-  await editor().fill(TWO_NODES);
+  await setDiagram(TWO_NODES);
   await expect(canvas().getByText('WebTier')).toHaveCount(1);
 
   const dt = await win.evaluateHandle(() => new DataTransfer());
@@ -95,7 +111,7 @@ test('dragging a template onto the canvas instantiates it with fresh ids', async
 });
 
 test('saving under an existing name asks to overwrite rather than duplicating', async () => {
-  await editor().fill(TWO_NODES);
+  await setDiagram(TWO_NODES);
   // Wait for the reset to settle (prior test left extra nodes) before selecting,
   // else a mid-selection reconcile deselects and the modal never opens.
   await expect(canvas().getByText('WebTier')).toHaveCount(1);

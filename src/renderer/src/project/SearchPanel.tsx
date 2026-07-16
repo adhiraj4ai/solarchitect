@@ -39,9 +39,11 @@ export function SearchPanel({
         />
       </div>
       <div className="panel__body" data-testid="search-results">
-        {!hasProject && <div className="list__empty">Open a project to search its diagrams.</div>}
-        {hasProject && querying && !hasResults(results) && (
+        {querying && !hasResults(results) && (
           <div className="list__empty">No matches for “{query.trim()}”.</div>
+        )}
+        {!querying && !hasProject && (
+          <div className="list__empty">Open a project to search its diagrams, or edit a diagram to find its elements.</div>
         )}
 
         {results.diagrams.length > 0 && (

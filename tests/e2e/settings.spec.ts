@@ -21,23 +21,29 @@ test.afterAll(async () => {
   await rm(userData, { recursive: true, force: true });
 });
 
+// Open a panel deterministically regardless of current state: switch to another
+// panel first, then the target, so we never toggle-collapse an already-active one.
+async function openPanel(id: string) {
+  const other = id === 'project' ? 'help' : 'project';
+  await win.locator(`[data-testid="activity-${other}"]`).click();
+  await win.locator(`[data-testid="activity-${id}"]`).click();
+}
+
 test('settings default sensibly and persist across a reload', async () => {
-  await win.locator('[data-testid="activity-settings"]').click();
+  await openPanel('settings');
 
-  const grid = win.locator('[data-testid="setting-grid"]');
-  const autosave = win.locator('[data-testid="setting-autosave"]');
-  await expect(grid).toBeChecked(); // grid on by default
-  await expect(autosave).not.toBeChecked(); // autosave off by default
+  await expect(win.locator('[data-testid="setting-grid"]')).toBeChecked(); // grid on by default
+  await expect(win.locator('[data-testid="setting-autosave"]')).not.toBeChecked(); // autosave off by default
 
-  // Change both settings.
-  await grid.uncheck();
-  await autosave.check();
+  await win.locator('[data-testid="setting-grid"]').uncheck();
+  await win.locator('[data-testid="setting-autosave"]').check();
   await win.locator('[data-testid="setting-provider"]').selectOption('aws');
+  await win.waitForTimeout(400); // let the async writeSettings flush to disk
 
   // Reload the app; settings are read back from the user-data file.
   await win.reload();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
-  await win.locator('[data-testid="activity-settings"]').click();
+  await openPanel('settings');
 
   await expect(win.locator('[data-testid="setting-grid"]')).not.toBeChecked();
   await expect(win.locator('[data-testid="setting-autosave"]')).toBeChecked();
@@ -45,8 +51,17 @@ test('settings default sensibly and persist across a reload', async () => {
 });
 
 test('the default provider filter narrows the Shapes panel', async () => {
-  // With aws chosen above, the Shapes panel shows AWS but not, say, Azure.
-  await win.locator('[data-testid="activity-shapes"]').click();
+  await openPanel('settings');
+  await win.locator('[data-testid="setting-provider"]').selectOption('aws');
+
+  // With aws chosen, the Shapes panel shows AWS but not, say, Azure.
+  await openPanel('shapes');
   await expect(win.locator('[data-testid="lib-group-aws"]')).toBeVisible();
   await expect(win.locator('[data-testid="lib-group-azure"]')).toHaveCount(0);
+
+  // Clearing the filter brings every provider back.
+  await openPanel('settings');
+  await win.locator('[data-testid="setting-provider"]').selectOption('');
+  await openPanel('shapes');
+  await expect(win.locator('[data-testid="lib-group-azure"]')).toBeVisible();
 });

@@ -181,7 +181,7 @@ export default function App() {
         return (
           <SearchPanel
             fileNames={project.entries.map((e) => e.fileName)}
-            diagram={project.currentFile ? diagram : null}
+            diagram={diagram}
             hasProject={!!project.projectDir}
             onOpenDiagram={openDiagramFromSearch}
             onReveal={reveal}
