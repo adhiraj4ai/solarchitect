@@ -1,5 +1,5 @@
-import type { AppSettings } from '../settings/settings';
-export type { AppSettings };
+import type { AppSettings, SettingsReadResult } from '../settings/settings';
+export type { AppSettings, SettingsReadResult };
 
 /** A diagram file discovered in a project folder, with its validation status. */
 export interface DiagramFileEntry {
@@ -78,8 +78,9 @@ export interface SolarchitectApi {
   gitPull(projectDir: string): Promise<GitSyncResult>;
   gitCreateBranch(projectDir: string, name: string): Promise<GitSyncResult>;
   gitCheckoutBranch(projectDir: string, name: string): Promise<GitSyncResult>;
-  /** Read app-level settings (defaults if none are stored). */
-  readSettings(): Promise<AppSettings>;
+  /** Read app-level settings (defaults if none are stored). `corrupt` flags a
+   *  present-but-unreadable file so the renderer can warn. */
+  readSettings(): Promise<SettingsReadResult>;
   /** Persist app-level settings; returns the normalized settings actually written. */
   writeSettings(settings: AppSettings): Promise<AppSettings>;
 }

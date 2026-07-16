@@ -25,6 +25,11 @@ import type { Diagram } from '@shared/ir/types';
 /** Which panels are on screen for the Diagram surface. Orthogonal to the surface. */
 type View = 'visual' | 'split' | 'code';
 
+/** Compile-time exhaustiveness guard for the panel switch. */
+function assertNever(x: never): never {
+  throw new Error(`Unhandled panel: ${String(x)}`);
+}
+
 export default function App() {
   const { yamlText, diagram, yamlError, canvasEditSeq, canUndo, canRedo, onCanvasEdit, onYamlEdit, loadDiagram, undo, redo } =
     useSyncEngine();
@@ -206,6 +211,10 @@ export default function App() {
         return <SettingsPanel settings={settings} onUpdate={updateSettings} />;
       case 'help':
         return <HelpPanel />;
+      default:
+        // Exhaustiveness: a new PanelId must be handled above, not silently
+        // render nothing.
+        return assertNever(panel);
     }
   }
 

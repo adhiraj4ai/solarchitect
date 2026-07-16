@@ -19,16 +19,19 @@ describe('settingsManager', () => {
   it('round-trips settings through write then read', async () => {
     const written = await writeSettings(file(), { grid: false, autosave: true, defaultProvider: 'aws' });
     expect(written).toEqual({ grid: false, autosave: true, defaultProvider: 'aws' });
-    expect(await readSettings(file())).toEqual({ grid: false, autosave: true, defaultProvider: 'aws' });
+    expect(await readSettings(file())).toEqual({
+      settings: { grid: false, autosave: true, defaultProvider: 'aws' },
+      corrupt: false,
+    });
   });
 
-  it('returns defaults when the settings file is missing', async () => {
-    expect(await readSettings(file())).toEqual(DEFAULT_SETTINGS);
+  it('returns defaults (not corrupt) when the settings file is missing', async () => {
+    expect(await readSettings(file())).toEqual({ settings: DEFAULT_SETTINGS, corrupt: false });
   });
 
-  it('returns defaults when the settings file is corrupt', async () => {
+  it('returns defaults and flags corrupt when the settings file is unreadable', async () => {
     await writeFile(file(), '{ not valid json', 'utf-8');
-    expect(await readSettings(file())).toEqual(DEFAULT_SETTINGS);
+    expect(await readSettings(file())).toEqual({ settings: DEFAULT_SETTINGS, corrupt: true });
   });
 
   it('normalizes partial/garbage content on write', async () => {

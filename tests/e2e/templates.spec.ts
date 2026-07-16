@@ -2,6 +2,7 @@ import { test, expect, _electron as electron, type ElectronApplication, type Pag
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { openPanel } from './helpers';
 
 const MAIN = join(process.cwd(), 'out/main/index.js');
 
@@ -35,18 +36,10 @@ test.beforeAll(async () => {
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
   // Only one panel shows at a time; open Project (deterministically, regardless
   // of any persisted state) to reach Open…, load the project, then open Templates.
-  await openPanel('project');
+  await openPanel(win, 'project');
   await win.locator('[data-testid="open-project-btn"]').click();
-  await openPanel('templates');
+  await openPanel(win, 'templates');
 });
-
-// Open a panel regardless of current state: switch to another panel first, then
-// the target, so we never toggle-collapse an already-active one.
-async function openPanel(id: string) {
-  const other = id === 'project' ? 'help' : 'project';
-  await win.locator(`[data-testid="activity-${other}"]`).click();
-  await win.locator(`[data-testid="activity-${id}"]`).click();
-}
 
 test.afterAll(async () => {
   await app.close();

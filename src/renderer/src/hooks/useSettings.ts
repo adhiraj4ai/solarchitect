@@ -17,7 +17,10 @@ export function useSettings(onError: (msg: string) => void) {
   useEffect(() => {
     window.solarchitect
       .readSettings()
-      .then(setSettings)
+      .then(({ settings, corrupt }) => {
+        setSettings(settings);
+        if (corrupt) onErrorRef.current('Settings file was unreadable — reverted to defaults.');
+      })
       .catch((e) => onErrorRef.current(`Could not load settings: ${(e as Error).message}`));
   }, []);
 

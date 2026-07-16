@@ -20,6 +20,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: null,
 };
 
+/** Result of loading settings. `corrupt` is true only when a file was present
+ *  but unreadable (so the renderer can warn) — a missing file is not corrupt. */
+export interface SettingsReadResult {
+  settings: AppSettings;
+  corrupt: boolean;
+}
+
 function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
