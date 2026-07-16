@@ -62,6 +62,8 @@ export default function App() {
   const [animate, setAnimate] = useState(false);
   // Steps: overlay the resolved traversal order as badges on nodes/edges.
   const [showSteps, setShowSteps] = useState(false);
+  // Traversal preview: play the staged dim→lit build-up, looping.
+  const [traversalPlaying, setTraversalPlaying] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [presentIndex, setPresentIndex] = useState(0);
   const frames = diagram.frames ?? [];
@@ -242,7 +244,12 @@ export default function App() {
               data-testid="animate-toggle"
               className={`btn btn--sm${animate ? ' btn--on' : ''}`}
               aria-pressed={animate}
-              onClick={() => setAnimate((v) => !v)}
+              onClick={() =>
+                setAnimate((v) => {
+                  if (!v) setTraversalPlaying(false); // the two flow modes are exclusive
+                  return !v;
+                })
+              }
               title="Animate the relationship lines"
             >
               {animate ? '◉ Animating' : '◎ Animate'}
@@ -255,6 +262,20 @@ export default function App() {
               title="Show the traversal step order on nodes and edges"
             >
               {showSteps ? '① Steps' : '◇ Steps'}
+            </button>
+            <button
+              data-testid="traversal-toggle"
+              className={`btn btn--sm${traversalPlaying ? ' btn--on' : ''}`}
+              aria-pressed={traversalPlaying}
+              onClick={() =>
+                setTraversalPlaying((v) => {
+                  if (!v) setAnimate(false); // the two flow modes are exclusive
+                  return !v;
+                })
+              }
+              title="Play the staged traversal build-up"
+            >
+              {traversalPlaying ? '⏸ Playing' : '▶ Play'}
             </button>
             <button data-testid="present-btn" className="btn btn--sm" onClick={startPresenting} title="Present full screen">
               ▷ Present
@@ -303,6 +324,7 @@ export default function App() {
               mode="architect"
               animate={animate}
               showSteps={showSteps}
+              traversalPlaying={traversalPlaying}
               presenting={presenting}
               presentIndex={presentIndex}
               grid={settings.grid}

@@ -1,5 +1,33 @@
+import { useLayoutEffect, useRef } from 'react';
 import { ShapeUtil, Polyline2d, HTMLContainer, T, Vec, type TLBaseShape } from 'tldraw';
 import type { EdgeShape as EdgeShapeKind, EdgeLineStyle, EdgeDirection } from '@shared/ir/types';
+
+/** A flow token positioned deterministically at fraction `t` (0..1) along the
+ *  path `d`. Driven by the traversal preview/capture, not SMIL, so it is
+ *  frame-accurate. `t < 0` renders nothing. */
+function FlowToken({ d, t }: { d: string; t: number }) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const dotRef = useRef<SVGCircleElement>(null);
+  useLayoutEffect(() => {
+    const path = pathRef.current;
+    const dot = dotRef.current;
+    if (!path || !dot) return;
+    if (t < 0) {
+      dot.style.display = 'none';
+      return;
+    }
+    const pt = path.getPointAtLength(path.getTotalLength() * Math.min(1, Math.max(0, t)));
+    dot.style.display = '';
+    dot.setAttribute('cx', String(pt.x));
+    dot.setAttribute('cy', String(pt.y));
+  }, [d, t]);
+  return (
+    <>
+      <path ref={pathRef} d={d} fill="none" stroke="none" />
+      <circle ref={dotRef} className="arch-edge-token-det" r="5" fill="var(--sync, #d9822b)" stroke="none" />
+    </>
+  );
+}
 
 // Endpoints are stored local to the shape's (x,y) origin, which the reconciler
 // sets to the min corner of the two node centers.
@@ -13,6 +41,8 @@ export type ArchEdgeShape = TLBaseShape<
     lineStyle: EdgeLineStyle;
     arrow: boolean;
     order: number;
+    /** Traversal-preview token position (0..1 along from→to); <0 = no token. */
+    dotT: number;
     x1: number;
     y1: number;
     x2: number;
@@ -79,6 +109,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     lineStyle: T.literalEnum('solid', 'dashed', 'dotted'),
     arrow: T.boolean,
     order: T.number,
+    dotT: T.number,
     x1: T.number,
     y1: T.number,
     x2: T.number,
@@ -94,6 +125,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
       lineStyle: 'solid',
       arrow: true,
       order: 0,
+      dotT: -1,
       x1: 0,
       y1: 0,
       x2: 100,
@@ -110,7 +142,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   override canBind = () => false;
 
   component(shape: ArchEdgeShape) {
-    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, order, edgeId } = shape.props;
+    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, order, dotT, edgeId } = shape.props;
     const minX = Math.min(x1, x2);
     const minY = Math.min(y1, y2);
     const startId = `arrow-start-${edgeId}`;
@@ -157,6 +189,8 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
               {...(tokenReversed ? { keyPoints: '1;0', keyTimes: '0;1', calcMode: 'linear' } : {})}
             />
           </circle>
+          {/* Deterministic token for the traversal preview/capture. */}
+          <FlowToken d={d} t={dotT} />
         </svg>
         {label && (
           <div

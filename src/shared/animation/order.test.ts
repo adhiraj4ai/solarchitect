@@ -45,7 +45,7 @@ describe('resolveOrder', () => {
     expect(r.nodeOrder).toEqual({ a: 0, b: 1, c: 1, e: 2 });
   });
 
-  it('lets an explicit node step override the derived order', () => {
+  it('lets an explicit node step override the derived order and propagates downstream', () => {
     const d = diagram(
       [node('a'), node('b', { step: 5 }), node('c')],
       [edge('e1', 'a', 'b'), edge('e2', 'b', 'c')],
@@ -53,12 +53,15 @@ describe('resolveOrder', () => {
     const r = resolveOrder(d);
     expect(r.nodeOrder.a).toBe(0);
     expect(r.nodeOrder.b).toBe(5); // pinned, not derived 1
+    expect(r.edgeOrder.e2).toBe(5); // the edge flows as its (pinned) source lights
+    expect(r.nodeOrder.c).toBe(6); // successor pushed after the pinned b
   });
 
-  it('lets an explicit edge step override the derived order', () => {
+  it('lets an explicit edge step override and propagates to the target node', () => {
     const d = diagram([node('a'), node('b')], [edge('e1', 'a', 'b', { step: 9 })]);
     const r = resolveOrder(d);
     expect(r.edgeOrder.e1).toBe(9);
+    expect(r.nodeOrder.b).toBe(10); // target lights after the pinned edge arrives
   });
 
   it('follows the effective direction for a reverse edge', () => {

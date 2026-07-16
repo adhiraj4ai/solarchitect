@@ -130,6 +130,8 @@ export function edgeToShape(edge: DiagramEdge, nodeById: Map<string, DiagramNode
       arrow: edge.arrow ?? true,
       // Derived value synced separately by reconcile; starts at 0 here.
       order: 0,
+      // Traversal-preview token position, driven by the preview loop; idle here.
+      dotT: -1,
       x1: a.x - originX,
       y1: a.y - originY,
       x2: b.x - originX,

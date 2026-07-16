@@ -20,19 +20,25 @@ function effectiveEnds(edge: DiagramEdge): { src: string; dst: string } {
 }
 
 /**
- * Resolve every element's traversal order using the unified-order-value rule:
- * an element's order is its explicit `step` if set, else its topological depth
- * from the source (longest path following effective arrow direction). Equal
- * values form one beat. Clusters light with their first member. If the graph
- * has no source node (a cycle, or every node has an incoming edge), we fall
- * back to the first-declared node and set a warning — never throwing.
+ * Resolve every element's traversal order using the unified-order-value rule,
+ * with pins propagating along the flow:
+ *   - edgeOrder = its explicit `step`, else the resolved order of its source
+ *     node (the edge flows as its source lights);
+ *   - nodeOrder = its explicit `step`, else max(incoming edge order) + 1, or 0
+ *     for a source with no incoming edge.
+ * So a pinned element pushes its downstream successors later, and equal values
+ * form one beat. Clusters light with their first member (minimum member order).
+ * If the graph has no source node (a cycle, or every node has an incoming
+ * edge), we fall back to the first-declared node and set a warning — never
+ * throwing.
  */
 export function resolveOrder(diagram: Diagram): ResolvedOrder {
   const { nodes, edges, clusters } = diagram;
   const nodeIds = nodes.map((n) => n.id);
+  const stepById = new Map(nodes.map((n) => [n.id, n.step]));
 
-  // Adjacency + in-degree by effective direction.
-  const out = new Map<string, Array<{ dst: string }>>();
+  // Adjacency (with each edge) + in-degree by effective direction.
+  const out = new Map<string, Array<{ dst: string; edge: DiagramEdge }>>();
   const indeg = new Map<string, number>();
   for (const id of nodeIds) {
     out.set(id, []);
@@ -41,7 +47,7 @@ export function resolveOrder(diagram: Diagram): ResolvedOrder {
   for (const e of edges) {
     const { src, dst } = effectiveEnds(e);
     if (!out.has(src) || !indeg.has(dst)) continue; // dangling id — ignore defensively
-    out.get(src)!.push({ dst });
+    out.get(src)!.push({ dst, edge: e });
     indeg.set(dst, (indeg.get(dst) ?? 0) + 1);
   }
 
@@ -53,51 +59,50 @@ export function resolveOrder(diagram: Diagram): ResolvedOrder {
     warning = `No starting node (every node has an incoming edge); using the first node "${nodeIds[0]}". Add a step to set the order explicitly.`;
   }
 
-  // Longest-path layering via Kahn's algorithm, with cycle recovery: when the
-  // queue drains but nodes remain, promote the next undone node to a
-  // pseudo-source so we always terminate and assign every node a depth.
-  const depth = new Map<string, number>();
+  // Longest-path layering via Kahn's algorithm, propagating resolved orders
+  // along the flow. Cycle recovery: when the queue drains but nodes remain,
+  // promote the next undone node to a pseudo-source so we always terminate and
+  // assign every node an order.
+  const nodeOrder: Record<string, number> = {};
+  const edgeOrder: Record<string, number> = {};
+  const maxInEdge = new Map<string, number>(); // max order of finalized incoming edges
   const remainingIn = new Map(indeg);
   const done = new Set<string>();
   const queued = new Set<string>();
   const queue: string[] = [];
-  const enqueue = (id: string, d: number) => {
-    depth.set(id, Math.max(depth.get(id) ?? 0, d));
+  const enqueue = (id: string) => {
     if (!queued.has(id)) {
       queue.push(id);
       queued.add(id);
     }
   };
-  for (const s of sources) enqueue(s, 0);
+  for (const s of sources) enqueue(s);
 
-  const maxDepth = () => (depth.size ? Math.max(...depth.values()) : -1);
+  const finalize = (id: string) => {
+    const pin = stepById.get(id);
+    const derived = (maxInEdge.get(id) ?? -1) + 1;
+    const order = typeof pin === 'number' ? pin : derived;
+    nodeOrder[id] = order;
+    for (const { dst, edge } of out.get(id) ?? []) {
+      const eOrder = typeof edge.step === 'number' ? edge.step : order;
+      edgeOrder[edge.id] = eOrder;
+      if (done.has(dst)) continue;
+      maxInEdge.set(dst, Math.max(maxInEdge.get(dst) ?? -1, eOrder));
+      remainingIn.set(dst, (remainingIn.get(dst) ?? 0) - 1);
+      if ((remainingIn.get(dst) ?? 0) <= 0) enqueue(dst);
+    }
+  };
+
   for (;;) {
     while (queue.length > 0) {
       const u = queue.shift()!;
       if (done.has(u)) continue;
       done.add(u);
-      const du = depth.get(u) ?? 0;
-      for (const { dst } of out.get(u) ?? []) {
-        if (done.has(dst)) continue;
-        depth.set(dst, Math.max(depth.get(dst) ?? 0, du + 1));
-        remainingIn.set(dst, (remainingIn.get(dst) ?? 0) - 1);
-        if ((remainingIn.get(dst) ?? 0) <= 0) enqueue(dst, depth.get(dst) ?? du + 1);
-      }
+      finalize(u);
     }
     const next = nodeIds.find((id) => !done.has(id));
     if (!next) break;
-    // Cycle / unreached node: seat it just after everything placed so far.
-    enqueue(next, depth.has(next) ? (depth.get(next) as number) : maxDepth() + 1);
-  }
-
-  // Explicit `step` pins override the derived depth; equal values share a beat.
-  const nodeOrder: Record<string, number> = {};
-  for (const n of nodes) nodeOrder[n.id] = typeof n.step === 'number' ? n.step : (depth.get(n.id) ?? 0);
-
-  const edgeOrder: Record<string, number> = {};
-  for (const e of edges) {
-    const { src } = effectiveEnds(e);
-    edgeOrder[e.id] = typeof e.step === 'number' ? e.step : (nodeOrder[src] ?? 0);
+    enqueue(next); // cycle / unreached node — seat it from the preds seen so far
   }
 
   // A cluster lights with its first member (the minimum member order).

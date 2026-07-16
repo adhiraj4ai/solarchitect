@@ -44,6 +44,38 @@ import type {
   EdgeDirection,
 } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
+import { buildTimeline, DEFAULT_TIMING } from '@shared/animation/timeline';
+import { stateAt, type AnimationState } from '@shared/animation/state';
+
+/** Fully-lit, no-token state — used to reset the canvas when the preview stops. */
+const LIT_STATE: AnimationState = {
+  nodeOpacity: {},
+  edgeOpacity: {},
+  clusterOpacity: {},
+  dotPositions: {},
+  edgeDirection: {},
+};
+
+/** Apply a traversal AnimationState to the canvas shapes (opacity build-up +
+ *  edge flow token). Missing entries fall back to lit/no-token, so passing
+ *  LIT_STATE resets everything. Caller wraps this in mergeRemoteChanges. */
+function applyTraversalState(editor: Editor, s: AnimationState): void {
+  for (const shape of getArchNodeShapes(editor)) {
+    const op = s.nodeOpacity[shape.props.nodeId] ?? 1;
+    if (shape.opacity !== op) editor.updateShape({ id: shape.id, type: 'archNode', opacity: op });
+  }
+  for (const shape of getArchClusterShapes(editor)) {
+    const op = s.clusterOpacity[shape.props.clusterId] ?? 1;
+    if (shape.opacity !== op) editor.updateShape({ id: shape.id, type: 'archCluster', opacity: op });
+  }
+  for (const shape of getArchEdgeShapes(editor)) {
+    const op = s.edgeOpacity[shape.props.edgeId] ?? 1;
+    const dot = s.dotPositions[shape.props.edgeId];
+    const dotT = dot == null ? -1 : dot;
+    if (shape.opacity !== op || shape.props.dotT !== dotT)
+      editor.updateShape({ id: shape.id, type: 'archEdge', opacity: op, props: { dotT } });
+  }
+}
 
 const assetUrls = getAssetUrlsByImport();
 
@@ -308,6 +340,7 @@ export function CanvasView({
   onError,
   animate = false,
   showSteps = false,
+  traversalPlaying = false,
   presenting = false,
   presentIndex = 0,
   grid = true,
@@ -319,6 +352,8 @@ export function CanvasView({
   animate?: boolean;
   /** Overlay each node/edge's resolved traversal order as a badge. */
   showSteps?: boolean;
+  /** Play the staged traversal build-up (dim→lit, flowing token), looping. */
+  traversalPlaying?: boolean;
   presenting?: boolean;
   presentIndex?: number;
   /** Show the canvas grid background (from app settings). */
@@ -630,6 +665,43 @@ export function CanvasView({
     const { warning } = resolveOrder(diagram);
     if (warning) onErrorRef.current(warning);
   }, [showSteps, diagram]);
+
+  // Traversal preview: drive shape opacity (dim→lit build-up) and the edge flow
+  // token from the pure stateAt() each animation frame, looping. Everything is
+  // reset to fully-lit on stop. The order/timeline recompute each frame so the
+  // preview stays live if the diagram is edited mid-play.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !traversalPlaying) return;
+
+    let raf = 0;
+    const startMs = performance.now();
+    // Recompute the order/timeline only when the diagram identity changes, so a
+    // steady preview isn't re-running Kahn every frame — but it stays live if
+    // the diagram is edited mid-play.
+    let cachedDiagram: Diagram | null = null;
+    let order = resolveOrder(diagramRef.current);
+    let timeline = buildTimeline(order, DEFAULT_TIMING);
+    const frame = () => {
+      const diagram = diagramRef.current;
+      if (diagram !== cachedDiagram) {
+        cachedDiagram = diagram;
+        order = resolveOrder(diagram);
+        timeline = buildTimeline(order, DEFAULT_TIMING);
+      }
+      const total = Math.max(timeline.totalSeconds, 0.001);
+      const t = ((performance.now() - startMs) / 1000) % total;
+      const s = stateAt(diagram, order, timeline, t);
+      editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      editor.store.mergeRemoteChanges(() => applyTraversalState(editor, LIT_STATE));
+    };
+  }, [traversalPlaying]);
 
   const handleExport = useCallback(async (format: 'png' | 'svg') => {
     const editor = editorRef.current;
