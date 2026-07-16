@@ -146,10 +146,9 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     const midY = (y1 + y2) / 2;
     const d = edgePath(kind, x1, y1, x2, y2);
     // reverse flows target→source (arrowhead at the `from` end); bidirectional
-    // shows both heads. The animated token travels the same direction as flow.
+    // shows both heads.
     const headEnd = arrow && direction !== 'reverse';
     const headStart = arrow && (direction === 'bidirectional' || direction === 'reverse');
-    const tokenReversed = direction === 'reverse';
     return (
       <HTMLContainer style={{ pointerEvents: 'none' }}>
         <svg style={{ overflow: 'visible', position: 'absolute', left: 0, top: 0 }}>
@@ -172,18 +171,6 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             markerEnd={headEnd ? `url(#${endId})` : undefined}
             markerStart={headStart ? `url(#${startId})` : undefined}
           />
-          {/* A token that travels along the edge in the flow direction; only
-              visible in Animate mode (gated by the .animate-on ancestor in CSS).
-              For a reverse edge it travels target → source via keyPoints. */}
-          <circle className="arch-edge-token" r="4.5" fill="var(--sync, #d9822b)" stroke="none">
-            <animateMotion
-              dur="1.7s"
-              repeatCount="indefinite"
-              path={d}
-              rotate="0"
-              {...(tokenReversed ? { keyPoints: '1;0', keyTimes: '0;1', calcMode: 'linear' } : {})}
-            />
-          </circle>
           {/* Deterministic token for the traversal preview/capture. */}
           <FlowToken d={d} t={dotT} />
         </svg>

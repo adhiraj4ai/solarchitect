@@ -499,11 +499,6 @@ button { font-family: inherit; }
    local, self-hosted tool. */
 .tl-watermark_SEE-LICENSE { display: none !important; }
 
-/* animate mode — a token travels from → to along each relationship. The token
-   animates continuously (SMIL) but is only shown when animate mode is on. */
-.arch-edge-token { visibility: hidden; }
-.canvas.animate-on .arch-edge-token { visibility: visible; }
-
 /* Traversal-order badge: a small numbered chip on each node/edge, shown only
    when Steps mode is on. */
 .arch-step-badge {
@@ -577,6 +572,79 @@ button { font-family: inherit; }
 .scrubber__time {
   color: var(--slate, #5a6675);
   white-space: nowrap;
+}
+
+/* Animations panel: the preset library. */
+.animations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.animations__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.animations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.anim-item {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  border: 1px solid var(--line, #dbe3ec);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.anim-item.on {
+  border-color: var(--blueprint, #2f6df6);
+  box-shadow: inset 0 0 0 1px var(--blueprint, #2f6df6);
+}
+.anim-item__pick {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.anim-item__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #101722);
+}
+.anim-item__style {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint, #8a94a3);
+}
+.anim-item__act {
+  width: 26px;
+  border: none;
+  background: transparent;
+  color: var(--slate, #5a6675);
+  cursor: pointer;
+}
+.anim-item__act:hover {
+  background: var(--hover, #eef2f7);
+}
+.anim-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #dbe3ec);
+}
+.anim-editor select,
+.anim-editor .props-input {
+  width: 118px;
 }
 
 /* Export-animated-GIF dialog. */
@@ -994,6 +1062,4 @@ button { font-family: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
-  /* No travelling token when the user prefers reduced motion. */
-  .canvas.animate-on .arch-edge-token { visibility: hidden; }
 }

@@ -1,4 +1,5 @@
 import type { ResolvedOrder } from './order';
+import type { AnimationPreset } from './presets';
 
 /** Global timing for the traversal animation (set in the export/preview UI). */
 export interface TimingSettings {
@@ -18,6 +19,17 @@ export const DEFAULT_TIMING: TimingSettings = {
   dotTravelSeconds: 0.9,
   endHoldSeconds: 1,
 };
+
+/** Map a preset's motion timing to the engine's TimingSettings. The end-hold is
+ *  a fixed default (it's a render-tail concern, not part of a preset's identity). */
+export function presetTiming(preset: AnimationPreset): TimingSettings {
+  return {
+    secondsPerStep: preset.secondsPerStep,
+    fadeSeconds: preset.fadeSeconds,
+    dotTravelSeconds: preset.dotTravelSeconds,
+    endHoldSeconds: DEFAULT_TIMING.endHoldSeconds,
+  };
+}
 
 /** A timed sequence of beats derived from a resolved order plus timing. */
 export interface Timeline {

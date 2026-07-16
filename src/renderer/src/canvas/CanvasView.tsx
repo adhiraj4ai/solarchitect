@@ -57,8 +57,9 @@ import type {
   EdgeDirection,
 } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
-import { buildTimeline, DEFAULT_TIMING } from '@shared/animation/timeline';
+import { buildTimeline, presetTiming } from '@shared/animation/timeline';
 import { stateAt } from '@shared/animation/state';
+import type { AnimationPreset } from '@shared/animation/presets';
 import {
   applyTraversalState,
   LIT_STATE,
@@ -362,9 +363,9 @@ export function CanvasView({
   onCanvasEdit,
   onSaveTemplate,
   onError,
-  animate = false,
   showSteps = false,
   traversalPlaying = false,
+  activePreset,
   presenting = false,
   presentIndex = 0,
   grid = true,
@@ -373,11 +374,12 @@ export function CanvasView({
   diagram: Diagram;
   templates: NamedTemplate[];
   mode: Mode;
-  animate?: boolean;
   /** Overlay each node/edge's resolved traversal order as a badge. */
   showSteps?: boolean;
-  /** Play the staged traversal build-up (dim→lit, flowing token), looping. */
+  /** Play the active preset's animation (build-up + flowing token), looping. */
   traversalPlaying?: boolean;
+  /** The active animation preset (its motion timing drives play + scrub). */
+  activePreset: AnimationPreset;
   presenting?: boolean;
   presentIndex?: number;
   /** Show the canvas grid background (from app settings). */
@@ -392,6 +394,8 @@ export function CanvasView({
   const editorRef = useRef<Editor | null>(null);
   const diagramRef = useRef(diagram);
   diagramRef.current = diagram;
+  const activePresetRef = useRef(activePreset);
+  activePresetRef.current = activePreset;
   const onCanvasEditRef = useRef(onCanvasEdit);
   onCanvasEditRef.current = onCanvasEdit;
   const templatesRef = useRef(templates);
@@ -720,17 +724,21 @@ export function CanvasView({
     // steady preview isn't re-running Kahn every frame — but it stays live if
     // the diagram is edited mid-play.
     let cachedDiagram: Diagram | null = null;
+    let cachedPreset: AnimationPreset | null = null;
     let order = resolveOrder(diagramRef.current);
-    let timeline = buildTimeline(order, DEFAULT_TIMING);
+    let timeline = buildTimeline(order, presetTiming(activePresetRef.current));
     const frame = () => {
       const now = performance.now();
       const dt = (now - last) / 1000;
       last = now;
       const diagram = diagramRef.current;
-      if (diagram !== cachedDiagram) {
+      const preset = activePresetRef.current;
+      // Recompute when the diagram or the active preset's timing changes.
+      if (diagram !== cachedDiagram || preset !== cachedPreset) {
         cachedDiagram = diagram;
+        cachedPreset = preset;
         order = resolveOrder(diagram);
-        timeline = buildTimeline(order, DEFAULT_TIMING);
+        timeline = buildTimeline(order, presetTiming(preset));
       }
       const total = Math.max(timeline.totalSeconds, 0.001);
       // Advance only while running; scrubbing writes traversalTimeRef directly.
@@ -762,7 +770,10 @@ export function CanvasView({
     setTraversalRunning(traversalRunningRef.current);
   }, []);
   // Timeline for the scrubber UI (total duration + beat tick positions).
-  const previewTimeline = useMemo(() => buildTimeline(resolveOrder(diagram), DEFAULT_TIMING), [diagram]);
+  const previewTimeline = useMemo(
+    () => buildTimeline(resolveOrder(diagram), presetTiming(activePreset)),
+    [diagram, activePreset],
+  );
 
   // Architect tldraw components: the defaults plus a context-menu entry that
   // exports the current selection as an animation. It APPENDS to tldraw's
@@ -942,7 +953,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${showSteps ? ' steps-on' : ''}${presenting ? ' presenting' : ''}`}
+      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${showSteps ? ' steps-on' : ''}${presenting ? ' presenting' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {

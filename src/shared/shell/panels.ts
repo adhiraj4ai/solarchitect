@@ -17,6 +17,7 @@ export type PanelId =
   | 'outline'
   | 'shapes'
   | 'templates'
+  | 'animations'
   | 'git'
   | 'settings'
   | 'help';
@@ -38,6 +39,7 @@ export const PANELS: PanelMeta[] = [
   { id: 'outline', label: 'Outline', group: 'primary' },
   { id: 'shapes', label: 'Shapes', group: 'primary' },
   { id: 'templates', label: 'Templates', group: 'primary' },
+  { id: 'animations', label: 'Animations', group: 'primary' },
   { id: 'git', label: 'Version control', group: 'primary' },
   { id: 'settings', label: 'Settings', group: 'utility' },
   { id: 'help', label: 'Help', group: 'utility' },
@@ -49,7 +51,7 @@ export const DEFAULT_PANEL: PanelId = 'project';
 /** Panels that only make sense on the Diagram (architect) surface: dragging
  *  cloud/on-prem shapes and instantiating diagram templates have no meaning on
  *  a freeform whiteboard. */
-const DIAGRAM_ONLY: ReadonlySet<PanelId> = new Set<PanelId>(['shapes', 'templates']);
+const DIAGRAM_ONLY: ReadonlySet<PanelId> = new Set<PanelId>(['shapes', 'templates', 'animations']);
 
 export function isPanelAvailable(panel: PanelId, surface: Surface): boolean {
   if (surface === 'architect') return true;

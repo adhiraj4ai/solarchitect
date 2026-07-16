@@ -11,9 +11,10 @@ describe('panel availability', () => {
     for (const p of PANELS) expect(isPanelAvailable(p.id, 'architect')).toBe(true);
   });
 
-  it('hides Shapes and Templates on the Whiteboard surface', () => {
+  it('hides Shapes, Templates and Animations on the Whiteboard surface', () => {
     expect(isPanelAvailable('shapes', 'whiteboard')).toBe(false);
     expect(isPanelAvailable('templates', 'whiteboard')).toBe(false);
+    expect(isPanelAvailable('animations', 'whiteboard')).toBe(false);
   });
 
   it('keeps Project, Search, Outline, Git, Settings, Help on both surfaces', () => {

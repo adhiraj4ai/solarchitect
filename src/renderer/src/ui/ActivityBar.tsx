@@ -65,6 +65,12 @@ const ICONS: Record<PanelId | Surface, JSX.Element> = {
       <path d="M7 4h10v16l-5-3.5L7 20z" />
     </>
   ),
+  animations: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor" stroke="none" />
+    </>
+  ),
   git: (
     <>
       <circle cx="6" cy="6" r="2.4" />
