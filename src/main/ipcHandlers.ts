@@ -23,7 +23,14 @@ import {
 export function registerIpcHandlers(): void {
   ipcMain.handle('project:openFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
-    return result.canceled ? null : result.filePaths[0];
+    if (result.canceled || !result.filePaths[0]) return null;
+    const dir = result.filePaths[0];
+    // Version control should just work: initialize a repo if the folder isn't
+    // already under git (gitStatus is true for any ancestor repo, so this never
+    // nests a repo inside an existing one).
+    const status = await gitStatus(dir);
+    if (!status.isRepo) await gitInit(dir);
+    return dir;
   });
 
   // Create a new project: pick/create a folder, git-init it, and seed a first
@@ -42,6 +49,10 @@ export function registerIpcHandlers(): void {
     return { dir, fileName };
   });
 
+  ipcMain.handle('project:gitInit', async (_e, projectDir: string) => {
+    await gitInit(projectDir);
+    return { ok: true, message: 'Initialized an empty git repository.' };
+  });
   ipcMain.handle('project:gitStatus', (_e, projectDir: string) => gitStatus(projectDir));
   ipcMain.handle('project:gitSync', (_e, projectDir: string, message: string) => gitSync(projectDir, message));
   ipcMain.handle('project:gitDetail', (_e, projectDir: string) => gitDetail(projectDir));

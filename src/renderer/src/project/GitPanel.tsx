@@ -20,6 +20,14 @@ export function GitPanel({ projectDir, git }: { projectDir: string | null; git: 
           <span className="eyebrow">Version control</span>
         </div>
         <div className="git__empty">Not a git repository.</div>
+        <button
+          className="btn btn--sm"
+          data-testid="git-init-btn"
+          disabled={busy}
+          onClick={() => void act(() => window.solarchitect.gitInit(projectDir))}
+        >
+          Initialize repository
+        </button>
       </div>
     );
   }

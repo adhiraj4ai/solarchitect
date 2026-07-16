@@ -64,6 +64,7 @@ export interface SolarchitectApi {
   newProject(): Promise<NewProjectResult | null>;
   gitStatus(projectDir: string): Promise<GitStatus>;
   gitSync(projectDir: string, message: string): Promise<GitSyncResult>;
+  gitInit(projectDir: string): Promise<GitSyncResult>;
   gitDetail(projectDir: string): Promise<GitDetail>;
   gitCommit(projectDir: string, message: string): Promise<GitSyncResult>;
   gitPush(projectDir: string): Promise<GitSyncResult>;
