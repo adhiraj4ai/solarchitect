@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTimeline, DEFAULT_TIMING } from './timeline';
+import { buildTimeline, animationPeriod, DEFAULT_TIMING } from './timeline';
 import type { ResolvedOrder } from './order';
 
 const order = (nodeOrder: Record<string, number>, edgeOrder: Record<string, number> = {}): ResolvedOrder => ({
@@ -27,5 +27,12 @@ describe('buildTimeline', () => {
     expect(t.beatValues).toEqual([0, 2, 5]);
     expect(t.beatStart).toEqual({ 0: 0, 2: 1, 5: 2 });
     expect(t.totalSeconds).toBe(4);
+  });
+
+  it('animationPeriod is one token cycle for all-edges, else the full timeline', () => {
+    const t = buildTimeline(order({ a: 0, b: 1 }), { ...DEFAULT_TIMING, secondsPerStep: 1, dotTravelSeconds: 0.7, endHoldSeconds: 1 });
+    expect(animationPeriod('all-edges', t)).toBe(0.7); // dotTravelSeconds
+    expect(animationPeriod('dataflow', t)).toBe(t.totalSeconds);
+    expect(animationPeriod('control-flow', t)).toBe(t.totalSeconds);
   });
 });

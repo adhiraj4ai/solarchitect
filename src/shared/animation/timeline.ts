@@ -1,5 +1,5 @@
 import type { ResolvedOrder } from './order';
-import type { AnimationPreset } from './presets';
+import type { AnimationPreset, AnimationStyle } from './presets';
 
 /** Global timing for the traversal animation (set in the export/preview UI). */
 export interface TimingSettings {
@@ -19,6 +19,13 @@ export const DEFAULT_TIMING: TimingSettings = {
   dotTravelSeconds: 0.9,
   endHoldSeconds: 1,
 };
+
+/** The finite loop period of a style (seconds), for the scrubber and export.
+ *  `all-edges` cycles continuously over one token travel; every other style runs
+ *  its beat timeline (build-up + end-hold, or the by-order/by-path wavefront). */
+export function animationPeriod(style: AnimationStyle, timeline: Timeline): number {
+  return style === 'all-edges' ? timeline.timing.dotTravelSeconds : timeline.totalSeconds;
+}
 
 /** Map a preset's motion timing to the engine's TimingSettings. The end-hold is
  *  a fixed default (it's a render-tail concern, not part of a preset's identity). */

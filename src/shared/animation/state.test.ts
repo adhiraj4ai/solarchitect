@@ -87,6 +87,28 @@ describe('stateAt', () => {
     expect(s.edgeDirection.e1).toBe('reverse');
   });
 
+  it('all-edges: every edge flows continuously and nothing dims', () => {
+    const d = chain();
+    const { order, timeline } = build(d);
+    const s = stateAt(d, order, timeline, 0.4, 'all-edges');
+    // No build-up: all nodes/edges fully lit regardless of order.
+    expect(Object.values(s.nodeOpacity).every((o) => o === 1)).toBe(true);
+    // Every edge has an active token (never null), all in phase.
+    expect(s.dotPositions.e1).not.toBeNull();
+    expect(s.dotPositions.e2).not.toBeNull();
+    expect(s.dotPositions.e1).toBe(s.dotPositions.e2);
+  });
+
+  it('dataflow: by-order wavefront but nothing dims', () => {
+    const d = chain();
+    const { order, timeline } = build(d);
+    // Beat 0: e1 flows, e2 not yet; but opacity stays lit (no build-up).
+    const s = stateAt(d, order, timeline, 0.45, 'dataflow');
+    expect(s.nodeOpacity.c).toBe(1);
+    expect(s.dotPositions.e1).not.toBeNull();
+    expect(s.dotPositions.e2).toBeNull();
+  });
+
   it('lights a cluster with its first member', () => {
     const d: Diagram = {
       nodes: [node('a', { clusterId: 'c1' }), node('b', { clusterId: 'c1' }), node('src')],

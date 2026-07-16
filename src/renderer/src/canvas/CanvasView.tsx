@@ -57,7 +57,7 @@ import type {
   EdgeDirection,
 } from '@shared/ir/types';
 import { resolveOrder } from '@shared/animation/order';
-import { buildTimeline, presetTiming } from '@shared/animation/timeline';
+import { buildTimeline, presetTiming, animationPeriod } from '@shared/animation/timeline';
 import { stateAt } from '@shared/animation/state';
 import type { AnimationPreset } from '@shared/animation/presets';
 import {
@@ -740,13 +740,13 @@ export function CanvasView({
         order = resolveOrder(diagram);
         timeline = buildTimeline(order, presetTiming(preset));
       }
-      const total = Math.max(timeline.totalSeconds, 0.001);
+      const total = Math.max(animationPeriod(preset.style, timeline), 0.001);
       // Advance only while running; scrubbing writes traversalTimeRef directly.
       if (traversalRunningRef.current) {
         traversalTimeRef.current = (traversalTimeRef.current + dt) % total;
         setTraversalTime(traversalTimeRef.current);
       }
-      const s = stateAt(diagram, order, timeline, traversalTimeRef.current);
+      const s = stateAt(diagram, order, timeline, traversalTimeRef.current, preset.style);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
       raf = requestAnimationFrame(frame);
     };
@@ -774,6 +774,9 @@ export function CanvasView({
     () => buildTimeline(resolveOrder(diagram), presetTiming(activePreset)),
     [diagram, activePreset],
   );
+  const previewPeriod = animationPeriod(activePreset.style, previewTimeline);
+  // Beat ticks are meaningless for the continuous all-edges style.
+  const showBeatTicks = activePreset.style !== 'all-edges';
 
   // Architect tldraw components: the defaults plus a context-menu entry that
   // exports the current selection as an animation. It APPENDS to tldraw's
@@ -1319,7 +1322,7 @@ export function CanvasView({
           />
         </svg>
       )}
-      {traversalPlaying && previewTimeline.totalSeconds > 0 && (
+      {traversalPlaying && previewPeriod > 0 && (
         <div className="scrubber" data-testid="traversal-scrubber" role="group" aria-label="Traversal scrubber">
           <button
             className="btn btn--sm btn--icon"
@@ -1338,29 +1341,30 @@ export function CanvasView({
               data-testid="scrubber-range"
               aria-label="Playhead"
               min={0}
-              max={previewTimeline.totalSeconds}
+              max={previewPeriod}
               step={0.01}
-              value={Math.min(traversalTime, previewTimeline.totalSeconds)}
+              value={Math.min(traversalTime, previewPeriod)}
               onChange={(e) => seekTraversal(Number(e.target.value))}
             />
             {/* Beat markers: click to jump to (and hold on) that beat. */}
-            {previewTimeline.beatValues.map((v) => {
-              const start = previewTimeline.beatStart[v];
-              return (
-                <button
-                  key={v}
-                  className="scrubber__tick"
-                  data-testid="scrubber-tick"
-                  aria-label={`Jump to beat at ${start.toFixed(1)} seconds`}
-                  title={`Beat at ${start.toFixed(1)}s`}
-                  style={{ left: `${(start / previewTimeline.totalSeconds) * 100}%` }}
-                  onClick={() => seekTraversal(start)}
-                />
-              );
-            })}
+            {showBeatTicks &&
+              previewTimeline.beatValues.map((v) => {
+                const start = previewTimeline.beatStart[v];
+                return (
+                  <button
+                    key={v}
+                    className="scrubber__tick"
+                    data-testid="scrubber-tick"
+                    aria-label={`Jump to beat at ${start.toFixed(1)} seconds`}
+                    title={`Beat at ${start.toFixed(1)}s`}
+                    style={{ left: `${(start / previewPeriod) * 100}%` }}
+                    onClick={() => seekTraversal(start)}
+                  />
+                );
+              })}
           </div>
           <span className="scrubber__time">
-            {traversalTime.toFixed(1)} / {previewTimeline.totalSeconds.toFixed(1)}s
+            {traversalTime.toFixed(1)} / {previewPeriod.toFixed(1)}s
           </span>
         </div>
       )}
