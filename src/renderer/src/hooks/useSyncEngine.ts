@@ -1,9 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { SyncEngine } from '@shared/sync/syncEngine';
+import { serializeDiagram } from '@shared/yaml/serialize';
 import { emptyDiagram, type Diagram } from '@shared/ir/types';
 import type { ParseError } from '@shared/yaml/parse';
 
 const COMMIT_DEBOUNCE_MS = 300;
+// Cap the undo history so a long editing session can't grow it without bound
+// (each entry is a full Diagram snapshot). Oldest entries fall off the back.
+const MAX_HISTORY = 100;
 
 /**
  * Owns the single SyncEngine plus a session undo/redo history over Diagram
@@ -30,8 +34,11 @@ export function useSyncEngine() {
 
   const commitNow = useCallback((next: Diagram) => {
     clearTimeout(commitTimerRef.current);
-    if (JSON.stringify(next) !== JSON.stringify(baselineRef.current)) {
-      pastRef.current = [...pastRef.current, baselineRef.current];
+    // Compare canonical serialized YAML — order-stable and the app's own notion
+    // of "changed" — rather than relying on JSON.stringify key-order coincidence.
+    if (serializeDiagram(next) !== serializeDiagram(baselineRef.current)) {
+      // Bound the past; drop the oldest entry once at capacity.
+      pastRef.current = [...pastRef.current, baselineRef.current].slice(-MAX_HISTORY);
       baselineRef.current = next;
       futureRef.current = [];
       bumpHistory((v) => v + 1);
