@@ -1,7 +1,14 @@
 # Whiteboard / Diagram Separation — Design
 
-**Status:** Approved for planning
+**Status:** Superseded by [ADR 0001](../../adr/0001-three-document-types-standalone-whiteboard.md) (2026-07-16)
 **Date:** 2026-07-16
+
+> **Superseded.** This spec made the whiteboard a *layer* of a diagram document (with
+> the diagram as a live backdrop) and listed standalone whiteboards as out of scope.
+> The project has since adopted three standalone document types (Diagram, Whiteboard,
+> Markdown) where a whiteboard is a first-class document with an *optional* backdrop
+> reference. See ADR 0001. The migration and clean-YAML reasoning below remain useful
+> background; the layer/surface model does not.
 
 ## Problem Statement
 

@@ -1,54 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isPanelAvailable,
-  panelsForSurface,
-  resolveActivePanel,
-  PANELS,
+  isPanelAvailableForType,
+  panelsForType,
+  resolveActivePanelForType,
 } from './panels';
 
-describe('panel availability', () => {
-  it('offers every panel on the Diagram (architect) surface', () => {
-    for (const p of PANELS) expect(isPanelAvailable(p.id, 'architect')).toBe(true);
+describe('panel availability by document type', () => {
+  it('diagram exposes every panel', () => {
+    const ids = panelsForType('diagram').map((p) => p.id);
+    expect(ids).toContain('shapes');
+    expect(ids).toContain('templates');
+    expect(ids).toContain('outline');
+    expect(ids).toContain('search');
   });
 
-  it('hides Shapes, Templates and Animations on the Whiteboard surface', () => {
-    expect(isPanelAvailable('shapes', 'whiteboard')).toBe(false);
-    expect(isPanelAvailable('templates', 'whiteboard')).toBe(false);
-    expect(isPanelAvailable('animations', 'whiteboard')).toBe(false);
+  it('whiteboard is universal-only (no shapes/templates/outline/search)', () => {
+    expect(isPanelAvailableForType('shapes', 'whiteboard')).toBe(false);
+    expect(isPanelAvailableForType('templates', 'whiteboard')).toBe(false);
+    expect(isPanelAvailableForType('outline', 'whiteboard')).toBe(false);
+    expect(isPanelAvailableForType('search', 'whiteboard')).toBe(false);
+    expect(isPanelAvailableForType('project', 'whiteboard')).toBe(true);
+    expect(isPanelAvailableForType('git', 'whiteboard')).toBe(true);
   });
 
-  it('keeps Project, Search, Outline, Git, Settings, Help on both surfaces', () => {
-    for (const id of ['project', 'search', 'outline', 'git', 'settings', 'help'] as const) {
-      expect(isPanelAvailable(id, 'whiteboard')).toBe(true);
-    }
+  it('markdown adds outline and search but not shapes/templates', () => {
+    expect(isPanelAvailableForType('outline', 'markdown')).toBe(true);
+    expect(isPanelAvailableForType('search', 'markdown')).toBe(true);
+    expect(isPanelAvailableForType('shapes', 'markdown')).toBe(false);
+    expect(isPanelAvailableForType('templates', 'markdown')).toBe(false);
   });
 
-  it('excludes the Diagram-only panels from panelsForSurface on whiteboard', () => {
-    const ids = panelsForSurface('whiteboard').map((p) => p.id);
-    expect(ids).not.toContain('shapes');
-    expect(ids).not.toContain('templates');
-    expect(ids).toContain('project');
-  });
-});
-
-describe('resolveActivePanel', () => {
-  it('honors an available preferred panel', () => {
-    expect(resolveActivePanel('architect', { architect: 'git' })).toBe('git');
-  });
-
-  it('falls back to project when the preferred panel is unavailable on the surface', () => {
-    expect(resolveActivePanel('whiteboard', { whiteboard: 'shapes' })).toBe('project');
-  });
-
-  it('retains the preference for the other surface (no mutation of the map)', () => {
-    const prefs = { architect: 'shapes' as const, whiteboard: 'shapes' as const };
-    expect(resolveActivePanel('whiteboard', prefs)).toBe('project');
-    // architect still remembers shapes, so switching back resolves to it
-    expect(resolveActivePanel('architect', prefs)).toBe('shapes');
-    expect(prefs.whiteboard).toBe('shapes');
-  });
-
-  it('defaults to project when nothing is remembered', () => {
-    expect(resolveActivePanel('architect', {})).toBe('project');
+  it('falls back to project when a remembered panel is unavailable on the type', () => {
+    expect(resolveActivePanelForType('whiteboard', { whiteboard: 'shapes' })).toBe('project');
+    expect(resolveActivePanelForType('markdown', { markdown: 'outline' })).toBe('outline');
   });
 });

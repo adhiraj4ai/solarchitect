@@ -1,6 +1,46 @@
-import type { DiagramFileEntry } from '@shared/project/types';
+import { NewDocumentMenu } from './NewDocumentMenu';
+import { DOCUMENT_TYPES, type DocumentType } from '@shared/project/documentType';
+import type { DocumentEntry } from '@shared/project/types';
 
 const basename = (dir: string) => dir.split(/[/\\]/).filter(Boolean).pop() ?? dir;
+
+/** The document types offered by the "New" menu. */
+const OFFERED_TYPES: DocumentType[] = ['diagram', 'whiteboard', 'markdown'];
+
+const GROUP_LABEL: Record<DocumentType, string> = {
+  diagram: 'Diagrams',
+  whiteboard: 'Whiteboards',
+  markdown: 'Documents',
+};
+
+function TypeIcon({ type }: { type: DocumentType }) {
+  const paths: Record<DocumentType, JSX.Element> = {
+    diagram: (
+      <>
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="8.5" y="14" width="7" height="7" rx="1" />
+      </>
+    ),
+    whiteboard: (
+      <>
+        <path d="M4 5h16v11H4z" />
+        <path d="M8 9l2.5 2.5L16 6" />
+      </>
+    ),
+    markdown: (
+      <>
+        <path d="M4 5h16v14H4z" />
+        <path d="M7 15V9l2.5 2.5L12 9v6" />
+      </>
+    ),
+  };
+  return (
+    <svg className="doc-item__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[type]}
+    </svg>
+  );
+}
 
 export function ProjectSidebar({
   projectDir,
@@ -9,20 +49,22 @@ export function ProjectSidebar({
   canSave,
   onOpenProject,
   onNewProject,
-  onNewDiagram,
-  onOpenDiagram,
+  onNewDocument,
+  onOpenDocument,
   onSave,
 }: {
   projectDir: string | null;
-  entries: DiagramFileEntry[];
+  entries: DocumentEntry[];
   currentFile: string | null;
   canSave: boolean;
   onOpenProject: () => void;
   onNewProject: () => void;
-  onNewDiagram: () => void;
-  onOpenDiagram: (fileName: string) => void;
+  onNewDocument: (type: DocumentType) => void;
+  onOpenDocument: (fileName: string) => void;
   onSave: () => void;
 }) {
+  // Groups appear in the canonical type order, so a type created outside the app
+  // (e.g. a markdown file) is still listed rather than hidden.
   return (
     <>
       <div className="sidebar__head">
@@ -39,9 +81,7 @@ export function ProjectSidebar({
           </button>
         </div>
         <div className="sidebar__actions">
-          <button data-testid="new-diagram-btn" onClick={onNewDiagram} disabled={!projectDir} className="btn btn--sm">
-            New diagram
-          </button>
+          <NewDocumentMenu disabled={!projectDir} types={OFFERED_TYPES} onNew={onNewDocument} />
           <button
             data-testid="save-btn"
             onClick={onSave}
@@ -53,24 +93,41 @@ export function ProjectSidebar({
           </button>
         </div>
       </div>
-      <div className="list" data-testid="diagram-list">
+      <div className="list" data-testid="document-list">
         {entries.length === 0 && projectDir && (
-          <div className="list__empty">No diagrams yet — “New diagram” creates one.</div>
+          <div className="list__empty" data-testid="project-empty">
+            No documents yet — use “New” to create one.
+          </div>
         )}
-        {entries.map((e) => (
-          <button
-            key={e.fileName}
-            onClick={() => e.status === 'ok' && onOpenDiagram(e.fileName)}
-            disabled={e.status === 'error'}
-            title={e.errorMessage}
-            className={`diagram-item${e.fileName === currentFile ? ' active' : ''}${
-              e.status === 'error' ? ' error' : ''
-            }`}
-          >
-            {e.status === 'error' && <span className="warn" aria-hidden="true">⚠</span>}
-            {e.fileName}
-          </button>
-        ))}
+        {DOCUMENT_TYPES.map((type) => {
+          const group = entries.filter((e) => e.type === type);
+          if (group.length === 0) return null;
+          return (
+            <div key={type} className="list__group" data-testid={`group-${type}`}>
+              <div className="list__grouphead">{GROUP_LABEL[type]}</div>
+              {group.map((e) => (
+                <button
+                  key={e.fileName}
+                  onClick={() => e.status === 'ok' && onOpenDocument(e.fileName)}
+                  disabled={e.status === 'error'}
+                  title={e.errorMessage}
+                  className={`doc-item${e.fileName === currentFile ? ' active' : ''}${
+                    e.status === 'error' ? ' error' : ''
+                  }`}
+                >
+                  {e.status === 'error' ? (
+                    <span className="warn" aria-hidden="true">
+                      ⚠
+                    </span>
+                  ) : (
+                    <TypeIcon type={type} />
+                  )}
+                  {e.fileName}
+                </button>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </>
   );

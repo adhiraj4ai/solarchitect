@@ -1,13 +1,55 @@
 import { buildOutline } from '@shared/outline/outline';
+import { markdownHeadings } from '@shared/markdown/markdownOutline';
 import type { Diagram } from '@shared/ir/types';
+import type { DocumentType } from '@shared/project/documentType';
 
 /**
- * A tree view of the current diagram's structure, derived from the IR. Clicking
- * any entry reveals (selects + centers) the corresponding shape on the canvas.
- * Reflects the diagram on both surfaces, since the diagram is the whiteboard's
- * backdrop.
+ * A tree view of the current document's structure. For a diagram it lists the IR
+ * (clusters/nodes/edges/frames) and clicking an entry reveals it on the canvas;
+ * for a markdown document it lists the headings and clicking one scrolls the
+ * preview.
  */
-export function OutlinePanel({ diagram, onReveal }: { diagram: Diagram; onReveal: (id: string) => void }) {
+export function OutlinePanel({
+  diagram,
+  onReveal,
+  documentType,
+  markdownText,
+}: {
+  diagram: Diagram;
+  onReveal: (id: string) => void;
+  documentType: DocumentType | null;
+  markdownText: string;
+}) {
+  if (documentType === 'markdown') {
+    const headings = markdownHeadings(markdownText);
+    return (
+      <div className="panel">
+        <div className="panel__head">
+          <span className="eyebrow">Outline</span>
+        </div>
+        {headings.length === 0 ? (
+          <div className="list__empty">No headings yet — add a heading to see the outline.</div>
+        ) : (
+          <div className="outline" data-testid="outline">
+            {headings.map((h) => (
+              <button
+                key={h.id}
+                className={`outline__row outline__row--h${h.level}`}
+                data-testid={`outline-h-${h.id}`}
+                onClick={() => onReveal(h.id)}
+                title={h.text}
+                style={{ paddingLeft: `${8 + (h.level - 1) * 12}px` }}
+              >
+                <span className="outline__glyph" aria-hidden="true">#</span>
+                <span className="outline__label">{h.text}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const outline = buildOutline(diagram);
 
   return (

@@ -384,7 +384,7 @@ button { font-family: inherit; }
 .list { overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .list__empty { padding: 10px 14px; font-size: 12px; color: var(--faint); }
 
-.diagram-item {
+.doc-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -400,10 +400,10 @@ button { font-family: inherit; }
   cursor: pointer;
   transition: background 0.12s;
 }
-.diagram-item:hover:not(:disabled) { background: var(--panel); }
-.diagram-item.active { background: var(--panel); border-left-color: var(--blueprint); color: var(--blueprint-ink); }
-.diagram-item.error { color: var(--danger-ink); cursor: not-allowed; }
-.diagram-item .warn { color: var(--danger); }
+.doc-item:hover:not(:disabled) { background: var(--panel); }
+.doc-item.active { background: var(--panel); border-left-color: var(--blueprint); color: var(--blueprint-ink); }
+.doc-item.error { color: var(--danger-ink); cursor: not-allowed; }
+.doc-item .warn { color: var(--danger); }
 
 /* templates */
 .templates { border-top: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; flex: 0 0 auto; }
@@ -493,7 +493,63 @@ button { font-family: inherit; }
 /* tldraw paints its own background; make it transparent so the backdrop shows
    through beneath the freeform shapes (only on the whiteboard surface). */
 .whiteboard .tl-background { background-color: transparent !important; }
-.wb-backdrop-toggle { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500; }
+/* whiteboard controls: backdrop picker + show/hide toggle, top-centre */
+.wb-controls { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500; display: flex; gap: 8px; }
+
+/* document editor empty / placeholder states */
+.stage__empty {
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: center; justify-content: center; height: 100%;
+  text-align: center; color: var(--ink);
+}
+.stage__empty .muted { color: var(--faint); }
+
+/* activity-bar document-type badge (read-only) */
+.actbar__typebadge { color: var(--faint); padding: 2px 0; }
+
+/* "New ▾" menu */
+.newmenu { position: relative; }
+.newmenu__list {
+  position: absolute; z-index: 600; margin-top: 4px; min-width: 160px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(16, 23, 34, 0.14); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.newmenu__item { text-align: left; padding: 8px 12px; background: none; border: 0; cursor: pointer; color: var(--ink); font: inherit; }
+.newmenu__item:hover { background: var(--panel-2); }
+
+/* markdown document editor: source textarea + rendered preview */
+.markdown { display: flex; height: 100%; overflow: hidden; background: var(--panel); }
+.markdown__source, .markdown__preview { flex: 1 1 50%; height: 100%; overflow: auto; }
+.markdown--visual .markdown__source { display: none; }
+.markdown--code .markdown__preview { display: none; }
+.markdown--visual .markdown__preview, .markdown--code .markdown__source { flex-basis: 100%; }
+.markdown__preview { border-left: 1px solid var(--line); }
+.markdown--visual .markdown__preview, .markdown--code .markdown__source { border-left: 0; }
+.markdown__source {
+  border: 0; resize: none; padding: 16px 18px;
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; line-height: 1.6;
+  background: var(--panel); color: var(--ink); outline: none;
+}
+.markdown__preview { padding: 16px 24px; line-height: 1.65; color: var(--ink); }
+.markdown__preview h1, .markdown__preview h2, .markdown__preview h3 { line-height: 1.25; margin: 0.8em 0 0.4em; }
+.markdown__preview h1 { font-size: 1.6em; }
+.markdown__preview h2 { font-size: 1.35em; }
+.markdown__preview h3 { font-size: 1.15em; }
+.markdown__preview p { margin: 0.5em 0; }
+.markdown__preview code { font-family: var(--font-mono, ui-monospace, monospace); background: var(--panel-2); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
+.markdown__preview pre { background: var(--panel-2); padding: 12px 14px; border-radius: 6px; overflow-x: auto; }
+.markdown__preview pre code { background: none; padding: 0; }
+.markdown__preview a { color: var(--blueprint-ink, #2563eb); }
+.markdown__preview ul, .markdown__preview ol { padding-left: 1.4em; margin: 0.5em 0; }
+
+/* type-grouped document list */
+.list__group { margin-bottom: 8px; }
+.list__grouphead {
+  padding: 6px 14px 2px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--faint);
+}
+.doc-item__icon { flex: none; margin-right: 6px; vertical-align: middle; }
 /* Hide the tldraw watermark on both surfaces. Note: removing it for a
    distributed/commercial product requires a tldraw business license — this is a
    local, self-hosted tool. */

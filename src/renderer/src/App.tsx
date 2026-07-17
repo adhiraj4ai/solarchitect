@@ -3,6 +3,7 @@ import { CanvasView } from './canvas/CanvasView';
 import { WhiteboardView } from './canvas/WhiteboardView';
 import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
+import { MarkdownView } from './editor/MarkdownView';
 import { ProjectSidebar } from './project/ProjectSidebar';
 import { GitPanel } from './project/GitPanel';
 import { TemplatesPanel } from './project/TemplatesPanel';
@@ -28,7 +29,6 @@ import { useTemplates } from './hooks/useTemplates';
 import { useGit } from './hooks/useGit';
 import { useWorkspaceLayout } from './hooks/useWorkspaceLayout';
 import { useSettings } from './hooks/useSettings';
-import type { Mode } from './canvas/CanvasView';
 import type { PanelId } from '@shared/shell/panels';
 import type { Diagram } from '@shared/ir/types';
 
@@ -50,56 +50,23 @@ export default function App() {
   const git = useGit(project.projectDir, project.setIoError);
   const { settings, update: updateSettings } = useSettings(project.setIoError);
 
-  // Animation preset library (built-ins ++ the user's custom presets) and the
-  // active preset that Play / scrub / export run. Persisted via app settings.
-  const presets = allPresets(settings.customPresets);
-  const activePreset = resolvePreset(settings.customPresets, settings.activePresetId);
-  const selectActivePreset = useCallback((id: string) => void updateSettings({ activePresetId: id }), [updateSettings]);
-  const createPreset = useCallback(() => {
-    const base = BUILTIN_PRESETS.find((p) => p.id === DEFAULT_ACTIVE_PRESET_ID)!;
-    const p: AnimationPreset = { ...base, id: crypto.randomUUID(), name: 'New preset' };
-    void updateSettings({ customPresets: [...settings.customPresets, p], activePresetId: p.id });
-  }, [settings.customPresets, updateSettings]);
-  const duplicatePreset = useCallback(
-    (id: string) => {
-      const src = presets.find((p) => p.id === id);
-      if (!src) return;
-      const copy: AnimationPreset = { ...src, id: crypto.randomUUID(), name: `${src.name} copy` };
-      void updateSettings({ customPresets: [...settings.customPresets, copy], activePresetId: copy.id });
-    },
-    [presets, settings.customPresets, updateSettings],
-  );
-  const updatePreset = useCallback(
-    (preset: AnimationPreset) => {
-      if (isBuiltinPreset(preset.id)) return; // built-ins are read-only
-      void updateSettings({
-        customPresets: settings.customPresets.map((p) => (p.id === preset.id ? preset : p)),
-      });
-    },
-    [settings.customPresets, updateSettings],
-  );
-  const deletePreset = useCallback(
-    (id: string) => {
-      void updateSettings({
-        customPresets: settings.customPresets.filter((p) => p.id !== id),
-        ...(settings.activePresetId === id ? { activePresetId: DEFAULT_ACTIVE_PRESET_ID } : {}),
-      });
-    },
-    [settings.customPresets, settings.activePresetId, updateSettings],
-  );
+  // The open document's type fixes which editor is shown — there is no surface
+  // toggle. With no document open we fall back to 'diagram' so the shell (panels,
+  // layout) has a sensible default.
+  const docType = project.currentType ?? 'diagram';
+  const isDiagram = docType === 'diagram';
+  const layout = useWorkspaceLayout(docType);
 
-  // The document surface (Diagram = architect, Whiteboard = whiteboard) doubles
-  // as the canvas-interaction mode. The activity bar switches it. The Whiteboard
-  // is a separate freeform surface (WhiteboardView) that never shares the canvas.
-  const [surface, setSurface] = useState<Mode>('architect');
-  const layout = useWorkspaceLayout(surface);
-
-  // Visual / Split / Code applies only to the Diagram surface. A whiteboard has
-  // no meaningful YAML, so it always shows the canvas alone.
+  // Visual / Split / Code applies only to the Diagram surface. Whiteboard and
+  // markdown are single-pane and have no YAML source.
   const [view, setView] = useState<View>('split');
-  const effectiveView: View = surface === 'whiteboard' ? 'visual' : view;
-  const showCanvas = effectiveView !== 'code';
-  const showSource = effectiveView === 'split';
+  const bodyView: View = isDiagram ? view : 'visual';
+  const showCanvas = isDiagram && view !== 'code';
+  const showSource = isDiagram && view === 'split';
+
+  // Mirror the open markdown document's text so the Outline and Search panels can
+  // index its headings. MarkdownView owns the source of truth and reports changes.
+  const [markdownText, setMarkdownText] = useState('');
 
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
@@ -120,17 +87,18 @@ export default function App() {
   const revealNonce = useRef(0);
   const reveal = useCallback(
     (id: string) => {
-      // Reveal happens on the canvas; make sure it's visible.
-      if (surface === 'architect' && view === 'code') setView('split');
+      // Reveal targets the canvas (diagram) or the preview (markdown); make sure
+      // a rendered surface is visible to reveal into.
+      if (view === 'code') setView('split');
       revealNonce.current += 1;
       setRevealTarget({ id, nonce: revealNonce.current });
     },
-    [surface, view],
+    [view],
   );
 
-  const openDiagramFromSearch = useCallback(
+  const openDocumentFromSearch = useCallback(
     (fileName: string) => {
-      void project.openDiagram(fileName);
+      void project.openDocument(fileName);
     },
     [project],
   );
@@ -144,14 +112,15 @@ export default function App() {
   }
 
   // Autosave the open diagram after edits, when enabled and the YAML is valid.
+  // Whiteboard and markdown documents own their own autosave.
   useEffect(() => {
-    if (!settings.autosave || !project.currentFile || yamlError) return;
+    if (!settings.autosave || !project.currentFile || !isDiagram || yamlError) return;
     const t = setTimeout(() => {
-      void project.saveDiagram(yamlText).then(() => git.refresh());
+      void project.saveDocument(yamlText).then(() => git.refresh());
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.autosave, yamlText, project.currentFile, yamlError]);
+  }, [settings.autosave, yamlText, project.currentFile, isDiagram, yamlError]);
 
   // Presentation keyboard controls: Esc exits, arrows step through frames.
   useEffect(() => {
@@ -223,13 +192,13 @@ export default function App() {
             projectDir={project.projectDir}
             entries={project.entries}
             currentFile={project.currentFile}
-            canSave={!!project.currentFile && !yamlError}
+            canSave={!!project.currentFile && isDiagram && !yamlError}
             onOpenProject={project.openProject}
             onNewProject={project.newProject}
-            onNewDiagram={project.newDiagram}
-            onOpenDiagram={project.openDiagram}
+            onNewDocument={project.newDocument}
+            onOpenDocument={project.openDocument}
             onSave={async () => {
-              await project.saveDiagram(yamlText);
+              await project.saveDocument(yamlText);
               void git.refresh(); // reflect the new working-tree state in the status bar
             }}
           />
@@ -240,12 +209,21 @@ export default function App() {
             fileNames={project.entries.map((e) => e.fileName)}
             diagram={diagram}
             hasProject={!!project.projectDir}
-            onOpenDiagram={openDiagramFromSearch}
+            documentType={project.currentType}
+            markdownText={markdownText}
+            onOpenDiagram={openDocumentFromSearch}
             onReveal={reveal}
           />
         );
       case 'outline':
-        return <OutlinePanel diagram={diagram} onReveal={reveal} />;
+        return (
+          <OutlinePanel
+            diagram={diagram}
+            onReveal={reveal}
+            documentType={project.currentType}
+            markdownText={markdownText}
+          />
+        );
       case 'shapes':
         return <ShapeLibrary defaultProvider={settings.defaultProvider} />;
       case 'templates':
@@ -328,14 +306,18 @@ export default function App() {
           ) : (
             <span className="muted">untitled — not in a project</span>
           )}
-          {yamlError ? <span className="state error">YAML error</span> : <span className="state ok">canvas ⇄ source</span>}
+          {isDiagram &&
+            (yamlError ? (
+              <span className="state error">YAML error</span>
+            ) : (
+              <span className="state ok">canvas ⇄ source</span>
+            ))}
         </span>
       </header>
 
-      <div className={`app__body app__body--${effectiveView}`}>
+      <div className={`app__body app__body--${bodyView}`}>
         <ActivityBar
-          surface={surface}
-          onSurfaceChange={setSurface}
+          documentType={project.currentType}
           activePanel={layout.activePanel}
           collapsed={layout.collapsed}
           onSelectPanel={layout.selectPanel}
@@ -348,23 +330,37 @@ export default function App() {
         )}
 
         <main className="stage">
-          {surface === 'whiteboard' ? (
+          {project.projectDir && !project.currentFile ? (
+            <div className="stage__empty" data-testid="no-document">
+              <p>No document open.</p>
+              <p className="muted">
+                Use <strong>New</strong> in the Project panel to create a diagram, whiteboard, or markdown document.
+              </p>
+            </div>
+          ) : docType === 'whiteboard' ? (
             <WhiteboardView
-              key={project.currentFile ?? 'untitled'}
+              key={project.currentFile}
               projectDir={project.projectDir}
               fileName={project.currentFile}
-              diagram={diagram}
+              entries={project.entries}
               onError={project.setIoError}
+            />
+          ) : docType === 'markdown' ? (
+            <MarkdownView
+              key={project.currentFile}
+              projectDir={project.projectDir}
+              fileName={project.currentFile}
+              view={view}
+              revealTarget={revealTarget}
+              onError={project.setIoError}
+              onGitRefresh={git.refresh}
+              onTextChange={setMarkdownText}
             />
           ) : showCanvas ? (
             <CanvasView
               diagram={diagram}
               templates={templates.templates}
-              mode="architect"
-              showSteps={showSteps}
-              traversalPlaying={traversalPlaying}
-              activePreset={activePreset}
-              presets={presets}
+              animate={animate}
               presenting={presenting}
               presentIndex={presentIndex}
               grid={settings.grid}
@@ -395,7 +391,7 @@ export default function App() {
       </div>
 
       <footer className="app__foot">
-        {surface === 'architect' && (
+        {isDiagram && (
           <div className="segmented" role="tablist" aria-label="View">
             {(
               [
@@ -408,6 +404,29 @@ export default function App() {
                 key={v}
                 role="tab"
                 data-testid={`view-${v}`}
+                aria-selected={view === v}
+                className={`segmented__btn${view === v ? ' on' : ''}`}
+                onClick={() => setView(v)}
+                title={`${label} view`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {docType === 'markdown' && (
+          <div className="segmented" role="tablist" aria-label="Markdown view">
+            {(
+              [
+                ['visual', 'Preview'],
+                ['split', 'Split'],
+                ['code', 'Source'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                role="tab"
+                data-testid={`md-view-${v}`}
                 aria-selected={view === v}
                 className={`segmented__btn${view === v ? ' on' : ''}`}
                 onClick={() => setView(v)}

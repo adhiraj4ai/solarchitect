@@ -6,15 +6,11 @@ import type { SolarchitectApi } from '../shared/project/types';
 // it can't drift from the renderer's window augmentation.
 const api: SolarchitectApi = {
   openFolder: () => ipcRenderer.invoke('project:openFolder'),
-  listDiagrams: (projectDir) => ipcRenderer.invoke('project:listDiagrams', projectDir),
-  readDiagram: (projectDir, fileName) => ipcRenderer.invoke('project:readDiagram', projectDir, fileName),
-  writeDiagram: (projectDir, fileName, yamlText) =>
-    ipcRenderer.invoke('project:writeDiagram', projectDir, fileName, yamlText),
-  createDiagram: (projectDir, displayName) => ipcRenderer.invoke('project:createDiagram', projectDir, displayName),
-  readWhiteboard: (projectDir, diagramFileName) =>
-    ipcRenderer.invoke('project:readWhiteboard', projectDir, diagramFileName),
-  writeWhiteboard: (projectDir, diagramFileName, snapshot) =>
-    ipcRenderer.invoke('project:writeWhiteboard', projectDir, diagramFileName, snapshot),
+  listDocuments: (projectDir) => ipcRenderer.invoke('project:listDocuments', projectDir),
+  readDocument: (projectDir, fileName) => ipcRenderer.invoke('project:readDocument', projectDir, fileName),
+  writeDocument: (projectDir, fileName, text) =>
+    ipcRenderer.invoke('project:writeDocument', projectDir, fileName, text),
+  createDocument: (projectDir, type) => ipcRenderer.invoke('project:createDocument', projectDir, type),
   readTemplates: (projectDir) => ipcRenderer.invoke('project:readTemplates', projectDir),
   writeTemplates: (projectDir, yamlText) => ipcRenderer.invoke('project:writeTemplates', projectDir, yamlText),
   exportImage: (base64Data, suggestedName) => ipcRenderer.invoke('project:exportImage', base64Data, suggestedName),

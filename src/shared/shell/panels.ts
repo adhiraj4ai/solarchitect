@@ -1,15 +1,10 @@
 /**
- * The activity-bar panel model, shared by the renderer shell. Kept
- * framework-free so the surface-contextual rules (which panels exist on which
- * document surface, and which one is active) are pure and unit-testable rather
- * than tangled into React state.
+ * The activity-bar panel model, shared by the renderer shell. Kept framework-free
+ * so the rules for which panels exist on which document type, and which one is
+ * active, are pure and unit-testable rather than tangled into React state.
  */
 
-/** A document surface. Mirrors the canvas interaction Mode: the Diagram surface
- *  is 'architect' (structured shapes), the Whiteboard surface is 'whiteboard'
- *  (freeform). A whiteboard has no structured shapes or instantiable diagram
- *  templates, and no YAML. */
-export type Surface = 'architect' | 'whiteboard';
+import type { DocumentType } from '../project/documentType';
 
 export type PanelId =
   | 'project'
@@ -48,32 +43,34 @@ export const PANELS: PanelMeta[] = [
 /** The panel the sidebar falls back to when a preferred panel is unavailable. */
 export const DEFAULT_PANEL: PanelId = 'project';
 
-/** Panels that only make sense on the Diagram (architect) surface: dragging
- *  cloud/on-prem shapes and instantiating diagram templates have no meaning on
- *  a freeform whiteboard. */
-const DIAGRAM_ONLY: ReadonlySet<PanelId> = new Set<PanelId>(['shapes', 'templates', 'animations']);
+/** Panels that only make sense on the structured Diagram document: dragging
+ *  cloud/on-prem shapes and instantiating diagram templates have no meaning on a
+ *  freeform whiteboard or a markdown document. */
+const DIAGRAM_ONLY: ReadonlySet<PanelId> = new Set<PanelId>(['shapes', 'templates']);
+/** Panels tied to document structure — diagram nodes or markdown headings. */
+const STRUCTURE_PANELS: ReadonlySet<PanelId> = new Set<PanelId>(['outline', 'search']);
 
-export function isPanelAvailable(panel: PanelId, surface: Surface): boolean {
-  if (surface === 'architect') return true;
-  return !DIAGRAM_ONLY.has(panel);
+export function isPanelAvailableForType(panel: PanelId, type: DocumentType): boolean {
+  if (DIAGRAM_ONLY.has(panel)) return type === 'diagram';
+  if (STRUCTURE_PANELS.has(panel)) return type === 'diagram' || type === 'markdown';
+  return true; // project, git, settings, help — universal
 }
 
-/** The panels available on a surface, in activity-bar order. */
-export function panelsForSurface(surface: Surface): PanelMeta[] {
-  return PANELS.filter((p) => isPanelAvailable(p.id, surface));
+/** The panels available on a document type, in activity-bar order. */
+export function panelsForType(type: DocumentType): PanelMeta[] {
+  return PANELS.filter((p) => isPanelAvailableForType(p.id, type));
 }
 
 /**
- * Decide which panel is active for the current surface. Honors the panel the
- * user preferred on that surface; if that panel is unavailable there (e.g.
- * Shapes on the Whiteboard) it falls back to the default. The preference map is
- * never mutated here — the caller keeps the remembered choice so returning to
- * the other surface restores it.
+ * Decide which panel is active for the current document type. Honors the panel
+ * the user preferred on that type; if it is unavailable there (e.g. Shapes on a
+ * Whiteboard) it falls back to the default. The preference map is never mutated
+ * here — the caller keeps the remembered choice so returning to a type restores it.
  */
-export function resolveActivePanel(
-  surface: Surface,
-  preferredBySurface: Partial<Record<Surface, PanelId>>,
+export function resolveActivePanelForType(
+  type: DocumentType,
+  preferredByType: Partial<Record<DocumentType, PanelId>>,
 ): PanelId {
-  const preferred = preferredBySurface[surface] ?? DEFAULT_PANEL;
-  return isPanelAvailable(preferred, surface) ? preferred : DEFAULT_PANEL;
+  const preferred = preferredByType[type] ?? DEFAULT_PANEL;
+  return isPanelAvailableForType(preferred, type) ? preferred : DEFAULT_PANEL;
 }

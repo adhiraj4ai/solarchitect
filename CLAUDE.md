@@ -39,10 +39,20 @@ directly** — both project from one in-memory IR through the Sync Engine.
 1. **`src/shared/`** — the pure, framework-free core (no Electron, no React, no DOM).
    This is the primary test seam. Aliased as `@shared` in the renderer and
    electron-vite; imported by relative path from `src/main`.
-   - `ir/types.ts` — the `Diagram` IR: `nodes / edges / clusters / frames`
-     (+ legacy `annotations`, being removed — see below). Node/cluster positions
-     are first-class `x/y` fields. **Cluster membership lives on the node**
-     (`node.clusterId`), never as a member list on the cluster — single source of truth.
+   - `ir/types.ts` — the `Diagram` IR: `nodes / edges / clusters / frames`. Node/
+     cluster positions are first-class `x/y` fields. **Cluster membership lives on
+     the node** (`node.clusterId`), never as a member list on the cluster — single
+     source of truth. (`DiagramAnnotation` remains only as the legacy type carried
+     by an old whiteboard sidecar seed; it is not part of the `Diagram`.)
+   - `project/documentType.ts` — the extension-based classifier that is the single
+     source of truth for a file's **document type**: `.yaml` = Diagram,
+     `.whiteboard.json` = Whiteboard, `.md` = Markdown (`templates.yaml` and unknown
+     files are not documents). See [ADR 0001](docs/adr/0001-three-document-types-standalone-whiteboard.md).
+   - `whiteboard/whiteboardFile.ts` — the wrapped whiteboard file format (tldraw
+     snapshot + optional `backdropDiagram` reference), which also absorbs the two
+     legacy on-disk shapes (bare snapshot, `pendingAnnotations` seed).
+   - `markdown/markdownOutline.ts` — pure heading extraction + slugging, shared by
+     the Outline/Search panels and the markdown preview's anchor ids.
    - `ir/taxonomy.ts` — `NODE_TAXONOMY`, the curated node-type vocabulary
      (`aws.compute.EC2`, etc). `node.type` must satisfy `isValidNodeType()`. Adding a
      service = one row here plus a glyph in `renderer/src/canvas/icons.tsx`.
@@ -56,10 +66,15 @@ directly** — both project from one in-memory IR through the Sync Engine.
 
 2. **`src/main/`** — Electron main (Node). Owns **all** filesystem + dialogs; the
    renderer never touches disk.
-   - `projectManager.ts` — a project is a folder of `.yaml` diagram files plus one
-     `templates.yaml`. `resolveInProject()` is the path-traversal trust boundary for
-     every fileName arriving over IPC — keep new file ops behind it. A diagram's
-     freeform sketch is a sidecar `name.whiteboard.json` next to `name.yaml`.
+   - `projectManager.ts` — a project is a folder of **typed documents** (`.yaml`
+     diagrams, `.whiteboard.json` whiteboards, `.md` markdown) plus one
+     `templates.yaml`. Generic, type-agnostic file ops (`listDocuments` — tagged
+     with type, only diagrams validated; `readDocument` / `writeDocument`;
+     `createDocument(type)` — auto-names `untitled.<ext>`). The store is
+     format-agnostic (raw text I/O); a whiteboard document's bytes are the wrapped
+     `whiteboardFile` format (see `src/shared/whiteboard/`), markdown is plain text.
+     `resolveInProject()` is the path-traversal trust boundary for every fileName
+     arriving over IPC — keep new file ops behind it.
    - `gitService.ts` — shells out to `git`; `exportService.ts` — writes PNG/SVG bytes
      from the renderer to disk. `ipcHandlers.ts` registers every `project:*` channel.
    - `index.ts` — serves the packaged renderer over a **loopback HTTP server**
@@ -101,12 +116,24 @@ that crosses the boundary = add the method there first, then implement in preloa
 - Positions are explicit in YAML; auto-layout (`ir/layout.ts`) only seeds coordinates
   for brand-new nodes and never repositions existing ones.
 
-## In-flight direction
+## Document model
 
-`docs/superpowers/specs/2026-07-16-whiteboard-diagram-separation-design.md` (approved for
-planning) splits each document into two surfaces that never share a canvas: a structured
-**Diagram** surface and a freeform **Whiteboard** surface (with the diagram as a
-read-only backdrop). This **removes `annotations` from the IR** and migrates existing
-annotations into the whiteboard sidecar. Today's code still has the single-canvas
-architect/whiteboard `mode` and `annotations` in the IR — treat that as legacy when
-touching annotation, mode, or whiteboard code.
+A project is a folder of **typed documents**; a document's type is fixed at
+creation and detected by extension, and that type — not a toggle — decides which
+editor opens (see [ADR 0001](docs/adr/0001-three-document-types-standalone-whiteboard.md)
+and `CONTEXT.md`):
+
+- **Diagram** (`.yaml`) — the structured `CanvasView` + YAML (Visual/Split/Code),
+  projected from the IR through the Sync Engine.
+- **Whiteboard** (`.whiteboard.json`) — a standalone freeform tldraw document. Its
+  file wraps the sketch snapshot plus an optional `backdropDiagram` reference; when
+  set, that diagram is read at open and rendered read-only beneath the sketch
+  (one document open at a time — no live sync). A dangling reference degrades to no
+  backdrop, never an error.
+- **Markdown** (`.md`) — a prose document with a Preview/Split/Source editor
+  (`MarkdownView`, rendered locally via `marked` under the strict CSP).
+
+There is **no** per-document surface toggle. The "New" menu creates a document of a
+chosen type; a new project starts empty. `DiagramAnnotation` and `annotationToShape`
+survive only to materialize a legacy whiteboard sidecar's `pendingAnnotations` seed;
+there is no diagram-embedded annotation migration anymore.

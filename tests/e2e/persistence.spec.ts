@@ -46,7 +46,7 @@ test.afterAll(async () => {
 
 const editor = () => win.locator('textarea[aria-label="Diagram YAML"]');
 const canvas = () => win.locator('[data-testid="canvas-drop"]');
-const list = () => win.locator('[data-testid="diagram-list"]');
+const list = () => win.locator('[data-testid="document-list"]');
 
 test('opening a project lists its diagrams and marks a corrupt one as errored', async () => {
   await win.locator('[data-testid="open-project-btn"]').click();
@@ -76,7 +76,8 @@ test('saving writes the current diagram back to a plain YAML file on disk', asyn
 });
 
 test('a newly created diagram is added to the project and persisted', async () => {
-  await win.locator('[data-testid="new-diagram-btn"]').click();
+  await win.locator('[data-testid="new-document-btn"]').click();
+  await win.locator('[data-testid="new-diagram"]').click();
   // A new untitled file appears and becomes current.
   await expect(list().getByText('untitled.yaml')).toBeVisible();
   const file = await readFile(join(projectDir, 'untitled.yaml'), 'utf-8');

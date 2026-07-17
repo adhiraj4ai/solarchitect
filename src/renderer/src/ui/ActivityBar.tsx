@@ -1,14 +1,15 @@
-import { panelsForSurface, type PanelId, type Surface } from '@shared/shell/panels';
+import { panelsForType, type PanelId } from '@shared/shell/panels';
+import { DOCUMENT_TYPE_LABEL, type DocumentType } from '@shared/project/documentType';
 
 /**
- * The far-left icon strip. Three groups: a surface selector (Diagram /
- * Whiteboard) at the top, the panel icons in the middle (only those available
- * on the current surface), and utility icons (Settings, Help) anchored to the
- * bottom. Selecting a panel is delegated up; selecting the active one collapses
- * the sidebar (handled by the layout hook).
+ * The far-left icon strip. A read-only badge for the open document's type sits at
+ * the top, then the panel icons available on that type in the middle, and utility
+ * icons (Settings, Help) anchored to the bottom. The document's type fixes the
+ * editor, so there is no surface switching here. Selecting a panel is delegated
+ * up; selecting the active one collapses the sidebar (handled by the layout hook).
  */
 
-function Icon({ name }: { name: PanelId | Surface }) {
+function Icon({ name }: { name: PanelId | DocumentType }) {
   const p = ICONS[name];
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -17,8 +18,8 @@ function Icon({ name }: { name: PanelId | Surface }) {
   );
 }
 
-const ICONS: Record<PanelId | Surface, JSX.Element> = {
-  architect: (
+const ICONS: Record<PanelId | DocumentType, JSX.Element> = {
+  diagram: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -31,6 +32,12 @@ const ICONS: Record<PanelId | Surface, JSX.Element> = {
       <path d="M4 5h16v11H4z" />
       <path d="M9 20l3-4 3 4" />
       <path d="M8 9l2.5 2.5L16 6" />
+    </>
+  ),
+  markdown: (
+    <>
+      <path d="M4 5h16v14H4z" />
+      <path d="M7 15V9l2.5 2.5L12 9v6M15.5 9v4.5M15.5 13.5L14 12M15.5 13.5L17 12" />
     </>
   ),
   project: (
@@ -94,22 +101,19 @@ const ICONS: Record<PanelId | Surface, JSX.Element> = {
   ),
 };
 
-const SURFACE_LABEL: Record<Surface, string> = { architect: 'Diagram', whiteboard: 'Whiteboard' };
-
 export function ActivityBar({
-  surface,
-  onSurfaceChange,
+  documentType,
   activePanel,
   collapsed,
   onSelectPanel,
 }: {
-  surface: Surface;
-  onSurfaceChange: (s: Surface) => void;
+  documentType: DocumentType | null;
   activePanel: PanelId;
   collapsed: boolean;
   onSelectPanel: (p: PanelId) => void;
 }) {
-  const panels = panelsForSurface(surface);
+  // With no document open, fall back to the diagram panel set so the bar isn't empty.
+  const panels = panelsForType(documentType ?? 'diagram');
   const primary = panels.filter((p) => p.group === 'primary');
   const utility = panels.filter((p) => p.group === 'utility');
 
@@ -134,23 +138,20 @@ export function ActivityBar({
 
   return (
     <nav className="actbar" role="tablist" aria-label="Activity bar" aria-orientation="vertical">
-      <div className="actbar__group actbar__surface" role="group" aria-label="Surface">
-        {(['architect', 'whiteboard'] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            data-testid={`surface-${s}`}
-            aria-pressed={surface === s}
-            className={`actbar__btn${surface === s ? ' on' : ''}`}
-            title={SURFACE_LABEL[s]}
-            aria-label={SURFACE_LABEL[s]}
-            onClick={() => onSurfaceChange(s)}
+      {documentType && (
+        <>
+          <div
+            className="actbar__group actbar__typebadge"
+            role="img"
+            aria-label={`${DOCUMENT_TYPE_LABEL[documentType]} document`}
+            title={`${DOCUMENT_TYPE_LABEL[documentType]} document`}
+            data-testid={`doctype-${documentType}`}
           >
-            <Icon name={s} />
-          </button>
-        ))}
-      </div>
-      <span className="actbar__sep" />
+            <Icon name={documentType} />
+          </div>
+          <span className="actbar__sep" />
+        </>
+      )}
       <div className="actbar__group">{primary.map((p) => panelButton(p.id, p.label))}</div>
       <span className="actbar__spacer" />
       <div className="actbar__group">{utility.map((p) => panelButton(p.id, p.label))}</div>

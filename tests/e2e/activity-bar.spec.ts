@@ -84,36 +84,3 @@ test('the sidebar width persists across a reload', async () => {
   const restored = await sidebar().boundingBox();
   expect(Math.abs(restored!.width - widened!.width)).toBeLessThan(8);
 });
-
-test('the Whiteboard surface hides Shapes, Templates, and the Visual/Split/Code control', async () => {
-  // On the Diagram surface they are present.
-  await win.locator('[data-testid="surface-architect"]').click();
-  await expect(win.locator('[data-testid="activity-shapes"]')).toBeVisible();
-  await expect(win.locator('[data-testid="activity-templates"]')).toBeVisible();
-  await expect(win.locator('[data-testid="view-split"]')).toBeVisible();
-
-  // On the Whiteboard surface they are gone; git-agnostic panels remain.
-  await win.locator('[data-testid="surface-whiteboard"]').click();
-  await expect(win.locator('[data-testid="activity-shapes"]')).toHaveCount(0);
-  await expect(win.locator('[data-testid="activity-templates"]')).toHaveCount(0);
-  await expect(win.locator('[data-testid="view-split"]')).toHaveCount(0);
-  await expect(win.locator('[data-testid="activity-project"]')).toBeVisible();
-
-  await win.locator('[data-testid="surface-architect"]').click();
-  await expect(win.locator('[data-testid="activity-shapes"]')).toBeVisible();
-});
-
-test('a panel unavailable on the whiteboard falls back, and is restored on return', async () => {
-  // Choose Shapes on the Diagram surface.
-  await win.locator('[data-testid="surface-architect"]').click();
-  await openPanel(win, 'shapes');
-  await expect(win.locator('[data-testid="lib-group-aws"]')).toBeVisible();
-
-  // Switching to the Whiteboard falls back to Project (Shapes is unavailable).
-  await win.locator('[data-testid="surface-whiteboard"]').click();
-  await expect(win.locator('[data-testid="sidebar"] .sidebar__head')).toBeVisible();
-
-  // Returning to the Diagram surface restores Shapes.
-  await win.locator('[data-testid="surface-architect"]').click();
-  await expect(win.locator('[data-testid="lib-group-aws"]')).toBeVisible();
-});

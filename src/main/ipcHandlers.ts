@@ -1,15 +1,14 @@
 import { ipcMain, dialog, app } from 'electron';
 import { join } from 'node:path';
 import {
-  listDiagrams,
-  readDiagram,
-  writeDiagram,
-  createDiagram,
+  listDocuments,
+  readDocument,
+  writeDocument,
+  createDocument,
   readTemplates,
   writeTemplates,
-  readWhiteboard,
-  writeWhiteboard,
 } from './projectManager';
+import type { DocumentType } from '../shared/project/documentType';
 import { readSettings, writeSettings } from './settingsManager';
 import type { AppSettings } from '../shared/settings/settings';
 import { writeExportedImage } from './exportService';
@@ -38,8 +37,8 @@ export function registerIpcHandlers(): void {
     return dir;
   });
 
-  // Create a new project: pick/create a folder, git-init it, and seed a first
-  // diagram. Returns the folder and the starter file, or null if cancelled.
+  // Create a new project: pick/create a folder and git-init it. The project
+  // starts empty; the user creates the first document via the New menu.
   ipcMain.handle('project:newProject', async () => {
     const result = await dialog.showOpenDialog({
       title: 'Create or choose a folder for the new project',
@@ -50,8 +49,7 @@ export function registerIpcHandlers(): void {
     const dir = result.filePaths[0];
     const status = await gitStatus(dir);
     if (!status.isRepo) await gitInit(dir);
-    const fileName = await createDiagram(dir, 'diagram');
-    return { dir, fileName };
+    return { dir };
   });
 
   ipcMain.handle('project:gitInit', async (_e, projectDir: string) => {
@@ -71,21 +69,15 @@ export function registerIpcHandlers(): void {
     gitCheckoutBranch(projectDir, name),
   );
 
-  ipcMain.handle('project:listDiagrams', (_e, projectDir: string) => listDiagrams(projectDir));
-  ipcMain.handle('project:readDiagram', (_e, projectDir: string, fileName: string) =>
-    readDiagram(projectDir, fileName),
+  ipcMain.handle('project:listDocuments', (_e, projectDir: string) => listDocuments(projectDir));
+  ipcMain.handle('project:readDocument', (_e, projectDir: string, fileName: string) =>
+    readDocument(projectDir, fileName),
   );
-  ipcMain.handle('project:writeDiagram', (_e, projectDir: string, fileName: string, yamlText: string) =>
-    writeDiagram(projectDir, fileName, yamlText),
+  ipcMain.handle('project:writeDocument', (_e, projectDir: string, fileName: string, text: string) =>
+    writeDocument(projectDir, fileName, text),
   );
-  ipcMain.handle('project:createDiagram', (_e, projectDir: string, displayName: string) =>
-    createDiagram(projectDir, displayName),
-  );
-  ipcMain.handle('project:readWhiteboard', (_e, projectDir: string, diagramFileName: string) =>
-    readWhiteboard(projectDir, diagramFileName),
-  );
-  ipcMain.handle('project:writeWhiteboard', (_e, projectDir: string, diagramFileName: string, snapshot: string | null) =>
-    writeWhiteboard(projectDir, diagramFileName, snapshot),
+  ipcMain.handle('project:createDocument', (_e, projectDir: string, type: DocumentType) =>
+    createDocument(projectDir, type),
   );
   ipcMain.handle('project:readTemplates', (_e, projectDir: string) => readTemplates(projectDir));
   ipcMain.handle('project:writeTemplates', (_e, projectDir: string, yamlText: string) =>
