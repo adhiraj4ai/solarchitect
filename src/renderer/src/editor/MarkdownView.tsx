@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { markdownHeadings } from '@shared/markdown/markdownOutline';
+import { headingSlugs } from '@shared/markdown/markdownOutline';
 
 const SAVE_DEBOUNCE_MS = 600;
 
@@ -74,17 +74,19 @@ export function MarkdownView({
   const html = useMemo(() => marked.parse(text, { breaks: true }) as string, [text]);
 
   // Assign stable anchor ids to the rendered headings, in document order, from
-  // the same slugger the outline uses — so reveal-to-heading lines up. Done by
-  // walking the DOM (not a custom renderer) to stay independent of marked's API.
+  // the same slugger the outline uses — so reveal-to-heading lines up. Ids are
+  // derived from each rendered heading's own text (not paired by index against
+  // the source parser), so setext headings marked renders but the ATX-only
+  // outline skips can't desynchronize the ids.
   useEffect(() => {
     const root = previewRef.current;
     if (!root) return;
-    const ids = markdownHeadings(text).map((h) => h.id);
-    const els = root.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    const els = Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const ids = headingSlugs(els.map((el) => el.textContent ?? ''));
     els.forEach((el, i) => {
-      if (ids[i]) el.id = `md-${ids[i]}`;
+      el.id = `md-${ids[i]}`;
     });
-  }, [html, text]);
+  }, [html]);
 
   // Reveal-to-heading: scroll the preview to the requested anchor.
   useEffect(() => {

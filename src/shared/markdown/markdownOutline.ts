@@ -11,7 +11,8 @@ export interface MarkdownHeading {
   line: number;
 }
 
-function slugify(text: string): string {
+/** Slugify a single heading's text to an anchor base (before disambiguation). */
+export function slugifyHeading(text: string): string {
   return (
     text
       .toLowerCase()
@@ -20,10 +21,24 @@ function slugify(text: string): string {
   );
 }
 
+/**
+ * Turn an ordered list of heading texts into unique anchor ids, disambiguating
+ * repeats (`setup`, `setup-2`, …). Shared so the source-derived outline and the
+ * rendered preview compute identical ids for the same heading text.
+ */
+export function headingSlugs(texts: string[]): string[] {
+  const used = new Map<string, number>();
+  return texts.map((t) => {
+    const base = slugifyHeading(t);
+    const seen = used.get(base) ?? 0;
+    used.set(base, seen + 1);
+    return seen === 0 ? base : `${base}-${seen + 1}`;
+  });
+}
+
 export function markdownHeadings(text: string): MarkdownHeading[] {
   const lines = text.split('\n');
-  const headings: MarkdownHeading[] = [];
-  const used = new Map<string, number>();
+  const found: { level: number; text: string; line: number }[] = [];
   let inFence = false;
 
   lines.forEach((raw, line) => {
@@ -36,14 +51,11 @@ export function markdownHeadings(text: string): MarkdownHeading[] {
     if (!m) return;
     const level = m[1].length;
     const headingText = m[2].replace(/\s+#+\s*$/, ''); // strip trailing closing #'s
-    const base = slugify(headingText);
-    const seen = used.get(base) ?? 0;
-    used.set(base, seen + 1);
-    const id = seen === 0 ? base : `${base}-${seen + 1}`;
-    headings.push({ id, level, text: headingText, line });
+    found.push({ level, text: headingText, line });
   });
 
-  return headings;
+  const ids = headingSlugs(found.map((h) => h.text));
+  return found.map((h, i) => ({ id: ids[i], level: h.level, text: h.text, line: h.line }));
 }
 
 export function searchMarkdown(text: string, query: string): MarkdownHeading[] {

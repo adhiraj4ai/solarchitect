@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { markdownHeadings, searchMarkdown } from './markdownOutline';
+import { markdownHeadings, searchMarkdown, headingSlugs } from './markdownOutline';
 
 describe('markdownHeadings', () => {
   it('extracts ATX headings with level, text, and line', () => {
@@ -32,6 +32,15 @@ describe('markdownHeadings', () => {
 
   it('returns [] for prose with no headings', () => {
     expect(markdownHeadings('just some text\n\nmore text')).toEqual([]);
+  });
+
+  it('headingSlugs produces the same ids the outline uses, disambiguating repeats', () => {
+    // The rendered preview slugs its own heading texts with this shared helper,
+    // so ids stay aligned with the outline regardless of ATX vs setext source.
+    expect(headingSlugs(['Overview', 'Auth', 'Overview'])).toEqual(['overview', 'auth', 'overview-2']);
+    expect(markdownHeadings('# Overview\n## Auth\n## Overview\n').map((h) => h.id)).toEqual(
+      headingSlugs(['Overview', 'Auth', 'Overview']),
+    );
   });
 
   it('searchMarkdown matches heading text case-insensitively', () => {
