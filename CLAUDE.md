@@ -70,9 +70,11 @@ directly** — both project from one in-memory IR through the Sync Engine.
      diagrams, `.whiteboard.json` whiteboards, `.md` markdown) plus one
      `templates.yaml`. Generic, type-agnostic file ops (`listDocuments` — tagged
      with type, only diagrams validated; `readDocument` / `writeDocument`;
-     `createDocument(type)` — auto-names `untitled.<ext>`). `resolveInProject()` is
-     the path-traversal trust boundary for every fileName arriving over IPC — keep
-     new file ops behind it.
+     `createDocument(type)` — auto-names `untitled.<ext>`). The store is
+     format-agnostic (raw text I/O); a whiteboard document's bytes are the wrapped
+     `whiteboardFile` format (see `src/shared/whiteboard/`), markdown is plain text.
+     `resolveInProject()` is the path-traversal trust boundary for every fileName
+     arriving over IPC — keep new file ops behind it.
    - `gitService.ts` — shells out to `git`; `exportService.ts` — writes PNG/SVG bytes
      from the renderer to disk. `ipcHandlers.ts` registers every `project:*` channel.
    - `index.ts` — serves the packaged renderer over a **loopback HTTP server**
