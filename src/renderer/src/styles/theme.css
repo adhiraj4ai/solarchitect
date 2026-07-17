@@ -242,6 +242,14 @@ button { font-family: inherit; }
   border-color: transparent;
   box-shadow: none;
 }
+/* No-fill: transparent card + transparent icon-tint square. The tint color is
+   set inline per provider, so !important is needed to override it. */
+.canvas.nodes-nofill .arch-node {
+  background: transparent;
+}
+.canvas.nodes-nofill .arch-node__icon-tint {
+  background: transparent !important;
+}
 
 /* node connection ports — drag from one onto another node to draw an edge.
    Only shown in architect mode (the .connect-enabled ancestor). */

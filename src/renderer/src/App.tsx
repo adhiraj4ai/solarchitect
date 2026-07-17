@@ -406,6 +406,7 @@ export default function App() {
               presentIndex={presentIndex}
               grid={settings.grid}
               nodeBorders={settings.nodeBorders}
+              nodeFill={settings.nodeFill}
               revealTarget={revealTarget}
               onCanvasEdit={onCanvasEdit}
               onSaveTemplate={beginSaveTemplate}

@@ -16,6 +16,8 @@ export interface AppSettings {
   grid: boolean;
   /** Draw an outline (border + shadow) on node cards. */
   nodeBorders: boolean;
+  /** Fill node cards (card background + the icon tint square). */
+  nodeFill: boolean;
   /** Autosave the current diagram after edits. */
   autosave: boolean;
   /** Provider to filter the shape library to by default, or null for all. */
@@ -29,6 +31,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   grid: true,
   nodeBorders: false,
+  nodeFill: true,
   autosave: false,
   defaultProvider: null,
   customPresets: [],
@@ -61,6 +64,7 @@ export function mergeSettings(input: unknown): AppSettings {
   return {
     grid: bool(src.grid, DEFAULT_SETTINGS.grid),
     nodeBorders: bool(src.nodeBorders, DEFAULT_SETTINGS.nodeBorders),
+    nodeFill: bool(src.nodeFill, DEFAULT_SETTINGS.nodeFill),
     autosave: bool(src.autosave, DEFAULT_SETTINGS.autosave),
     defaultProvider,
     customPresets: coercePresets(src.customPresets),

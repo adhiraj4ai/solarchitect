@@ -368,6 +368,7 @@ export function CanvasView({
   presentIndex = 0,
   grid = true,
   nodeBorders = false,
+  nodeFill = true,
   revealTarget = null,
 }: {
   diagram: Diagram;
@@ -386,6 +387,8 @@ export function CanvasView({
   grid?: boolean;
   /** Draw an outline around node cards (from app settings). */
   nodeBorders?: boolean;
+  /** Fill node cards + icon tint squares (from app settings). */
+  nodeFill?: boolean;
   /** A shape to select and center on the canvas; the nonce forces re-reveal of
    *  the same id. Driven by the Outline and Search panels. */
   revealTarget?: { id: string; nonce: number } | null;
@@ -1008,7 +1011,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${!presenting ? ' connect-enabled' : ''}${showSteps ? ' steps-on' : ''}${presenting ? ' presenting' : ''}${!nodeBorders ? ' nodes-borderless' : ''}`}
+      className={`canvas${!presenting ? ' connect-enabled' : ''}${showSteps ? ' steps-on' : ''}${presenting ? ' presenting' : ''}${!nodeBorders ? ' nodes-borderless' : ''}${!nodeFill ? ' nodes-nofill' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {

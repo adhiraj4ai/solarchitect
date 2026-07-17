@@ -66,6 +66,7 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
           />
         ))}
         <span
+          className="arch-node__icon-tint"
           style={{
             display: 'grid',
             placeItems: 'center',

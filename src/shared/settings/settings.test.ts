@@ -40,6 +40,12 @@ describe('mergeSettings', () => {
     expect(mergeSettings({ nodeBorders: 'yes' }).nodeBorders).toBe(false);
   });
 
+  it('handles nodeFill: default on, kept when provided, tolerant of garbage', () => {
+    expect(mergeSettings({}).nodeFill).toBe(true);
+    expect(mergeSettings({ nodeFill: false }).nodeFill).toBe(false);
+    expect(mergeSettings({ nodeFill: 'no' }).nodeFill).toBe(true);
+  });
+
   it('ignores wrongly-typed values and falls back to defaults', () => {
     expect(mergeSettings({ grid: 'yes', autosave: 1, defaultProvider: 42 })).toEqual(DEFAULT_SETTINGS);
   });

@@ -51,6 +51,19 @@ export function SettingsPanel({
         <label className="settings__row">
           <input
             type="checkbox"
+            data-testid="setting-node-fill"
+            checked={settings.nodeFill}
+            onChange={(e) => onUpdate({ nodeFill: e.target.checked })}
+          />
+          <span>
+            <span className="settings__label">Node fill</span>
+            <span className="settings__hint">Fill the card background and the icon tint behind each glyph.</span>
+          </span>
+        </label>
+
+        <label className="settings__row">
+          <input
+            type="checkbox"
             data-testid="setting-autosave"
             checked={settings.autosave}
             onChange={(e) => onUpdate({ autosave: e.target.checked })}
