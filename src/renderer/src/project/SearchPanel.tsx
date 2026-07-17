@@ -1,28 +1,43 @@
 import { useState } from 'react';
 import { searchProject, hasResults } from '@shared/search/search';
+import { searchMarkdown } from '@shared/markdown/markdownOutline';
 import type { Diagram } from '@shared/ir/types';
+import type { DocumentType } from '@shared/project/documentType';
 
 /**
- * Search the open project: diagram file names across the project, and node /
- * cluster labels within the currently-open diagram. Selecting a diagram result
- * opens it; selecting an element result reveals it on the canvas.
+ * Search the open project: document file names across the project, plus content
+ * within the current document — node/cluster labels for a diagram, or headings
+ * for a markdown document. Selecting a file opens it; selecting a content result
+ * reveals it (canvas shape or preview heading).
  */
 export function SearchPanel({
   fileNames,
   diagram,
   hasProject,
+  documentType,
+  markdownText,
   onOpenDiagram,
   onReveal,
 }: {
   fileNames: string[];
   diagram: Diagram | null;
   hasProject: boolean;
+  documentType: DocumentType | null;
+  markdownText: string;
   onOpenDiagram: (fileName: string) => void;
   onReveal: (id: string) => void;
 }) {
   const [query, setQuery] = useState('');
-  const results = searchProject({ query, fileNames, diagram });
+  // Content search targets the current document's structure: markdown headings
+  // for a markdown document, diagram elements otherwise.
+  const results = searchProject({
+    query,
+    fileNames,
+    diagram: documentType === 'markdown' ? null : diagram,
+  });
+  const headingResults = documentType === 'markdown' ? searchMarkdown(markdownText, query) : [];
   const querying = query.trim() !== '';
+  const anyResults = hasResults(results) || headingResults.length > 0;
 
   return (
     <div className="panel">
@@ -39,7 +54,7 @@ export function SearchPanel({
         />
       </div>
       <div className="panel__body" data-testid="search-results">
-        {querying && !hasResults(results) && (
+        {querying && !anyResults && (
           <div className="list__empty">No matches for “{query.trim()}”.</div>
         )}
         {!querying && !hasProject && (
@@ -77,6 +92,24 @@ export function SearchPanel({
               >
                 <span className="outline__glyph" aria-hidden="true">{e.elementKind === 'cluster' ? '▤' : '◻'}</span>
                 <span className="outline__label">{e.label}</span>
+              </button>
+            ))}
+          </>
+        )}
+
+        {headingResults.length > 0 && (
+          <>
+            <div className="outline__section">In this document</div>
+            {headingResults.map((h) => (
+              <button
+                key={h.id}
+                className="outline__row"
+                data-testid="search-heading-result"
+                onClick={() => onReveal(h.id)}
+                title={h.text}
+              >
+                <span className="outline__glyph" aria-hidden="true">#</span>
+                <span className="outline__label">{h.text}</span>
               </button>
             ))}
           </>

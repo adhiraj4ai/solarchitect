@@ -4,9 +4,8 @@ import type { DocumentEntry } from '@shared/project/types';
 
 const basename = (dir: string) => dir.split(/[/\\]/).filter(Boolean).pop() ?? dir;
 
-/** The document types offered by "New" (and the order groups appear in the list).
- *  Markdown is added once its editor exists. */
-const OFFERED_TYPES: DocumentType[] = ['diagram', 'whiteboard'];
+/** The document types offered by the "New" menu. */
+const OFFERED_TYPES: DocumentType[] = ['diagram', 'whiteboard', 'markdown'];
 
 const GROUP_LABEL: Record<DocumentType, string> = {
   diagram: 'Diagrams',

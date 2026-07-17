@@ -518,6 +518,31 @@ button { font-family: inherit; }
 .newmenu__item { text-align: left; padding: 8px 12px; background: none; border: 0; cursor: pointer; color: var(--ink); font: inherit; }
 .newmenu__item:hover { background: var(--panel-2); }
 
+/* markdown document editor: source textarea + rendered preview */
+.markdown { display: flex; height: 100%; overflow: hidden; background: var(--panel); }
+.markdown__source, .markdown__preview { flex: 1 1 50%; height: 100%; overflow: auto; }
+.markdown--visual .markdown__source { display: none; }
+.markdown--code .markdown__preview { display: none; }
+.markdown--visual .markdown__preview, .markdown--code .markdown__source { flex-basis: 100%; }
+.markdown__preview { border-left: 1px solid var(--line); }
+.markdown--visual .markdown__preview, .markdown--code .markdown__source { border-left: 0; }
+.markdown__source {
+  border: 0; resize: none; padding: 16px 18px;
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; line-height: 1.6;
+  background: var(--panel); color: var(--ink); outline: none;
+}
+.markdown__preview { padding: 16px 24px; line-height: 1.65; color: var(--ink); }
+.markdown__preview h1, .markdown__preview h2, .markdown__preview h3 { line-height: 1.25; margin: 0.8em 0 0.4em; }
+.markdown__preview h1 { font-size: 1.6em; }
+.markdown__preview h2 { font-size: 1.35em; }
+.markdown__preview h3 { font-size: 1.15em; }
+.markdown__preview p { margin: 0.5em 0; }
+.markdown__preview code { font-family: var(--font-mono, ui-monospace, monospace); background: var(--panel-2); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
+.markdown__preview pre { background: var(--panel-2); padding: 12px 14px; border-radius: 6px; overflow-x: auto; }
+.markdown__preview pre code { background: none; padding: 0; }
+.markdown__preview a { color: var(--blueprint-ink, #2563eb); }
+.markdown__preview ul, .markdown__preview ol { padding-left: 1.4em; margin: 0.5em 0; }
+
 /* type-grouped document list */
 .list__group { margin-bottom: 8px; }
 .list__grouphead {

@@ -3,6 +3,7 @@ import { CanvasView } from './canvas/CanvasView';
 import { WhiteboardView } from './canvas/WhiteboardView';
 import { ShapeLibrary } from './canvas/ShapeLibrary';
 import { YamlCodeEditor } from './editor/YamlCodeEditor';
+import { MarkdownView } from './editor/MarkdownView';
 import { ProjectSidebar } from './project/ProjectSidebar';
 import { GitPanel } from './project/GitPanel';
 import { TemplatesPanel } from './project/TemplatesPanel';
@@ -54,6 +55,10 @@ export default function App() {
   const showCanvas = isDiagram && view !== 'code';
   const showSource = isDiagram && view === 'split';
 
+  // Mirror the open markdown document's text so the Outline and Search panels can
+  // index its headings. MarkdownView owns the source of truth and reports changes.
+  const [markdownText, setMarkdownText] = useState('');
+
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
@@ -70,12 +75,13 @@ export default function App() {
   const revealNonce = useRef(0);
   const reveal = useCallback(
     (id: string) => {
-      // Reveal happens on the canvas; make sure it's visible.
-      if (isDiagram && view === 'code') setView('split');
+      // Reveal targets the canvas (diagram) or the preview (markdown); make sure
+      // a rendered surface is visible to reveal into.
+      if (view === 'code') setView('split');
       revealNonce.current += 1;
       setRevealTarget({ id, nonce: revealNonce.current });
     },
-    [isDiagram, view],
+    [view],
   );
 
   const openDocumentFromSearch = useCallback(
@@ -191,12 +197,21 @@ export default function App() {
             fileNames={project.entries.map((e) => e.fileName)}
             diagram={diagram}
             hasProject={!!project.projectDir}
+            documentType={project.currentType}
+            markdownText={markdownText}
             onOpenDiagram={openDocumentFromSearch}
             onReveal={reveal}
           />
         );
       case 'outline':
-        return <OutlinePanel diagram={diagram} onReveal={reveal} />;
+        return (
+          <OutlinePanel
+            diagram={diagram}
+            onReveal={reveal}
+            documentType={project.currentType}
+            markdownText={markdownText}
+          />
+        );
       case 'shapes':
         return <ShapeLibrary defaultProvider={settings.defaultProvider} />;
       case 'templates':
@@ -286,7 +301,7 @@ export default function App() {
             <div className="stage__empty" data-testid="no-document">
               <p>No document open.</p>
               <p className="muted">
-                Use <strong>New</strong> in the Project panel to create a diagram or whiteboard.
+                Use <strong>New</strong> in the Project panel to create a diagram, whiteboard, or markdown document.
               </p>
             </div>
           ) : docType === 'whiteboard' ? (
@@ -298,10 +313,16 @@ export default function App() {
               onError={project.setIoError}
             />
           ) : docType === 'markdown' ? (
-            <div className="stage__empty" data-testid="markdown-unsupported">
-              <p>Markdown documents open in a dedicated editor.</p>
-              <p className="muted">That editor is coming in a follow-up change.</p>
-            </div>
+            <MarkdownView
+              key={project.currentFile}
+              projectDir={project.projectDir}
+              fileName={project.currentFile}
+              view={view}
+              revealTarget={revealTarget}
+              onError={project.setIoError}
+              onGitRefresh={git.refresh}
+              onTextChange={setMarkdownText}
+            />
           ) : showCanvas ? (
             <CanvasView
               diagram={diagram}
@@ -351,6 +372,29 @@ export default function App() {
                 key={v}
                 role="tab"
                 data-testid={`view-${v}`}
+                aria-selected={view === v}
+                className={`segmented__btn${view === v ? ' on' : ''}`}
+                onClick={() => setView(v)}
+                title={`${label} view`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {docType === 'markdown' && (
+          <div className="segmented" role="tablist" aria-label="Markdown view">
+            {(
+              [
+                ['visual', 'Preview'],
+                ['split', 'Split'],
+                ['code', 'Source'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                role="tab"
+                data-testid={`md-view-${v}`}
                 aria-selected={view === v}
                 className={`segmented__btn${view === v ? ' on' : ''}`}
                 onClick={() => setView(v)}
