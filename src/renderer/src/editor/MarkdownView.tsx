@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { headingSlugs } from '@shared/markdown/markdownOutline';
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -87,8 +88,13 @@ export function MarkdownView({
   flushRef.current = flushSave;
   useEffect(() => () => flushRef.current(), []);
 
-  // Rendered HTML. `marked.parse` is synchronous with the default options.
-  const html = useMemo(() => marked.parse(text, { breaks: true }) as string, [text]);
+  // Rendered HTML, sanitized before it reaches the DOM. `marked` does not strip
+  // HTML embedded in the markdown, so a document from git could carry a
+  // <script>, an onerror handler, or a javascript: URL. The CSP blocks these in
+  // production, but that is a single layer and the dev CSP is permissive — so we
+  // sanitize with DOMPurify for defense in depth. `marked.parse` is synchronous
+  // with the default options.
+  const html = useMemo(() => DOMPurify.sanitize(marked.parse(text, { breaks: true }) as string), [text]);
 
   // Assign stable anchor ids to the rendered headings, in document order, from
   // the same slugger the outline uses — so reveal-to-heading lines up. Ids are
