@@ -371,7 +371,14 @@ export function CanvasView({
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
-  animate?: boolean;
+  /** Overlay each node/edge's resolved traversal order as a badge. */
+  showSteps?: boolean;
+  /** Play the active preset's animation (build-up + flowing token), looping. */
+  traversalPlaying?: boolean;
+  /** The active animation preset (its motion timing drives play + scrub). */
+  activePreset: AnimationPreset;
+  /** All presets (built-ins + custom), for the export dialog's picker. */
+  presets: AnimationPreset[];
   presenting?: boolean;
   presentIndex?: number;
   /** Show the canvas grid background (from app settings). */
@@ -974,7 +981,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${!presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${presenting ? ' presenting' : ''}`}
+      className={`canvas${!presenting ? ' connect-enabled' : ''}${showSteps ? ' steps-on' : ''}${presenting ? ' presenting' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {

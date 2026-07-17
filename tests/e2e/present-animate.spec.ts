@@ -16,12 +16,12 @@ test.afterAll(async () => {
   await app.close();
 });
 
-test('animate toggle flips the canvas into animate mode', async () => {
-  const toggle = win.locator('[data-testid="animate-toggle"]');
+test('the Steps toggle flips the canvas into step-overlay mode', async () => {
+  const toggle = win.locator('[data-testid="steps-toggle"]');
   await toggle.click();
-  await expect(win.locator('.canvas.animate-on')).toHaveCount(1);
+  await expect(win.locator('.canvas.steps-on')).toHaveCount(1);
   await toggle.click();
-  await expect(win.locator('.canvas.animate-on')).toHaveCount(0);
+  await expect(win.locator('.canvas.steps-on')).toHaveCount(0);
 });
 
 test('presenting hides the chrome and the present bar exits', async () => {

@@ -50,6 +50,44 @@ export default function App() {
   const git = useGit(project.projectDir, project.setIoError);
   const { settings, update: updateSettings } = useSettings(project.setIoError);
 
+  // Animation preset library (built-ins ++ the user's custom presets) and the
+  // active preset that Play / scrub / export run. Persisted via app settings.
+  const presets = allPresets(settings.customPresets);
+  const activePreset = resolvePreset(settings.customPresets, settings.activePresetId);
+  const selectActivePreset = useCallback((id: string) => void updateSettings({ activePresetId: id }), [updateSettings]);
+  const createPreset = useCallback(() => {
+    const base = BUILTIN_PRESETS.find((p) => p.id === DEFAULT_ACTIVE_PRESET_ID)!;
+    const p: AnimationPreset = { ...base, id: crypto.randomUUID(), name: 'New preset' };
+    void updateSettings({ customPresets: [...settings.customPresets, p], activePresetId: p.id });
+  }, [settings.customPresets, updateSettings]);
+  const duplicatePreset = useCallback(
+    (id: string) => {
+      const src = presets.find((p) => p.id === id);
+      if (!src) return;
+      const copy: AnimationPreset = { ...src, id: crypto.randomUUID(), name: `${src.name} copy` };
+      void updateSettings({ customPresets: [...settings.customPresets, copy], activePresetId: copy.id });
+    },
+    [presets, settings.customPresets, updateSettings],
+  );
+  const updatePreset = useCallback(
+    (preset: AnimationPreset) => {
+      if (isBuiltinPreset(preset.id)) return; // built-ins are read-only
+      void updateSettings({
+        customPresets: settings.customPresets.map((p) => (p.id === preset.id ? preset : p)),
+      });
+    },
+    [settings.customPresets, updateSettings],
+  );
+  const deletePreset = useCallback(
+    (id: string) => {
+      void updateSettings({
+        customPresets: settings.customPresets.filter((p) => p.id !== id),
+        ...(settings.activePresetId === id ? { activePresetId: DEFAULT_ACTIVE_PRESET_ID } : {}),
+      });
+    },
+    [settings.customPresets, settings.activePresetId, updateSettings],
+  );
+
   // The open document's type fixes which editor is shown — there is no surface
   // toggle. With no document open we fall back to 'diagram' so the shell (panels,
   // layout) has a sensible default.
@@ -71,8 +109,8 @@ export default function App() {
   const [pendingTemplate, setPendingTemplate] = useState<Diagram | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
-  // Animate: flow the relationship lines. Present: full-screen, chrome-free,
-  // stepping through page frames (or fit-to-content when there are none).
+  // Present: full-screen, chrome-free, stepping through page frames (or
+  // fit-to-content when there are none).
   // Steps: overlay the resolved traversal order as badges on nodes/edges.
   const [showSteps, setShowSteps] = useState(false);
   // Traversal preview: play the staged dim→lit build-up, looping.
@@ -360,7 +398,10 @@ export default function App() {
             <CanvasView
               diagram={diagram}
               templates={templates.templates}
-              animate={animate}
+              showSteps={showSteps}
+              traversalPlaying={traversalPlaying}
+              activePreset={activePreset}
+              presets={presets}
               presenting={presenting}
               presentIndex={presentIndex}
               grid={settings.grid}
