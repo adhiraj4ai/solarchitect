@@ -9,10 +9,25 @@ describe('mergeSettings', () => {
 
   it('keeps provided, correctly-typed values', () => {
     expect(mergeSettings({ grid: false, autosave: true, defaultProvider: 'aws' })).toEqual({
+      ...DEFAULT_SETTINGS,
       grid: false,
       autosave: true,
       defaultProvider: 'aws',
     });
+  });
+
+  it('merges custom animation presets and the active id, tolerating corruption', () => {
+    const merged = mergeSettings({
+      customPresets: [
+        { id: 'c1', name: 'Mine', style: 'dataflow' },
+        { id: 'bad', name: 'x', style: 'sideways' }, // dropped
+      ],
+      activePresetId: 'c1',
+    });
+    expect(merged.customPresets.map((p) => p.id)).toEqual(['c1']);
+    expect(merged.activePresetId).toBe('c1');
+    // A non-string active id falls back to the default built-in.
+    expect(mergeSettings({ activePresetId: 42 }).activePresetId).toBe(DEFAULT_SETTINGS.activePresetId);
   });
 
   it('fills missing keys from defaults', () => {

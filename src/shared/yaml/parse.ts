@@ -74,6 +74,14 @@ export function parseDiagram(yamlText: string): ParseResult {
 
     const nodes: DiagramNode[] = [];
     const nodeIds = new Set<string>();
+    // Shared by nodes and edges: a step is an optional non-negative integer.
+    const validateStep = (value: unknown, path: string): number | undefined => {
+      if (value === undefined || value === null) return undefined;
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+        throw new ValidationError(`step must be a non-negative integer (got "${value}")`, path);
+      }
+      return value;
+    };
     asList(doc.nodes, 'nodes').forEach((item, i) => {
       const n = asMapping(item, `nodes[${i}]`);
       if (!isValidNodeType(n.type as string)) {
@@ -95,6 +103,7 @@ export function parseDiagram(yamlText: string): ParseResult {
           `nodes[${i}].color`,
         );
       }
+      const nodeStep = validateStep(n.step, `nodes[${i}].step`);
       nodeIds.add(n.id as string);
       // x/y are optional — coordinate-free nodes are auto-laid-out downstream.
       nodes.push({
@@ -105,6 +114,7 @@ export function parseDiagram(yamlText: string): ParseResult {
         ...(typeof n.y === 'number' ? { y: n.y } : {}),
         ...(n.clusterId ? { clusterId: n.clusterId as string } : {}),
         ...(nodeColor ? { color: nodeColor } : {}),
+        ...(nodeStep !== undefined ? { step: nodeStep } : {}),
       });
     });
 
@@ -121,6 +131,13 @@ export function parseDiagram(yamlText: string): ParseResult {
       if (shape && shape !== 'straight' && shape !== 'curved' && shape !== 'bent') {
         throw new ValidationError(`Edge shape must be straight, curved, or bent (got "${shape}")`, `edges[${i}].shape`);
       }
+      const direction = e.direction as DiagramEdge['direction'] | undefined;
+      if (direction && direction !== 'forward' && direction !== 'reverse' && direction !== 'bidirectional') {
+        throw new ValidationError(
+          `Edge direction must be forward, reverse, or bidirectional (got "${direction}")`,
+          `edges[${i}].direction`,
+        );
+      }
       const lineStyle = e.lineStyle as DiagramEdge['lineStyle'];
       if (lineStyle && lineStyle !== 'solid' && lineStyle !== 'dashed' && lineStyle !== 'dotted') {
         throw new ValidationError(
@@ -131,15 +148,17 @@ export function parseDiagram(yamlText: string): ParseResult {
       if (e.arrow !== undefined && typeof e.arrow !== 'boolean') {
         throw new ValidationError(`Edge arrow must be true or false (got "${e.arrow}")`, `edges[${i}].arrow`);
       }
+      const edgeStep = validateStep(e.step, `edges[${i}].step`);
       edges.push({
         id: e.id as string,
         from: e.from as string,
         to: e.to as string,
-        direction: (e.direction as DiagramEdge['direction']) ?? 'forward',
+        direction: direction ?? 'forward',
         ...(e.label ? { label: e.label as string } : {}),
         ...(shape ? { shape } : {}),
         ...(lineStyle ? { lineStyle } : {}),
         ...(e.arrow === false ? { arrow: false } : {}),
+        ...(edgeStep !== undefined ? { step: edgeStep } : {}),
       });
     });
 

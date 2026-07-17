@@ -1,5 +1,28 @@
+import { useMemo } from 'react';
 import { ShapeUtil, Polyline2d, HTMLContainer, T, Vec, type TLBaseShape } from 'tldraw';
-import type { EdgeShape as EdgeShapeKind, EdgeLineStyle } from '@shared/ir/types';
+import type { EdgeShape as EdgeShapeKind, EdgeLineStyle, EdgeDirection } from '@shared/ir/types';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** The point at fraction `t` (0..1) along an SVG path string, measured on a
+ *  detached path element — synchronous, so it renders into both the live canvas
+ *  and the static export SVG (a layout effect would not run during export). */
+function pointAtFraction(d: string, t: number): { x: number; y: number } {
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', d);
+  const len = path.getTotalLength();
+  const pt = path.getPointAtLength(len * Math.min(1, Math.max(0, t)));
+  return { x: pt.x, y: pt.y };
+}
+
+/** The deterministic flow token: a dot at fraction `t` along `d`, driven by the
+ *  traversal preview/capture (not SMIL). `t < 0` renders nothing. The geometry
+ *  is memoized so live editing doesn't re-measure the path every render. */
+function FlowToken({ d, t }: { d: string; t: number }) {
+  const pt = useMemo(() => (t < 0 ? null : pointAtFraction(d, t)), [d, t]);
+  if (!pt) return null;
+  return <circle className="arch-edge-token-det" cx={pt.x} cy={pt.y} r="5" fill="var(--sync, #d9822b)" stroke="none" />;
+}
 
 // Endpoints are stored local to the shape's (x,y) origin, which the reconciler
 // sets to the min corner of the two node centers.
@@ -8,10 +31,13 @@ export type ArchEdgeShape = TLBaseShape<
   {
     edgeId: string;
     label: string;
-    direction: 'forward' | 'bidirectional';
+    direction: EdgeDirection;
     shape: EdgeShapeKind;
     lineStyle: EdgeLineStyle;
     arrow: boolean;
+    order: number;
+    /** Traversal-preview token position (0..1 along from→to); <0 = no token. */
+    dotT: number;
     x1: number;
     y1: number;
     x2: number;
@@ -73,10 +99,12 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   static override props = {
     edgeId: T.string,
     label: T.string,
-    direction: T.literalEnum('forward', 'bidirectional'),
+    direction: T.literalEnum('forward', 'reverse', 'bidirectional'),
     shape: T.literalEnum('straight', 'curved', 'bent'),
     lineStyle: T.literalEnum('solid', 'dashed', 'dotted'),
     arrow: T.boolean,
+    order: T.number,
+    dotT: T.number,
     x1: T.number,
     y1: T.number,
     x2: T.number,
@@ -91,6 +119,8 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
       shape: 'straight',
       lineStyle: 'solid',
       arrow: true,
+      order: 0,
+      dotT: -1,
       x1: 0,
       y1: 0,
       x2: 100,
@@ -107,7 +137,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   override canBind = () => false;
 
   component(shape: ArchEdgeShape) {
-    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, edgeId } = shape.props;
+    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, order, dotT, edgeId } = shape.props;
     const minX = Math.min(x1, x2);
     const minY = Math.min(y1, y2);
     const startId = `arrow-start-${edgeId}`;
@@ -115,6 +145,10 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const d = edgePath(kind, x1, y1, x2, y2);
+    // reverse flows target→source (arrowhead at the `from` end); bidirectional
+    // shows both heads.
+    const headEnd = arrow && direction !== 'reverse';
+    const headStart = arrow && (direction === 'bidirectional' || direction === 'reverse');
     return (
       <HTMLContainer style={{ pointerEvents: 'none' }}>
         <svg style={{ overflow: 'visible', position: 'absolute', left: 0, top: 0 }}>
@@ -134,14 +168,11 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             strokeWidth={2}
             strokeLinecap={lineStyle === 'dotted' ? 'round' : 'butt'}
             strokeDasharray={dashArray(lineStyle)}
-            markerEnd={arrow ? `url(#${endId})` : undefined}
-            markerStart={arrow && direction === 'bidirectional' ? `url(#${startId})` : undefined}
+            markerEnd={headEnd ? `url(#${endId})` : undefined}
+            markerStart={headStart ? `url(#${startId})` : undefined}
           />
-          {/* A token that travels from → to along the edge; only visible in
-              Animate mode (gated by the .animate-on ancestor in CSS). */}
-          <circle className="arch-edge-token" r="4.5" fill="var(--sync, #d9822b)" stroke="none">
-            <animateMotion dur="1.7s" repeatCount="indefinite" path={d} rotate="0" />
-          </circle>
+          {/* Deterministic token for the traversal preview/capture. */}
+          <FlowToken d={d} t={dotT} />
         </svg>
         {label && (
           <div
@@ -163,6 +194,14 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             {label}
           </div>
         )}
+        {/* Traversal-order badge; shown only when Steps is on (.steps-on ancestor). */}
+        <span
+          className="arch-step-badge arch-step-badge--edge"
+          title={`Step ${order}`}
+          style={{ position: 'absolute', left: midX - minX, top: midY - minY - 16 }}
+        >
+          {order}
+        </span>
       </HTMLContainer>
     );
   }

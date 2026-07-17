@@ -5,7 +5,7 @@ import { PROVIDER_ICON_MAP } from './iconMap';
 
 export type ArchNodeShape = TLBaseShape<
   'archNode',
-  { nodeId: string; nodeType: string; label: string; w: number; h: number }
+  { nodeId: string; nodeType: string; label: string; w: number; h: number; order: number }
 >;
 
 export const NODE_DEFAULT_WIDTH = 148;
@@ -19,6 +19,7 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
     label: T.string,
     w: T.number,
     h: T.number,
+    order: T.number,
   };
 
   getDefaultProps(): ArchNodeShape['props'] {
@@ -28,6 +29,7 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
       label: 'New node',
       w: NODE_DEFAULT_WIDTH,
       h: NODE_DEFAULT_HEIGHT,
+      order: 0,
     };
   }
 
@@ -62,6 +64,10 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
           pointerEvents: 'all',
         }}
       >
+        {/* Traversal-order badge; shown only when Steps is on (.steps-on ancestor). */}
+        <span className="arch-step-badge" title={`Step ${shape.props.order}`}>
+          {shape.props.order}
+        </span>
         {/* Drag from a port onto another node to draw a relationship. */}
         {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
           <span

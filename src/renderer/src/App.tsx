@@ -9,6 +9,15 @@ import { TemplatesPanel } from './project/TemplatesPanel';
 import { SearchPanel } from './project/SearchPanel';
 import { OutlinePanel } from './project/OutlinePanel';
 import { SettingsPanel } from './project/SettingsPanel';
+import { AnimationsPanel } from './project/AnimationsPanel';
+import {
+  allPresets,
+  resolvePreset,
+  isBuiltinPreset,
+  BUILTIN_PRESETS,
+  DEFAULT_ACTIVE_PRESET_ID,
+  type AnimationPreset,
+} from '@shared/animation/presets';
 import { HelpPanel } from './ui/HelpPanel';
 import { ActivityBar } from './ui/ActivityBar';
 import { Sidebar } from './ui/Sidebar';
@@ -41,6 +50,44 @@ export default function App() {
   const git = useGit(project.projectDir, project.setIoError);
   const { settings, update: updateSettings } = useSettings(project.setIoError);
 
+  // Animation preset library (built-ins ++ the user's custom presets) and the
+  // active preset that Play / scrub / export run. Persisted via app settings.
+  const presets = allPresets(settings.customPresets);
+  const activePreset = resolvePreset(settings.customPresets, settings.activePresetId);
+  const selectActivePreset = useCallback((id: string) => void updateSettings({ activePresetId: id }), [updateSettings]);
+  const createPreset = useCallback(() => {
+    const base = BUILTIN_PRESETS.find((p) => p.id === DEFAULT_ACTIVE_PRESET_ID)!;
+    const p: AnimationPreset = { ...base, id: crypto.randomUUID(), name: 'New preset' };
+    void updateSettings({ customPresets: [...settings.customPresets, p], activePresetId: p.id });
+  }, [settings.customPresets, updateSettings]);
+  const duplicatePreset = useCallback(
+    (id: string) => {
+      const src = presets.find((p) => p.id === id);
+      if (!src) return;
+      const copy: AnimationPreset = { ...src, id: crypto.randomUUID(), name: `${src.name} copy` };
+      void updateSettings({ customPresets: [...settings.customPresets, copy], activePresetId: copy.id });
+    },
+    [presets, settings.customPresets, updateSettings],
+  );
+  const updatePreset = useCallback(
+    (preset: AnimationPreset) => {
+      if (isBuiltinPreset(preset.id)) return; // built-ins are read-only
+      void updateSettings({
+        customPresets: settings.customPresets.map((p) => (p.id === preset.id ? preset : p)),
+      });
+    },
+    [settings.customPresets, updateSettings],
+  );
+  const deletePreset = useCallback(
+    (id: string) => {
+      void updateSettings({
+        customPresets: settings.customPresets.filter((p) => p.id !== id),
+        ...(settings.activePresetId === id ? { activePresetId: DEFAULT_ACTIVE_PRESET_ID } : {}),
+      });
+    },
+    [settings.customPresets, settings.activePresetId, updateSettings],
+  );
+
   // The document surface (Diagram = architect, Whiteboard = whiteboard) doubles
   // as the canvas-interaction mode. The activity bar switches it. The Whiteboard
   // is a separate freeform surface (WhiteboardView) that never shares the canvas.
@@ -59,7 +106,10 @@ export default function App() {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   // Animate: flow the relationship lines. Present: full-screen, chrome-free,
   // stepping through page frames (or fit-to-content when there are none).
-  const [animate, setAnimate] = useState(false);
+  // Steps: overlay the resolved traversal order as badges on nodes/edges.
+  const [showSteps, setShowSteps] = useState(false);
+  // Traversal preview: play the staged dim→lit build-up, looping.
+  const [traversalPlaying, setTraversalPlaying] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [presentIndex, setPresentIndex] = useState(0);
   const frames = diagram.frames ?? [];
@@ -207,6 +257,18 @@ export default function App() {
             onApplyYaml={templates.applyTemplatesYaml}
           />
         );
+      case 'animations':
+        return (
+          <AnimationsPanel
+            presets={presets}
+            activeId={settings.activePresetId}
+            onSelectActive={selectActivePreset}
+            onCreate={createPreset}
+            onDuplicate={duplicatePreset}
+            onUpdate={updatePreset}
+            onDelete={deletePreset}
+          />
+        );
       case 'git':
         return <GitPanel projectDir={project.projectDir} git={git} />;
       case 'settings':
@@ -237,13 +299,22 @@ export default function App() {
         {showCanvas && (
           <div className="topgroup">
             <button
-              data-testid="animate-toggle"
-              className={`btn btn--sm${animate ? ' btn--on' : ''}`}
-              aria-pressed={animate}
-              onClick={() => setAnimate((v) => !v)}
-              title="Animate the relationship lines"
+              data-testid="steps-toggle"
+              className={`btn btn--sm${showSteps ? ' btn--on' : ''}`}
+              aria-pressed={showSteps}
+              onClick={() => setShowSteps((v) => !v)}
+              title="Show the traversal step order on nodes and edges"
             >
-              {animate ? '◉ Animating' : '◎ Animate'}
+              {showSteps ? '① Steps' : '◇ Steps'}
+            </button>
+            <button
+              data-testid="traversal-toggle"
+              className={`btn btn--sm${traversalPlaying ? ' btn--on' : ''}`}
+              aria-pressed={traversalPlaying}
+              onClick={() => setTraversalPlaying((v) => !v)}
+              title={`Play the active animation: ${activePreset.name}`}
+            >
+              {traversalPlaying ? `⏸ ${activePreset.name}` : `▶ ${activePreset.name}`}
             </button>
             <button data-testid="present-btn" className="btn btn--sm" onClick={startPresenting} title="Present full screen">
               ▷ Present
@@ -290,7 +361,10 @@ export default function App() {
               diagram={diagram}
               templates={templates.templates}
               mode="architect"
-              animate={animate}
+              showSteps={showSteps}
+              traversalPlaying={traversalPlaying}
+              activePreset={activePreset}
+              presets={presets}
               presenting={presenting}
               presentIndex={presentIndex}
               grid={settings.grid}
