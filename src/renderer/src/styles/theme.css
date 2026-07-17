@@ -484,7 +484,7 @@ button { font-family: inherit; }
 .chip:active { cursor: grabbing; }
 
 /* canvas */
-.canvas { position: absolute; inset: 0; }
+.canvas { position: absolute; inset: 0; overflow: hidden; }
 /* freeform whiteboard surface fills the stage */
 .whiteboard { position: absolute; inset: 0; }
 /* read-only diagram backdrop beneath the freeform layer, camera-synced */
@@ -838,6 +838,13 @@ button { font-family: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
+  /* The panel floats over the canvas; let clicks fall through its empty areas
+     to shapes underneath, while its own controls still receive events. Without
+     this a node under the panel can't be selected (the panel eats the click). */
+  pointer-events: none;
+}
+.props-panel :where(input, button, select, textarea, a, [role='button']) {
+  pointer-events: auto;
 }
 .props-panel__title {
   font-family: var(--sans); font-weight: 600; font-size: 13px; letter-spacing: -0.01em;

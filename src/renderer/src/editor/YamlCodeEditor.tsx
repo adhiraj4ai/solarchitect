@@ -42,6 +42,10 @@ export function YamlCodeEditor({
   // clobber a keystroke that raced the re-render, or overwrite a frozen invalid
   // draft with the last-valid text.
   useEffect(() => {
+    // A canvas edit supersedes any not-yet-committed keystroke draft: cancel the
+    // pending debounced push so a stale draft can't clobber the canvas change
+    // (e.g. typing YAML then immediately connecting nodes on the canvas).
+    clearTimeout(debounceRef.current);
     setDraft(yamlText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasEditSeq]);

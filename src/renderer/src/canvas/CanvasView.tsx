@@ -402,6 +402,9 @@ export function CanvasView({
   const onSaveTemplateRef = useRef(onSaveTemplate);
   onSaveTemplateRef.current = onSaveTemplate;
   const pendingSelectRef = useRef<string | null>(null);
+  // Whether the diagram had content on the previous render, so we fit the camera
+  // only when content first appears (see the reconcile effect below).
+  const hadContentRef = useRef(false);
 
   // The single selected object (drives the properties panel). Kept as kind+IR-id
   // so the panel can look the object up in the current diagram.
@@ -514,21 +517,25 @@ export function CanvasView({
       },
     );
 
-    // Track the single selected object (drives the properties panel).
+    // Track the single selected object (drives the properties panel). Dedupe both
+    // updates: this reaction re-fires for selection changes that don't alter our
+    // derived state (e.g. reconcile re-selecting the same shape after an edit),
+    // and returning fresh object/array refs would force a spurious re-render that
+    // remounts the panel's controls mid-interaction. Bail out when unchanged.
     react('selection', () => {
       const only = editor.getOnlySelectedShape();
-      if (only?.type === 'archEdge') setSelection({ kind: 'edge', id: (only as ArchEdgeShape).props.edgeId });
-      else if (only?.type === 'archNode') setSelection({ kind: 'node', id: (only as ArchNodeShape).props.nodeId });
-      else if (only?.type === 'archCluster')
-        setSelection({ kind: 'cluster', id: (only as ArchClusterShape).props.clusterId });
-      else if (only?.type === 'archFrame')
-        setSelection({ kind: 'frame', id: (only as ArchFrameShape).props.frameId });
-      else setSelection(null);
-      setSelectedNodeIds(
-        editor
-          .getSelectedShapes()
-          .filter((s): s is ArchNodeShape => s.type === 'archNode')
-          .map((s) => s.props.nodeId),
+      let next: { kind: 'node' | 'edge' | 'cluster' | 'frame'; id: string } | null = null;
+      if (only?.type === 'archEdge') next = { kind: 'edge', id: (only as ArchEdgeShape).props.edgeId };
+      else if (only?.type === 'archNode') next = { kind: 'node', id: (only as ArchNodeShape).props.nodeId };
+      else if (only?.type === 'archCluster') next = { kind: 'cluster', id: (only as ArchClusterShape).props.clusterId };
+      else if (only?.type === 'archFrame') next = { kind: 'frame', id: (only as ArchFrameShape).props.frameId };
+      setSelection((prev) => (prev?.kind === next?.kind && prev?.id === next?.id ? prev : next));
+      const nodeIds = editor
+        .getSelectedShapes()
+        .filter((s): s is ArchNodeShape => s.type === 'archNode')
+        .map((s) => s.props.nodeId);
+      setSelectedNodeIds((prev) =>
+        prev.length === nodeIds.length && prev.every((id, i) => id === nodeIds[i]) ? prev : nodeIds,
       );
     });
   }, []);
@@ -537,6 +544,14 @@ export function CanvasView({
     const editor = editorRef.current;
     if (!editor) return;
     reconcile(editor, diagram);
+    // Frame the diagram in the visible canvas the first time it has content
+    // (opening a file, or content arriving via the YAML view). Without this the
+    // camera sits at the origin, so content can render under the properties
+    // panel or the split-view code pane and become unclickable. We only fit on
+    // the empty→non-empty transition so it never fights a user's manual zoom.
+    const hasContent = diagram.nodes.length + diagram.clusters.length + (diagram.frames?.length ?? 0) > 0;
+    if (hasContent && !hadContentRef.current) editor.zoomToFit();
+    hadContentRef.current = hasContent;
     // Select a just-connected edge so its label input appears.
     if (pendingSelectRef.current) {
       const shapeId = createShapeId(pendingSelectRef.current);
@@ -1112,7 +1127,7 @@ export function CanvasView({
       </div>
       )}
 
-      {!presenting && selectedNodeIds.length >= 2 && (
+      {!presenting && selectedNodeIds.length >= 2 && !selection && (
         <aside className="props-panel" data-testid="props-panel-multi" aria-label="Properties">
           <div className="props-panel__title">{selectedNodeIds.length} components</div>
           <div className="props-field">
@@ -1124,7 +1139,6 @@ export function CanvasView({
       )}
 
       {!presenting &&
-        selectedNodeIds.length < 2 &&
         (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
         <aside className="props-panel" data-testid="props-panel" aria-label="Properties">
           {selectedFrame && (
