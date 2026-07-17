@@ -1344,7 +1344,7 @@ export function CanvasView({
       <Tldraw
         assetUrls={assetUrls}
         shapeUtils={shapeUtils}
-        components={ARCHITECT_COMPONENTS}
+        components={architectComponents}
         onMount={handleMount}
       />
       {connectLine && (
