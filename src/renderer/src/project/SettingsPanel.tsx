@@ -38,6 +38,19 @@ export function SettingsPanel({
         <label className="settings__row">
           <input
             type="checkbox"
+            data-testid="setting-node-borders"
+            checked={settings.nodeBorders}
+            onChange={(e) => onUpdate({ nodeBorders: e.target.checked })}
+          />
+          <span>
+            <span className="settings__label">Node borders</span>
+            <span className="settings__hint">Draw an outline around each node card.</span>
+          </span>
+        </label>
+
+        <label className="settings__row">
+          <input
+            type="checkbox"
             data-testid="setting-autosave"
             checked={settings.autosave}
             onChange={(e) => onUpdate({ autosave: e.target.checked })}

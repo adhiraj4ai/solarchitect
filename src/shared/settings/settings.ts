@@ -14,6 +14,8 @@ import {
 export interface AppSettings {
   /** Show the canvas grid background. */
   grid: boolean;
+  /** Draw an outline (border + shadow) on node cards. */
+  nodeBorders: boolean;
   /** Autosave the current diagram after edits. */
   autosave: boolean;
   /** Provider to filter the shape library to by default, or null for all. */
@@ -26,6 +28,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   grid: true,
+  nodeBorders: false,
   autosave: false,
   defaultProvider: null,
   customPresets: [],
@@ -57,6 +60,7 @@ export function mergeSettings(input: unknown): AppSettings {
         : DEFAULT_SETTINGS.defaultProvider;
   return {
     grid: bool(src.grid, DEFAULT_SETTINGS.grid),
+    nodeBorders: bool(src.nodeBorders, DEFAULT_SETTINGS.nodeBorders),
     autosave: bool(src.autosave, DEFAULT_SETTINGS.autosave),
     defaultProvider,
     customPresets: coercePresets(src.customPresets),

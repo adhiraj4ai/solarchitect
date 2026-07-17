@@ -34,6 +34,12 @@ describe('mergeSettings', () => {
     expect(mergeSettings({ grid: false })).toEqual({ ...DEFAULT_SETTINGS, grid: false });
   });
 
+  it('handles nodeBorders: default off, kept when provided, tolerant of garbage', () => {
+    expect(mergeSettings({}).nodeBorders).toBe(false);
+    expect(mergeSettings({ nodeBorders: true }).nodeBorders).toBe(true);
+    expect(mergeSettings({ nodeBorders: 'yes' }).nodeBorders).toBe(false);
+  });
+
   it('ignores wrongly-typed values and falls back to defaults', () => {
     expect(mergeSettings({ grid: 'yes', autosave: 1, defaultProvider: 42 })).toEqual(DEFAULT_SETTINGS);
   });

@@ -48,20 +48,8 @@ export class NodeShapeUtil extends ShapeUtil<ArchNodeShape> {
       <HTMLContainer
         className="arch-node"
         style={{
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 7,
           width: shape.props.w,
           height: shape.props.h,
-          border: '1px solid var(--line-strong, #c6d0dc)',
-          borderRadius: 10,
-          background: 'var(--panel, #fff)',
-          boxShadow: '0 1px 3px rgba(16,23,34,0.1)',
-          fontFamily: 'var(--sans)',
-          pointerEvents: 'all',
         }}
       >
         {/* Traversal-order badge; shown only when Steps is on (.steps-on ancestor). */}
