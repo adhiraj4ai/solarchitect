@@ -40,10 +40,10 @@ describe('mergeSettings', () => {
     expect(mergeSettings({ nodeBorders: 'yes' }).nodeBorders).toBe(false);
   });
 
-  it('handles nodeFill: default on, kept when provided, tolerant of garbage', () => {
-    expect(mergeSettings({}).nodeFill).toBe(true);
-    expect(mergeSettings({ nodeFill: false }).nodeFill).toBe(false);
-    expect(mergeSettings({ nodeFill: 'no' }).nodeFill).toBe(true);
+  it('handles nodeFill: default off, kept when provided, tolerant of garbage', () => {
+    expect(mergeSettings({}).nodeFill).toBe(false);
+    expect(mergeSettings({ nodeFill: true }).nodeFill).toBe(true);
+    expect(mergeSettings({ nodeFill: 'no' }).nodeFill).toBe(false);
   });
 
   it('ignores wrongly-typed values and falls back to defaults', () => {
