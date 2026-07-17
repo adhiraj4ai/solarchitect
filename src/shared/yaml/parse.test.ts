@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDiagram, extractAnnotations } from './parse';
+import { parseDiagram } from './parse';
 
 describe('parseDiagram', () => {
   it('parses an empty diagram', () => {
@@ -229,7 +229,7 @@ annotations: []
     if (!result.ok) expect(result.error.message).toMatch(/arrow must be/i);
   });
 
-  it('extractAnnotations reads legacy annotations for migration', () => {
+  it('ignores a legacy annotations key without carrying it onto the diagram', () => {
     const yaml = `nodes: []
 edges: []
 clusters: []
@@ -242,18 +242,9 @@ annotations:
     height: 100
     content: Legacy note
 `;
-    const anns = extractAnnotations(yaml);
-    expect(anns).toHaveLength(1);
-    expect(anns[0]).toMatchObject({ id: 'a1', kind: 'sticky', content: 'Legacy note', x: 10, y: 20 });
-    // ...and the parsed diagram itself no longer carries them.
     const parsed = parseDiagram(yaml);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect('annotations' in parsed.diagram).toBe(false);
-  });
-
-  it('extractAnnotations returns [] when there are none or the YAML is bad', () => {
-    expect(extractAnnotations('nodes: []\nedges: []\nclusters: []\n')).toEqual([]);
-    expect(extractAnnotations(':::not yaml')).toEqual([]);
   });
 
   it('parses frames (print pages)', () => {

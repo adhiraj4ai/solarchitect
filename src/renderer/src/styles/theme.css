@@ -384,7 +384,7 @@ button { font-family: inherit; }
 .list { overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .list__empty { padding: 10px 14px; font-size: 12px; color: var(--faint); }
 
-.diagram-item {
+.doc-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -400,10 +400,10 @@ button { font-family: inherit; }
   cursor: pointer;
   transition: background 0.12s;
 }
-.diagram-item:hover:not(:disabled) { background: var(--panel); }
-.diagram-item.active { background: var(--panel); border-left-color: var(--blueprint); color: var(--blueprint-ink); }
-.diagram-item.error { color: var(--danger-ink); cursor: not-allowed; }
-.diagram-item .warn { color: var(--danger); }
+.doc-item:hover:not(:disabled) { background: var(--panel); }
+.doc-item.active { background: var(--panel); border-left-color: var(--blueprint); color: var(--blueprint-ink); }
+.doc-item.error { color: var(--danger-ink); cursor: not-allowed; }
+.doc-item .warn { color: var(--danger); }
 
 /* templates */
 .templates { border-top: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; flex: 0 0 auto; }
@@ -549,7 +549,7 @@ button { font-family: inherit; }
   padding: 6px 14px 2px; font-size: 10.5px; text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--faint);
 }
-.diagram-item__icon { flex: none; margin-right: 6px; vertical-align: middle; }
+.doc-item__icon { flex: none; margin-right: 6px; vertical-align: middle; }
 /* Hide the tldraw watermark on both surfaces. Note: removing it for a
    distributed/commercial product requires a tldraw business license — this is a
    local, self-hosted tool. */

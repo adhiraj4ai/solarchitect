@@ -46,8 +46,6 @@ import type {
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [FrameShapeUtil, ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
-export type Mode = 'architect' | 'whiteboard';
-
 /** Tiny preview of each edge routing style for the toolbar picker. */
 function EdgeShapeGlyph({ kind }: { kind: EdgeShapeKind }) {
   const d =
@@ -145,9 +143,9 @@ function ToolIcon({ name }: { name: keyof typeof TOOL_ICONS }) {
   );
 }
 
-// Architect mode is a structured system-design surface: no freehand tools, no
-// style panel — you place nodes from the library and connect them. Whiteboard
-// mode is for sketching: tldraw's full drawing dock and style panel return.
+// The diagram surface is a structured system-design canvas: no freehand tools,
+// no style panel — you place nodes from the library and connect them. (Freeform
+// sketching lives in the separate Whiteboard document, not here.)
 const ARCHITECT_COMPONENTS = {
   StylePanel: null,
   PageMenu: null,
@@ -158,7 +156,6 @@ const ARCHITECT_COMPONENTS = {
   HelpMenu: null,
   NavigationPanel: null,
 };
-const WHITEBOARD_COMPONENTS = { PageMenu: null, MainMenu: null };
 
 function shortId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
@@ -270,7 +267,6 @@ function assembleFromCanvas(editor: Editor, prev: Diagram): Diagram {
 export function CanvasView({
   diagram,
   templates,
-  mode,
   onCanvasEdit,
   onSaveTemplate,
   onError,
@@ -282,7 +278,6 @@ export function CanvasView({
 }: {
   diagram: Diagram;
   templates: NamedTemplate[];
-  mode: Mode;
   animate?: boolean;
   presenting?: boolean;
   presentIndex?: number;
@@ -324,8 +319,6 @@ export function CanvasView({
   useEffect(() => {
     if (selectedEdgeId) edgeLabelRef.current?.focus();
   }, [selectedEdgeId]);
-  const modeRef = useRef(mode);
-  modeRef.current = mode;
 
   // ---- connect-by-drag: drag from a node's port onto another node to add an edge ----
   const [connectLine, setConnectLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
@@ -369,7 +362,6 @@ export function CanvasView({
 
   const handlePointerDownCapture = useCallback(
     (e: React.PointerEvent) => {
-      if (modeRef.current !== 'architect') return;
       const port = (e.target as HTMLElement).closest?.('[data-conn-port]');
       const editor = editorRef.current;
       if (!port || !editor) return;
@@ -710,7 +702,7 @@ export function CanvasView({
 
   return (
     <div
-      className={`canvas${mode === 'architect' && !presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${presenting ? ' presenting' : ''}`}
+      className={`canvas${!presenting ? ' connect-enabled' : ''}${animate ? ' animate-on' : ''}${presenting ? ' presenting' : ''}`}
       data-testid="canvas-drop"
       onPointerDownCapture={handlePointerDownCapture}
       onDragOverCapture={(e) => {
@@ -722,71 +714,67 @@ export function CanvasView({
     >
       {!presenting && (
       <div className="canvas-toolbar">
-        {mode === 'architect' && (
-          <>
-            <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
-              <ToolIcon name="connect" />
-              Connect
-            </button>
-            <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
-              <ToolIcon name="group" />
-              Group
-            </button>
-            <span className="sep" />
-            <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
-              <ToolIcon name="template" />
-              Template
-            </button>
-            <div className="frame-menu">
+        <button data-testid="connect-btn" onClick={handleConnect} className="btn btn--sm">
+          <ToolIcon name="connect" />
+          Connect
+        </button>
+        <button data-testid="group-btn" onClick={handleGroup} className="btn btn--sm">
+          <ToolIcon name="group" />
+          Group
+        </button>
+        <span className="sep" />
+        <button data-testid="save-template-btn" onClick={handleSaveTemplate} className="btn btn--sm">
+          <ToolIcon name="template" />
+          Template
+        </button>
+        <div className="frame-menu">
+          <button
+            data-testid="add-frame-btn"
+            className="btn btn--sm"
+            aria-expanded={frameMenuOpen}
+            onClick={() => {
+              setExportMenuOpen(false);
+              setFrameMenuOpen((v) => !v);
+            }}
+          >
+            <ToolIcon name="frame" />
+            Frame ▾
+          </button>
+          {frameMenuOpen && (
+            <div className="frame-menu__list" role="menu">
+              {FRAME_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  role="menuitem"
+                  data-testid={`add-frame-${p.id}`}
+                  className="frame-menu__item"
+                  onClick={() => {
+                    handleAddFrame(p.id);
+                    setFrameMenuOpen(false);
+                  }}
+                >
+                  <span>{p.label}</span>
+                  <span className="frame-menu__dim">
+                    {p.width}×{p.height}
+                  </span>
+                </button>
+              ))}
               <button
-                data-testid="add-frame-btn"
-                className="btn btn--sm"
-                aria-expanded={frameMenuOpen}
+                role="menuitem"
+                data-testid="add-frame-custom"
+                className="frame-menu__item"
                 onClick={() => {
-                  setExportMenuOpen(false);
-                  setFrameMenuOpen((v) => !v);
+                  handleAddFrame('custom');
+                  setFrameMenuOpen(false);
                 }}
               >
-                <ToolIcon name="frame" />
-                Frame ▾
+                <span>Custom</span>
+                <span className="frame-menu__dim">resize</span>
               </button>
-              {frameMenuOpen && (
-                <div className="frame-menu__list" role="menu">
-                  {FRAME_PRESETS.map((p) => (
-                    <button
-                      key={p.id}
-                      role="menuitem"
-                      data-testid={`add-frame-${p.id}`}
-                      className="frame-menu__item"
-                      onClick={() => {
-                        handleAddFrame(p.id);
-                        setFrameMenuOpen(false);
-                      }}
-                    >
-                      <span>{p.label}</span>
-                      <span className="frame-menu__dim">
-                        {p.width}×{p.height}
-                      </span>
-                    </button>
-                  ))}
-                  <button
-                    role="menuitem"
-                    data-testid="add-frame-custom"
-                    className="frame-menu__item"
-                    onClick={() => {
-                      handleAddFrame('custom');
-                      setFrameMenuOpen(false);
-                    }}
-                  >
-                    <span>Custom</span>
-                    <span className="frame-menu__dim">resize</span>
-                  </button>
-                </div>
-              )}
             </div>
-            <span className="sep" />
-          </>
-        )}
+          )}
+        </div>
+        <span className="sep" />
         <div className="frame-menu">
           <button
             data-testid="export-btn"
@@ -832,7 +820,7 @@ export function CanvasView({
       </div>
       )}
 
-      {!presenting && mode === 'architect' && selectedNodeIds.length >= 2 && (
+      {!presenting && selectedNodeIds.length >= 2 && (
         <aside className="props-panel" data-testid="props-panel-multi" aria-label="Properties">
           <div className="props-panel__title">{selectedNodeIds.length} components</div>
           <div className="props-field">
@@ -844,7 +832,6 @@ export function CanvasView({
       )}
 
       {!presenting &&
-        mode === 'architect' &&
         selectedNodeIds.length < 2 &&
         (selectedEdge || selectedNode || selectedCluster || selectedFrame) && (
         <aside className="props-panel" data-testid="props-panel" aria-label="Properties">
@@ -1022,7 +1009,7 @@ export function CanvasView({
       <Tldraw
         assetUrls={assetUrls}
         shapeUtils={shapeUtils}
-        components={mode === 'architect' ? ARCHITECT_COMPONENTS : WHITEBOARD_COMPONENTS}
+        components={ARCHITECT_COMPONENTS}
         onMount={handleMount}
       />
       {connectLine && (

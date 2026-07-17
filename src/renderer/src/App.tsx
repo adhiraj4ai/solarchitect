@@ -327,7 +327,6 @@ export default function App() {
             <CanvasView
               diagram={diagram}
               templates={templates.templates}
-              mode="architect"
               animate={animate}
               presenting={presenting}
               presentIndex={presentIndex}

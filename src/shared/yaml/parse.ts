@@ -1,14 +1,7 @@
 import { parse as parseYaml } from 'yaml';
 import { isValidNodeType } from '../ir/taxonomy';
 import { ACCENT_COLORS } from '../ir/types';
-import type {
-  Diagram,
-  DiagramNode,
-  DiagramEdge,
-  DiagramCluster,
-  DiagramAnnotation,
-  DiagramFrame,
-} from '../ir/types';
+import type { Diagram, DiagramNode, DiagramEdge, DiagramCluster, DiagramFrame } from '../ir/types';
 
 export interface ParseError {
   message: string;
@@ -143,8 +136,8 @@ export function parseDiagram(yamlText: string): ParseResult {
       });
     });
 
-    // A legacy `annotations` key is ignored here (not part of the Diagram
-    // anymore); the one-time migration reads it via extractAnnotations().
+    // A legacy `annotations` key is ignored here — annotations are no longer part
+    // of the Diagram (standalone whiteboards replaced them).
 
     const frames: DiagramFrame[] = asList(doc.frames, 'frames').map((item, i) => {
       const f = asMapping(item, `frames[${i}]`);
@@ -163,31 +156,5 @@ export function parseDiagram(yamlText: string): ParseResult {
   } catch (e) {
     if (e instanceof ValidationError) return { ok: false, error: { message: e.message, path: e.path } };
     return { ok: false, error: { message: `Invalid diagram: ${(e as Error).message}`, path: '' } };
-  }
-}
-
-/**
- * Read any legacy `annotations` from a diagram's YAML, for the one-time
- * migration onto the whiteboard. Returns [] for well-formed diagrams that have
- * none, and swallows malformed input (migration is best-effort, never fatal).
- */
-export function extractAnnotations(yamlText: string): DiagramAnnotation[] {
-  try {
-    const raw = parseYaml(yamlText) as { annotations?: unknown } | null;
-    const list = raw && typeof raw === 'object' ? raw.annotations : undefined;
-    if (!Array.isArray(list)) return [];
-    return list
-      .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
-      .map((a) => ({
-        id: String(a.id ?? ''),
-        kind: (a.kind as DiagramAnnotation['kind']) ?? 'text',
-        x: Number(a.x) || 0,
-        y: Number(a.y) || 0,
-        width: Number(a.width) || 160,
-        height: Number(a.height) || 100,
-        content: String(a.content ?? ''),
-      }));
-  } catch {
-    return [];
   }
 }
