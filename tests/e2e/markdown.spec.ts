@@ -70,3 +70,34 @@ test('markdown autosaves and persists across reopen', async () => {
   await list().getByText('untitled.md').click();
   await expect(preview().locator('h1')).toHaveText('Persisted Heading');
 });
+
+test('an edit made right before switching documents is flushed, not dropped', async () => {
+  // Continues on untitled.md (opened by the previous test); untitled.yaml exists.
+  await expect(win.locator('[data-testid="markdown"]')).toBeVisible();
+  await source().fill('# Flushed On Unmount\n\nlast-moment edit\n');
+  // Switch away immediately — faster than the autosave debounce — so the save
+  // can only land if MarkdownView flushes its pending edit on unmount.
+  await list().getByText('untitled.yaml').click();
+  await expect(win.locator('[data-testid="canvas-drop"]')).toBeVisible();
+  await expect
+    .poll(async () => readFile(join(projectDir, 'untitled.md'), 'utf-8'), { timeout: 5000 })
+    .toContain('Flushed On Unmount');
+});
+
+test('the preview sanitizes embedded HTML (no scripts, handlers, or javascript: urls)', async () => {
+  // The project list is already open from the previous test; re-clicking the
+  // activity-project button here would toggle-collapse the sidebar.
+  await list().getByText('untitled.md').click();
+  await expect(win.locator('[data-testid="markdown"]')).toBeVisible();
+  await source().fill(
+    '# Safe Title\n\n<script>window.__pwned = true</script>\n\n' +
+      '<img src=x onerror="window.__pwned = true">\n\n[danger](javascript:window.__pwned=true)\n',
+  );
+  await expect(preview().locator('h1')).toHaveText('Safe Title'); // legit content still renders
+  await expect(preview().locator('script')).toHaveCount(0); // script stripped
+  const onerror = await preview().locator('img').first().getAttribute('onerror').catch(() => null);
+  expect(onerror).toBeNull(); // inline handler stripped
+  const href = await preview().locator('a').first().getAttribute('href').catch(() => null);
+  expect(href == null || !href.toLowerCase().startsWith('javascript:')).toBe(true); // javascript: url neutralized
+  expect(await win.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned)).toBeFalsy(); // nothing ran
+});

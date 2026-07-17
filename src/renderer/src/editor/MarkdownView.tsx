@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { headingSlugs } from '@shared/markdown/markdownOutline';
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -32,6 +33,9 @@ export function MarkdownView({
   const [text, setText] = useState('');
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  // The latest unsaved text (null when nothing is pending), so a debounced save
+  // can be flushed on unmount instead of dropped.
+  const pendingSaveRef = useRef<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Load the file once on mount (the parent keys this component by fileName).
@@ -54,24 +58,43 @@ export function MarkdownView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectDir, fileName]);
 
+  // Write the latest pending text now (used by the debounce and the unmount flush).
+  const flushSave = useCallback(() => {
+    clearTimeout(saveTimer.current);
+    const next = pendingSaveRef.current;
+    if (next == null || !projectDir || !fileName) return;
+    pendingSaveRef.current = null;
+    void window.solarchitect
+      .writeDocument(projectDir, fileName, next)
+      .then(() => onGitRefresh())
+      .catch((e) => onError(`Could not save ${fileName}: ${e instanceof Error ? e.message : String(e)}`));
+  }, [projectDir, fileName, onGitRefresh, onError]);
+
   const onChange = useCallback(
     (next: string) => {
       setText(next);
       onTextChange(next);
       if (!projectDir || !fileName || !loaded) return;
+      pendingSaveRef.current = next;
       clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void window.solarchitect
-          .writeDocument(projectDir, fileName, next)
-          .then(() => onGitRefresh())
-          .catch((e) => onError(`Could not save ${fileName}: ${e instanceof Error ? e.message : String(e)}`));
-      }, SAVE_DEBOUNCE_MS);
+      saveTimer.current = setTimeout(flushSave, SAVE_DEBOUNCE_MS);
     },
-    [projectDir, fileName, loaded, onTextChange, onGitRefresh, onError],
+    [projectDir, fileName, loaded, onTextChange, flushSave],
   );
 
-  // Rendered HTML. `marked.parse` is synchronous with the default options.
-  const html = useMemo(() => marked.parse(text, { breaks: true }) as string, [text]);
+  // Flush a still-pending save on unmount (switching documents right after an
+  // edit) rather than dropping it. A ref keeps the cleanup's [] deps honest.
+  const flushRef = useRef(flushSave);
+  flushRef.current = flushSave;
+  useEffect(() => () => flushRef.current(), []);
+
+  // Rendered HTML, sanitized before it reaches the DOM. `marked` does not strip
+  // HTML embedded in the markdown, so a document from git could carry a
+  // <script>, an onerror handler, or a javascript: URL. The CSP blocks these in
+  // production, but that is a single layer and the dev CSP is permissive — so we
+  // sanitize with DOMPurify for defense in depth. `marked.parse` is synchronous
+  // with the default options.
+  const html = useMemo(() => DOMPurify.sanitize(marked.parse(text, { breaks: true }) as string), [text]);
 
   // Assign stable anchor ids to the rendered headings, in document order, from
   // the same slugger the outline uses — so reveal-to-heading lines up. Ids are

@@ -57,8 +57,10 @@ clusters: []
 annotations: []
 `);
   await win.locator('[data-testid="view-visual"]').click(); // wider canvas for two nodes
-  const one = await canvas().getByText('One').boundingBox();
-  const two = await canvas().getByText('Two').boundingBox();
+  // exact:true — a plain getByText('One') also matches the properties-panel title
+  // "Component" (case-insensitive substring), which lingers from a prior test.
+  const one = await canvas().getByText('One', { exact: true }).boundingBox();
+  const two = await canvas().getByText('Two', { exact: true }).boundingBox();
   if (!one || !two) throw new Error('nodes not rendered');
   // Marquee-drag from empty space above-left of both nodes to below-right,
   // selecting both (brush selection — starts on empty canvas).
