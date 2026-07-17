@@ -402,9 +402,10 @@ export function CanvasView({
   const onSaveTemplateRef = useRef(onSaveTemplate);
   onSaveTemplateRef.current = onSaveTemplate;
   const pendingSelectRef = useRef<string | null>(null);
-  // Whether the diagram had content on the previous render, so we fit the camera
-  // only when content first appears (see the reconcile effect below).
-  const hadContentRef = useRef(false);
+  // Signature of the placed objects (node/cluster/frame ids) on the previous
+  // render, so we fit the camera only when the content set changes (see the
+  // reconcile effect below), never on moves or edge changes.
+  const contentSigRef = useRef('');
 
   // The single selected object (drives the properties panel). Kept as kind+IR-id
   // so the panel can look the object up in the current diagram.
@@ -544,14 +545,22 @@ export function CanvasView({
     const editor = editorRef.current;
     if (!editor) return;
     reconcile(editor, diagram);
-    // Frame the diagram in the visible canvas the first time it has content
-    // (opening a file, or content arriving via the YAML view). Without this the
-    // camera sits at the origin, so content can render under the properties
-    // panel or the split-view code pane and become unclickable. We only fit on
-    // the empty→non-empty transition so it never fights a user's manual zoom.
-    const hasContent = diagram.nodes.length + diagram.clusters.length + (diagram.frames?.length ?? 0) > 0;
-    if (hasContent && !hadContentRef.current) editor.zoomToFit();
-    hadContentRef.current = hasContent;
+    // Frame the diagram in the visible canvas whenever the set of placed objects
+    // changes (opening a file, or content arriving/changing via the YAML view).
+    // Without this the camera can sit where a prior diagram left it, so new nodes
+    // render off-viewport — tldraw culls them from the DOM and they're neither
+    // visible nor selectable. The signature is nodes/clusters/frames only (not
+    // edges or positions), so connecting an edge or dragging a node never refits
+    // and fights the user's manual pan/zoom.
+    const contentSig = [
+      ...diagram.nodes.map((n) => n.id),
+      ...diagram.clusters.map((c) => c.id),
+      ...(diagram.frames ?? []).map((f) => f.id),
+    ]
+      .sort()
+      .join(',');
+    if (contentSig && contentSig !== contentSigRef.current) editor.zoomToFit();
+    contentSigRef.current = contentSig;
     // Select a just-connected edge so its label input appears.
     if (pendingSelectRef.current) {
       const shapeId = createShapeId(pendingSelectRef.current);
