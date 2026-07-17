@@ -31,7 +31,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   grid: true,
   nodeBorders: false,
-  nodeFill: true,
+  nodeFill: false,
   autosave: false,
   defaultProvider: null,
   customPresets: [],
