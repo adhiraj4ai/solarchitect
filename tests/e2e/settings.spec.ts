@@ -27,9 +27,13 @@ test('settings default sensibly and persist across a reload', async () => {
 
   await expect(win.locator('[data-testid="setting-grid"]')).toBeChecked(); // grid on by default
   await expect(win.locator('[data-testid="setting-autosave"]')).not.toBeChecked(); // autosave off by default
+  await expect(win.locator('[data-testid="setting-node-borders"]')).not.toBeChecked(); // borderless by default
+  await expect(win.locator('[data-testid="setting-node-fill"]')).toBeChecked(); // filled by default
 
   await win.locator('[data-testid="setting-grid"]').uncheck();
   await win.locator('[data-testid="setting-autosave"]').check();
+  await win.locator('[data-testid="setting-node-borders"]').check();
+  await win.locator('[data-testid="setting-node-fill"]').uncheck();
   await win.locator('[data-testid="setting-provider"]').selectOption('aws');
   await win.waitForTimeout(400); // let the async writeSettings flush to disk
 
@@ -40,6 +44,8 @@ test('settings default sensibly and persist across a reload', async () => {
 
   await expect(win.locator('[data-testid="setting-grid"]')).not.toBeChecked();
   await expect(win.locator('[data-testid="setting-autosave"]')).toBeChecked();
+  await expect(win.locator('[data-testid="setting-node-borders"]')).toBeChecked();
+  await expect(win.locator('[data-testid="setting-node-fill"]')).not.toBeChecked();
   await expect(win.locator('[data-testid="setting-provider"]')).toHaveValue('aws');
 });
 
