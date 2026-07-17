@@ -32,6 +32,8 @@ export function WhiteboardView({
   onError: (msg: string) => void;
 }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  // Whether an edit is waiting on the debounce, so it can be flushed on unmount.
+  const dirtyRef = useRef(false);
   // The backdrop layer is transformed to match the whiteboard camera so it lines
   // up with what the user draws over it.
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -117,13 +119,37 @@ export function WhiteboardView({
       // Debounced autosave on user edits.
       editor.store.listen(
         () => {
+          dirtyRef.current = true;
           clearTimeout(saveTimer.current);
-          saveTimer.current = setTimeout(() => persist(editor, backdropDiagramRef.current), SAVE_DEBOUNCE_MS);
+          saveTimer.current = setTimeout(() => {
+            dirtyRef.current = false;
+            persist(editor, backdropDiagramRef.current);
+          }, SAVE_DEBOUNCE_MS);
         },
         { source: 'user', scope: 'document' },
       );
     },
     [projectDir, fileName, loadBackdrop, persist],
+  );
+
+  // Flush a still-pending sketch save on unmount (switching documents right after
+  // drawing) rather than dropping it. Guarded: if tldraw has already torn down the
+  // editor, skip rather than throw a save error.
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+  useEffect(
+    () => () => {
+      clearTimeout(saveTimer.current);
+      if (dirtyRef.current && editorRef.current) {
+        dirtyRef.current = false;
+        try {
+          persistRef.current(editorRef.current, backdropDiagramRef.current);
+        } catch {
+          /* editor already disposed — nothing to flush */
+        }
+      }
+    },
+    [],
   );
 
   const onPickBackdrop = useCallback(
