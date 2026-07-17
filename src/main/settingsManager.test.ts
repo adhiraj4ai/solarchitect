@@ -17,12 +17,10 @@ afterEach(async () => {
 
 describe('settingsManager', () => {
   it('round-trips settings through write then read', async () => {
-    const written = await writeSettings(file(), { grid: false, autosave: true, defaultProvider: 'aws' });
-    expect(written).toEqual({ grid: false, autosave: true, defaultProvider: 'aws' });
-    expect(await readSettings(file())).toEqual({
-      settings: { grid: false, autosave: true, defaultProvider: 'aws' },
-      corrupt: false,
-    });
+    const input = { ...DEFAULT_SETTINGS, grid: false, autosave: true, defaultProvider: 'aws' };
+    const written = await writeSettings(file(), input);
+    expect(written).toEqual(input);
+    expect(await readSettings(file())).toEqual({ settings: input, corrupt: false });
   });
 
   it('returns defaults (not corrupt) when the settings file is missing', async () => {

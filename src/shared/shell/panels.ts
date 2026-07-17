@@ -12,6 +12,7 @@ export type PanelId =
   | 'outline'
   | 'shapes'
   | 'templates'
+  | 'animations'
   | 'git'
   | 'settings'
   | 'help';
@@ -33,6 +34,7 @@ export const PANELS: PanelMeta[] = [
   { id: 'outline', label: 'Outline', group: 'primary' },
   { id: 'shapes', label: 'Shapes', group: 'primary' },
   { id: 'templates', label: 'Templates', group: 'primary' },
+  { id: 'animations', label: 'Animations', group: 'primary' },
   { id: 'git', label: 'Version control', group: 'primary' },
   { id: 'settings', label: 'Settings', group: 'utility' },
   { id: 'help', label: 'Help', group: 'utility' },

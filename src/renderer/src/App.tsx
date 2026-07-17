@@ -10,6 +10,15 @@ import { TemplatesPanel } from './project/TemplatesPanel';
 import { SearchPanel } from './project/SearchPanel';
 import { OutlinePanel } from './project/OutlinePanel';
 import { SettingsPanel } from './project/SettingsPanel';
+import { AnimationsPanel } from './project/AnimationsPanel';
+import {
+  allPresets,
+  resolvePreset,
+  isBuiltinPreset,
+  BUILTIN_PRESETS,
+  DEFAULT_ACTIVE_PRESET_ID,
+  type AnimationPreset,
+} from '@shared/animation/presets';
 import { HelpPanel } from './ui/HelpPanel';
 import { ActivityBar } from './ui/ActivityBar';
 import { Sidebar } from './ui/Sidebar';
@@ -64,7 +73,10 @@ export default function App() {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   // Animate: flow the relationship lines. Present: full-screen, chrome-free,
   // stepping through page frames (or fit-to-content when there are none).
-  const [animate, setAnimate] = useState(false);
+  // Steps: overlay the resolved traversal order as badges on nodes/edges.
+  const [showSteps, setShowSteps] = useState(false);
+  // Traversal preview: play the staged dim→lit build-up, looping.
+  const [traversalPlaying, setTraversalPlaying] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [presentIndex, setPresentIndex] = useState(0);
   const frames = diagram.frames ?? [];
@@ -223,6 +235,18 @@ export default function App() {
             onApplyYaml={templates.applyTemplatesYaml}
           />
         );
+      case 'animations':
+        return (
+          <AnimationsPanel
+            presets={presets}
+            activeId={settings.activePresetId}
+            onSelectActive={selectActivePreset}
+            onCreate={createPreset}
+            onDuplicate={duplicatePreset}
+            onUpdate={updatePreset}
+            onDelete={deletePreset}
+          />
+        );
       case 'git':
         return <GitPanel projectDir={project.projectDir} git={git} />;
       case 'settings':
@@ -253,13 +277,22 @@ export default function App() {
         {showCanvas && (
           <div className="topgroup">
             <button
-              data-testid="animate-toggle"
-              className={`btn btn--sm${animate ? ' btn--on' : ''}`}
-              aria-pressed={animate}
-              onClick={() => setAnimate((v) => !v)}
-              title="Animate the relationship lines"
+              data-testid="steps-toggle"
+              className={`btn btn--sm${showSteps ? ' btn--on' : ''}`}
+              aria-pressed={showSteps}
+              onClick={() => setShowSteps((v) => !v)}
+              title="Show the traversal step order on nodes and edges"
             >
-              {animate ? '◉ Animating' : '◎ Animate'}
+              {showSteps ? '① Steps' : '◇ Steps'}
+            </button>
+            <button
+              data-testid="traversal-toggle"
+              className={`btn btn--sm${traversalPlaying ? ' btn--on' : ''}`}
+              aria-pressed={traversalPlaying}
+              onClick={() => setTraversalPlaying((v) => !v)}
+              title={`Play the active animation: ${activePreset.name}`}
+            >
+              {traversalPlaying ? `⏸ ${activePreset.name}` : `▶ ${activePreset.name}`}
             </button>
             <button data-testid="present-btn" className="btn btn--sm" onClick={startPresenting} title="Present full screen">
               ▷ Present

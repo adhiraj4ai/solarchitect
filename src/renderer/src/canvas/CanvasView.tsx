@@ -1,7 +1,20 @@
-import { Tldraw, react, createShapeId, exportToBlob, Box, type Editor, type TLShapePartial } from 'tldraw';
+import {
+  Tldraw,
+  react,
+  createShapeId,
+  exportToBlob,
+  Box,
+  DefaultContextMenu,
+  DefaultContextMenuContent,
+  TldrawUiMenuGroup,
+  TldrawUiMenuItem,
+  type TLUiContextMenuProps,
+  type Editor,
+  type TLShapePartial,
+} from 'tldraw';
 import 'tldraw/tldraw.css';
 import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeShape } from './NodeShapeUtil';
 import { ClusterShapeUtil, CLUSTER_COLOR_STYLE, type ArchClusterShape } from './ClusterShapeUtil';
 import { FrameShapeUtil, type ArchFrameShape } from './FrameShapeUtil';
@@ -41,9 +54,72 @@ import type {
   AccentColor,
   EdgeShape as EdgeShapeKind,
   EdgeLineStyle,
+  EdgeDirection,
 } from '@shared/ir/types';
+import { resolveOrder } from '@shared/animation/order';
+import { buildTimeline, presetTiming, animationPeriod } from '@shared/animation/timeline';
+import { stateAt, stateAtByPath, byPathDuration } from '@shared/animation/state';
+import { enumeratePaths, type DiagramPath } from '@shared/animation/paths';
+import type { AnimationPreset } from '@shared/animation/presets';
+import {
+  applyTraversalState,
+  LIT_STATE,
+  captureTraversalGif,
+  DEFAULT_GIF_OUTPUT,
+  type GifOutputOptions,
+  type CaptureRegion,
+} from './captureAnimation';
 
 const assetUrls = getAssetUrlsByImport();
+
+// The direction toggle cycles forward → reverse → bidirectional. One map is the
+// single source for each state's glyph, tooltip, and the next state on click.
+const EDGE_DIRECTION_CYCLE: Record<EdgeDirection, { glyph: string; title: string; next: EdgeDirection }> = {
+  forward: { glyph: '→', title: 'One-way — click to reverse', next: 'reverse' },
+  reverse: { glyph: '←', title: 'Reversed — click for bidirectional', next: 'bidirectional' },
+  bidirectional: { glyph: '⇌', title: 'Bidirectional — click for one-way', next: 'forward' },
+};
+
+// Parse a step-order input: empty clears the explicit step (order becomes
+// derived); otherwise a non-negative integer.
+function parseStepInput(value: string): number | undefined {
+  if (value.trim() === '') return undefined;
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+/** A finite number clamped to [min,max], or `fallback` for invalid input. */
+function numOr(value: string, min: number, max: number, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** A labelled, clamped number input for the export dialog. */
+function NumField(props: {
+  label: string;
+  testid: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <label className="modal__field">
+      <span>{props.label}</span>
+      <input
+        type="number"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        data-testid={props.testid}
+        value={props.value}
+        onChange={(e) => props.onChange(numOr(e.target.value, props.min, props.max, props.value))}
+      />
+    </label>
+  );
+}
 const shapeUtils = [FrameShapeUtil, ClusterShapeUtil, EdgeShapeUtil, NodeShapeUtil];
 
 /** Tiny preview of each edge routing style for the toolbar picker. */
@@ -231,6 +307,20 @@ function reconcile(editor: Editor, diagram: Diagram): void {
       editor.updateShape({ id: createShapeId(n.id), type: 'archNode', x: n.x, y: n.y, props: nodeToShapeProps(n) }),
     );
 
+    // Sync the derived traversal order onto each shape's `order` prop. It is a
+    // computed value (not an IR field), so topology or step changes can move a
+    // shape's order without changing its own IR fields — hence a dedicated pass
+    // rather than folding it into the IR diffs above.
+    const order = resolveOrder(diagram);
+    for (const s of getArchNodeShapes(editor)) {
+      const want = order.nodeOrder[s.props.nodeId] ?? 0;
+      if (s.props.order !== want) editor.updateShape({ id: s.id, type: 'archNode', props: { order: want } });
+    }
+    for (const s of getArchEdgeShapes(editor)) {
+      const want = order.edgeOrder[s.props.edgeId] ?? 0;
+      if (s.props.order !== want) editor.updateShape({ id: s.id, type: 'archEdge', props: { order: want } });
+    }
+
     // Enforce paint order after any additions: frames at the very back, then
     // clusters, then edges, then nodes on top. (New shapes otherwise land on
     // top of their neighbours.)
@@ -270,7 +360,10 @@ export function CanvasView({
   onCanvasEdit,
   onSaveTemplate,
   onError,
-  animate = false,
+  showSteps = false,
+  traversalPlaying = false,
+  activePreset,
+  presets,
   presenting = false,
   presentIndex = 0,
   grid = true,
@@ -293,6 +386,8 @@ export function CanvasView({
   const editorRef = useRef<Editor | null>(null);
   const diagramRef = useRef(diagram);
   diagramRef.current = diagram;
+  const activePresetRef = useRef(activePreset);
+  activePresetRef.current = activePreset;
   const onCanvasEditRef = useRef(onCanvasEdit);
   onCanvasEditRef.current = onCanvasEdit;
   const templatesRef = useRef(templates);
@@ -308,6 +403,12 @@ export function CanvasView({
   );
   const [frameMenuOpen, setFrameMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // Animated GIF export dialog + in-progress capture state. Output params live
+  // here; the chosen preset supplies style + motion timing.
+  const [gifDialogOpen, setGifDialogOpen] = useState(false);
+  const [gifOutput, setGifOutput] = useState<GifOutputOptions>(DEFAULT_GIF_OUTPUT);
+  const [gifPresetId, setGifPresetId] = useState<string>(activePreset.id);
+  const [gifProgress, setGifProgress] = useState<{ done: number; total: number } | null>(null);
   // All currently-selected node ids (for assigning a color to several at once).
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const selectedEdgeId = selection?.kind === 'edge' ? selection.id : null;
@@ -322,6 +423,12 @@ export function CanvasView({
 
   // ---- connect-by-drag: drag from a node's port onto another node to add an edge ----
   const [connectLine, setConnectLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  // Traversal preview playback. `traversalTimeRef` is the single source of truth
+  // both the rAF loop and the scrubber write; the state mirror drives the UI.
+  const [traversalTime, setTraversalTime] = useState(0);
+  const [traversalRunning, setTraversalRunning] = useState(true);
+  const traversalTimeRef = useRef(0);
+  const traversalRunningRef = useRef(true);
   const connectFromRef = useRef<string | null>(null);
   const connectRectRef = useRef<DOMRect | null>(null);
   const connectSrcRef = useRef<{ x: number; y: number } | null>(null);
@@ -580,6 +687,141 @@ export function CanvasView({
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
+  // When Steps is on, surface the non-blocking hint if the graph has no natural
+  // starting node (a cycle, or every node has an incoming edge).
+  useEffect(() => {
+    if (!showSteps) return;
+    const { warning } = resolveOrder(diagram);
+    if (warning) onErrorRef.current(warning);
+  }, [showSteps, diagram]);
+
+  // Traversal preview: drive shape opacity (dim→lit build-up) and the edge flow
+  // token from the pure stateAt() each animation frame, looping. Everything is
+  // reset to fully-lit on stop. The order/timeline recompute each frame so the
+  // preview stays live if the diagram is edited mid-play.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !traversalPlaying) return;
+
+    // Entering preview restarts playback from the beginning.
+    traversalTimeRef.current = 0;
+    traversalRunningRef.current = true;
+    setTraversalTime(0);
+    setTraversalRunning(true);
+
+    let raf = 0;
+    let last = performance.now();
+    // Recompute the order/timeline only when the diagram identity changes, so a
+    // steady preview isn't re-running Kahn every frame — but it stays live if
+    // the diagram is edited mid-play.
+    let cachedDiagram: Diagram | null = null;
+    let cachedPreset: AnimationPreset | null = null;
+    let order = resolveOrder(diagramRef.current);
+    let timeline = buildTimeline(order, presetTiming(activePresetRef.current));
+    let paths: DiagramPath[] = [];
+    const frame = () => {
+      const now = performance.now();
+      const dt = (now - last) / 1000;
+      last = now;
+      const diagram = diagramRef.current;
+      const preset = activePresetRef.current;
+      // Recompute when the diagram or the active preset's timing changes.
+      if (diagram !== cachedDiagram || preset !== cachedPreset) {
+        cachedDiagram = diagram;
+        cachedPreset = preset;
+        order = resolveOrder(diagram);
+        timeline = buildTimeline(order, presetTiming(preset));
+        paths = preset.style === 'end-to-end' ? enumeratePaths(diagram).paths : [];
+      }
+      const travel = timeline.timing.dotTravelSeconds;
+      const total = Math.max(
+        preset.style === 'end-to-end' ? byPathDuration(paths, travel) : animationPeriod(preset.style, timeline),
+        0.001,
+      );
+      // Advance only while running; scrubbing writes traversalTimeRef directly.
+      if (traversalRunningRef.current) {
+        traversalTimeRef.current = (traversalTimeRef.current + dt) % total;
+        setTraversalTime(traversalTimeRef.current);
+      }
+      const s =
+        preset.style === 'end-to-end'
+          ? stateAtByPath(diagram, paths, travel, traversalTimeRef.current)
+          : stateAt(diagram, order, timeline, traversalTimeRef.current, preset.style);
+      editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      editor.store.mergeRemoteChanges(() => applyTraversalState(editor, LIT_STATE));
+    };
+  }, [traversalPlaying]);
+
+  // Scrubber handlers: seeking pauses and holds; play/pause toggles advance.
+  const seekTraversal = useCallback((seconds: number) => {
+    traversalTimeRef.current = seconds;
+    traversalRunningRef.current = false;
+    setTraversalTime(seconds);
+    setTraversalRunning(false);
+  }, []);
+  const toggleTraversalRunning = useCallback(() => {
+    traversalRunningRef.current = !traversalRunningRef.current;
+    setTraversalRunning(traversalRunningRef.current);
+  }, []);
+  // Timeline for the scrubber UI (total duration + beat tick positions).
+  const previewTimeline = useMemo(
+    () => buildTimeline(resolveOrder(diagram), presetTiming(activePreset)),
+    [diagram, activePreset],
+  );
+  const previewPaths = useMemo(
+    () => (activePreset.style === 'end-to-end' ? enumeratePaths(diagram) : { paths: [], truncated: false }),
+    [diagram, activePreset.style],
+  );
+  const previewPeriod =
+    activePreset.style === 'end-to-end'
+      ? byPathDuration(previewPaths.paths, presetTiming(activePreset).dotTravelSeconds)
+      : animationPeriod(activePreset.style, previewTimeline);
+  // Beat ticks only make sense for the by-order styles (control-flow, dataflow).
+  const showBeatTicks = activePreset.style !== 'all-edges' && activePreset.style !== 'end-to-end';
+
+  // End-to-end can enumerate very many paths on a dense graph; surface the cap.
+  useEffect(() => {
+    if (traversalPlaying && activePreset.style === 'end-to-end' && previewPaths.truncated) {
+      onErrorRef.current(`Showing the first ${previewPaths.paths.length} paths; the diagram has more.`);
+    }
+  }, [traversalPlaying, activePreset.style, previewPaths]);
+
+  // Architect tldraw components: the defaults plus a context-menu entry that
+  // exports the current selection as an animation. It APPENDS to tldraw's
+  // native menu (copy/delete/…) rather than replacing it, and only shows when
+  // shapes are selected.
+  const architectComponents = useMemo(
+    () => ({
+      ...ARCHITECT_COMPONENTS,
+      ContextMenu: (props: TLUiContextMenuProps) => (
+        <DefaultContextMenu {...props}>
+          {(editorRef.current?.getSelectedShapeIds().length ?? 0) > 0 && (
+            <TldrawUiMenuGroup id="solarchitect-animation">
+              <TldrawUiMenuItem
+                id="export-selection-animation"
+                label="Export selection as animation…"
+                readonlyOk
+                onSelect={() => {
+                  setGifOutput((o) => ({ ...o, region: 'selection' }));
+                  setGifPresetId(activePreset.id);
+                  setGifDialogOpen(true);
+                }}
+              />
+            </TldrawUiMenuGroup>
+          )}
+          <DefaultContextMenuContent />
+        </DefaultContextMenu>
+      ),
+    }),
+    [],
+  );
+
   const handleExport = useCallback(async (format: 'png' | 'svg') => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -597,6 +839,36 @@ export function CanvasView({
       await window.solarchitect.exportImage(base64, `diagram.${format}`);
     } catch (e) {
       onErrorRef.current(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, []);
+
+  const presetsRef = useRef(presets);
+  presetsRef.current = presets;
+  const handleExportGif = useCallback(async (output: GifOutputOptions, presetId: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (editor.getCurrentPageShapeIds().size === 0) {
+      onErrorRef.current('Nothing to export — the canvas is empty.');
+      return;
+    }
+    const preset = presetsRef.current.find((p) => p.id === presetId) ?? activePresetRef.current;
+    setGifProgress({ done: 0, total: 1 });
+    try {
+      const bytes = await captureTraversalGif(editor, diagramRef.current, preset, output, (done, total) =>
+        setGifProgress({ done, total }),
+      );
+      // Base64-encode in chunks so a large buffer doesn't blow the call stack.
+      let binary = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      await window.solarchitect.exportImage(btoa(binary), 'diagram.gif');
+      setGifDialogOpen(false);
+    } catch (e) {
+      onErrorRef.current(`GIF export failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setGifProgress(null);
     }
   }, []);
 
@@ -814,6 +1086,19 @@ export function CanvasView({
                 <span>SVG vector</span>
                 <span className="frame-menu__dim">.svg</span>
               </button>
+              <button
+                role="menuitem"
+                data-testid="export-gif-btn"
+                className="frame-menu__item"
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  setGifPresetId(activePreset.id);
+                  setGifDialogOpen(true);
+                }}
+              >
+                <span>Animated GIF…</span>
+                <span className="frame-menu__dim">.gif</span>
+              </button>
             </div>
           )}
         </div>
@@ -891,6 +1176,18 @@ export function CanvasView({
                   onPick={(c) => setNodesColor([selectedNode.id], c)}
                 />
               </div>
+              <label className="props-field">
+                <span className="props-field__label">Step</span>
+                <input
+                  type="number"
+                  min={0}
+                  data-testid="prop-node-step"
+                  className="props-input"
+                  placeholder="auto"
+                  value={selectedNode.step ?? ''}
+                  onChange={(e) => patchNode(selectedNode.id, { step: parseStepInput(e.target.value) })}
+                />
+              </label>
               <div className="props-field__hint">{selectedNode.type}</div>
             </>
           )}
@@ -942,6 +1239,18 @@ export function CanvasView({
                   onChange={(e) => handleLabelChange(e.target.value)}
                 />
               </label>
+              <label className="props-field">
+                <span className="props-field__label">Step</span>
+                <input
+                  type="number"
+                  min={0}
+                  data-testid="prop-edge-step"
+                  className="props-input"
+                  placeholder="auto"
+                  value={selectedEdge.step ?? ''}
+                  onChange={(e) => patchSelectedEdge({ step: parseStepInput(e.target.value) })}
+                />
+              </label>
               <div className="props-field">
                 <span className="props-field__label">Routing</span>
                 <span className="edge-shapes" role="group" aria-label="Edge routing">
@@ -988,16 +1297,12 @@ export function CanvasView({
                   </button>
                   <button
                     data-testid="edge-direction-toggle"
-                    className={`edge-shape-btn${selectedEdge.direction === 'bidirectional' ? ' on' : ''}`}
-                    aria-pressed={selectedEdge.direction === 'bidirectional'}
-                    title={selectedEdge.direction === 'bidirectional' ? 'Bidirectional' : 'One-way'}
-                    onClick={() =>
-                      patchSelectedEdge({
-                        direction: selectedEdge.direction === 'bidirectional' ? 'forward' : 'bidirectional',
-                      })
-                    }
+                    className={`edge-shape-btn${selectedEdge.direction !== 'forward' ? ' on' : ''}`}
+                    aria-pressed={selectedEdge.direction !== 'forward'}
+                    title={EDGE_DIRECTION_CYCLE[selectedEdge.direction].title}
+                    onClick={() => patchSelectedEdge({ direction: EDGE_DIRECTION_CYCLE[selectedEdge.direction].next })}
                   >
-                    ⇌
+                    {EDGE_DIRECTION_CYCLE[selectedEdge.direction].glyph}
                   </button>
                 </span>
               </div>
@@ -1030,6 +1335,117 @@ export function CanvasView({
             markerEnd="url(#connect-arrow)"
           />
         </svg>
+      )}
+      {traversalPlaying && previewPeriod > 0 && (
+        <div className="scrubber" data-testid="traversal-scrubber" role="group" aria-label="Traversal scrubber">
+          <button
+            className="btn btn--sm btn--icon"
+            data-testid="scrubber-playpause"
+            aria-pressed={traversalRunning}
+            aria-label={traversalRunning ? 'Pause' : 'Play'}
+            title={traversalRunning ? 'Pause' : 'Play'}
+            onClick={toggleTraversalRunning}
+          >
+            {traversalRunning ? '⏸' : '▶'}
+          </button>
+          <div className="scrubber__track">
+            <input
+              type="range"
+              className="scrubber__range"
+              data-testid="scrubber-range"
+              aria-label="Playhead"
+              min={0}
+              max={previewPeriod}
+              step={0.01}
+              value={Math.min(traversalTime, previewPeriod)}
+              onChange={(e) => seekTraversal(Number(e.target.value))}
+            />
+            {/* Beat markers: click to jump to (and hold on) that beat. */}
+            {showBeatTicks &&
+              previewTimeline.beatValues.map((v) => {
+                const start = previewTimeline.beatStart[v];
+                return (
+                  <button
+                    key={v}
+                    className="scrubber__tick"
+                    data-testid="scrubber-tick"
+                    aria-label={`Jump to beat at ${start.toFixed(1)} seconds`}
+                    title={`Beat at ${start.toFixed(1)}s`}
+                    style={{ left: `${(start / previewPeriod) * 100}%` }}
+                    onClick={() => seekTraversal(start)}
+                  />
+                );
+              })}
+          </div>
+          <span className="scrubber__time">
+            {traversalTime.toFixed(1)} / {previewPeriod.toFixed(1)}s
+          </span>
+        </div>
+      )}
+      {gifDialogOpen && (
+        <div className="modal-backdrop" data-testid="gif-dialog" role="dialog" aria-modal="true" aria-label="Export animated GIF">
+          <div className="modal">
+            <div className="modal__title">Export animated GIF</div>
+            <label className="modal__field">
+              <span>Animation</span>
+              <select data-testid="gif-preset" value={gifPresetId} onChange={(e) => setGifPresetId(e.target.value)}>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <NumField
+              label="Frames per second"
+              testid="gif-fps"
+              min={5}
+              max={60}
+              step={1}
+              value={gifOutput.fps}
+              onChange={(fps) => setGifOutput((o) => ({ ...o, fps }))}
+            />
+            <NumField
+              label="Scale"
+              testid="gif-scale"
+              min={1}
+              max={4}
+              step={1}
+              value={gifOutput.scale}
+              onChange={(scale) => setGifOutput((o) => ({ ...o, scale }))}
+            />
+            <label className="modal__field">
+              <span>Region</span>
+              <select
+                data-testid="gif-region"
+                value={gifOutput.region}
+                onChange={(e) => setGifOutput((o) => ({ ...o, region: e.target.value as CaptureRegion }))}
+              >
+                <option value="all">Whole diagram</option>
+                <option value="selection">Selection</option>
+                <option value="viewport">Viewport</option>
+              </select>
+            </label>
+            {gifProgress && (
+              <div className="modal__progress" data-testid="gif-progress">
+                Rendering frame {gifProgress.done} / {gifProgress.total}…
+              </div>
+            )}
+            <div className="modal__actions">
+              <button className="btn btn--sm" disabled={!!gifProgress} onClick={() => setGifDialogOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn--sm btn--on"
+                data-testid="gif-export-confirm"
+                disabled={!!gifProgress}
+                onClick={() => void handleExportGif(gifOutput, gifPresetId)}
+              >
+                {gifProgress ? 'Rendering…' : 'Export'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

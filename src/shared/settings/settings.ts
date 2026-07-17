@@ -5,6 +5,12 @@
  * the same rules, and a bad settings file can never crash the app.
  */
 
+import {
+  type AnimationPreset,
+  DEFAULT_ACTIVE_PRESET_ID,
+  coercePresets,
+} from '../animation/presets';
+
 export interface AppSettings {
   /** Show the canvas grid background. */
   grid: boolean;
@@ -12,12 +18,18 @@ export interface AppSettings {
   autosave: boolean;
   /** Provider to filter the shape library to by default, or null for all. */
   defaultProvider: string | null;
+  /** User-created animation presets (built-ins live in code, not here). */
+  customPresets: AnimationPreset[];
+  /** The active animation preset id (may name a built-in). */
+  activePresetId: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   grid: true,
   autosave: false,
   defaultProvider: null,
+  customPresets: [],
+  activePresetId: DEFAULT_ACTIVE_PRESET_ID,
 };
 
 /** Result of loading settings. `corrupt` is true only when a file was present
@@ -47,5 +59,7 @@ export function mergeSettings(input: unknown): AppSettings {
     grid: bool(src.grid, DEFAULT_SETTINGS.grid),
     autosave: bool(src.autosave, DEFAULT_SETTINGS.autosave),
     defaultProvider,
+    customPresets: coercePresets(src.customPresets),
+    activePresetId: typeof src.activePresetId === 'string' ? src.activePresetId : DEFAULT_ACTIVE_PRESET_ID,
   };
 }
