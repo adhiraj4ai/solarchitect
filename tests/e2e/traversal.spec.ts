@@ -70,6 +70,24 @@ test('playing the traversal dims later steps and flows a token, then resets on s
   expect(await tokenVisible()).toBe(false);
 });
 
+test('the animation control bar is visible before Play, switches preset, and opens settings', async () => {
+  await editor().fill(CHAIN);
+  await expect(canvas().getByText('Alpha')).toBeVisible();
+
+  // The bar is present on a Diagram without pressing Play first.
+  await expect(win.locator('[data-testid="traversal-scrubber"]')).toBeVisible();
+
+  // The preset dropdown switches the active preset (reflected in the top-bar Play label).
+  await win.locator('[data-testid="anim-bar-preset"]').selectOption('builtin-dataflow');
+  await expect(win.locator('[data-testid="traversal-toggle"]')).toContainText('Dataflow');
+  await win.locator('[data-testid="anim-bar-preset"]').selectOption('builtin-control-flow');
+  await expect(win.locator('[data-testid="traversal-toggle"]')).toContainText('Control flow');
+
+  // The gear opens the Animations panel (its preset editor becomes visible).
+  await win.locator('[data-testid="anim-bar-gear"]').click();
+  await expect(win.locator('[data-testid="anim-editor"]')).toBeVisible();
+});
+
 test('the scrubber seeks and holds, and beat ticks jump', async () => {
   await editor().fill(CHAIN);
   await expect(canvas().getByText('Alpha')).toBeVisible();

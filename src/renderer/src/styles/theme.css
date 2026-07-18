@@ -659,6 +659,24 @@ button { font-family: inherit; }
   color: var(--slate, #5a6675);
   white-space: nowrap;
 }
+/* Persistent animation control bar: the scrubber plus a preset picker + gear. */
+.anim-bar__sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line, #dbe3ec);
+  margin: 0 2px;
+}
+.anim-bar__preset {
+  font-family: var(--mono);
+  font-size: 12px;
+  max-width: 140px;
+  padding: 3px 6px;
+  color: var(--ink);
+  background: var(--panel-2, #f4f7fb);
+  border: 1px solid var(--line, #dbe3ec);
+  border-radius: 6px;
+  cursor: pointer;
+}
 
 /* Animations panel: the preset library. */
 .animations {

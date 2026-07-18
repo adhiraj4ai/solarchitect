@@ -19,6 +19,7 @@ import { NodeShapeUtil, NODE_DEFAULT_WIDTH, NODE_DEFAULT_HEIGHT, type ArchNodeSh
 import { ClusterShapeUtil, CLUSTER_COLOR_STYLE, type ArchClusterShape } from './ClusterShapeUtil';
 import { FrameShapeUtil, type ArchFrameShape } from './FrameShapeUtil';
 import { EdgeShapeUtil, type ArchEdgeShape } from './EdgeShapeUtil';
+import { AnimationControlBar } from './AnimationControlBar';
 import { NODE_TYPE_DND_MIME, TEMPLATE_DND_MIME } from './dnd';
 import {
   nodesToShapes,
@@ -362,6 +363,9 @@ export function CanvasView({
   onError,
   showSteps = false,
   traversalPlaying = false,
+  onTraversalPlayingChange,
+  onSelectActivePreset,
+  onOpenAnimations,
   activePreset,
   presets,
   presenting = false,
@@ -377,6 +381,12 @@ export function CanvasView({
   showSteps?: boolean;
   /** Play the active preset's animation (build-up + flowing token), looping. */
   traversalPlaying?: boolean;
+  /** Engage/disengage the preview from the on-canvas control bar. */
+  onTraversalPlayingChange?: (playing: boolean) => void;
+  /** Switch the active preset from the control bar's picker. */
+  onSelectActivePreset?: (id: string) => void;
+  /** Open the Animations panel (the control bar's gear). */
+  onOpenAnimations?: () => void;
   /** The active animation preset (its motion timing drives play + scrub). */
   activePreset: AnimationPreset;
   /** All presets (built-ins + custom), for the export dialog's picker. */
@@ -401,6 +411,13 @@ export function CanvasView({
   diagramRef.current = diagram;
   const activePresetRef = useRef(activePreset);
   activePresetRef.current = activePreset;
+  const traversalPlayingRef = useRef(traversalPlaying);
+  traversalPlayingRef.current = traversalPlaying;
+  const onTraversalPlayingChangeRef = useRef(onTraversalPlayingChange);
+  onTraversalPlayingChangeRef.current = onTraversalPlayingChange;
+  // The position/run-state to enter the preview at when it engages next — set by
+  // a seek-before-Play so entering doesn't snap back to 0. Null = start fresh.
+  const engageAtRef = useRef<{ time: number; running: boolean } | null>(null);
   const onCanvasEditRef = useRef(onCanvasEdit);
   onCanvasEditRef.current = onCanvasEdit;
   const templatesRef = useRef(templates);
@@ -740,11 +757,14 @@ export function CanvasView({
     const editor = editorRef.current;
     if (!editor || !traversalPlaying) return;
 
-    // Entering preview restarts playback from the beginning.
-    traversalTimeRef.current = 0;
-    traversalRunningRef.current = true;
-    setTraversalTime(0);
-    setTraversalRunning(true);
+    // Enter at the engage point (a seek made before Play holds there, paused);
+    // otherwise restart playback from the beginning at full speed.
+    const init = engageAtRef.current ?? { time: 0, running: true };
+    engageAtRef.current = null;
+    traversalTimeRef.current = init.time;
+    traversalRunningRef.current = init.running;
+    setTraversalTime(init.time);
+    setTraversalRunning(init.running);
 
     let raf = 0;
     let last = performance.now();
@@ -797,6 +817,12 @@ export function CanvasView({
 
   // Scrubber handlers: seeking pauses and holds; play/pause toggles advance.
   const seekTraversal = useCallback((seconds: number) => {
+    if (!traversalPlayingRef.current) {
+      // Seeking before Play engages the preview, held (paused) at this position.
+      engageAtRef.current = { time: seconds, running: false };
+      onTraversalPlayingChangeRef.current?.(true);
+      return;
+    }
     traversalTimeRef.current = seconds;
     traversalRunningRef.current = false;
     setTraversalTime(seconds);
@@ -806,6 +832,15 @@ export function CanvasView({
     traversalRunningRef.current = !traversalRunningRef.current;
     setTraversalRunning(traversalRunningRef.current);
   }, []);
+  // The control bar's play/pause: engage from the start if idle, else pause/resume.
+  const toggleBarPlayback = useCallback(() => {
+    if (!traversalPlayingRef.current) {
+      engageAtRef.current = { time: 0, running: true };
+      onTraversalPlayingChangeRef.current?.(true);
+    } else {
+      toggleTraversalRunning();
+    }
+  }, [toggleTraversalRunning]);
   // Timeline for the scrubber UI (total duration + beat tick positions).
   const previewTimeline = useMemo(
     () => buildTimeline(resolveOrder(diagram), presetTiming(activePreset)),
@@ -1372,51 +1407,21 @@ export function CanvasView({
           />
         </svg>
       )}
-      {traversalPlaying && previewPeriod > 0 && (
-        <div className="scrubber" data-testid="traversal-scrubber" role="group" aria-label="Traversal scrubber">
-          <button
-            className="btn btn--sm btn--icon"
-            data-testid="scrubber-playpause"
-            aria-pressed={traversalRunning}
-            aria-label={traversalRunning ? 'Pause' : 'Play'}
-            title={traversalRunning ? 'Pause' : 'Play'}
-            onClick={toggleTraversalRunning}
-          >
-            {traversalRunning ? '⏸' : '▶'}
-          </button>
-          <div className="scrubber__track">
-            <input
-              type="range"
-              className="scrubber__range"
-              data-testid="scrubber-range"
-              aria-label="Playhead"
-              min={0}
-              max={previewPeriod}
-              step={0.01}
-              value={Math.min(traversalTime, previewPeriod)}
-              onChange={(e) => seekTraversal(Number(e.target.value))}
-            />
-            {/* Beat markers: click to jump to (and hold on) that beat. */}
-            {showBeatTicks &&
-              previewTimeline.beatValues.map((v) => {
-                const start = previewTimeline.beatStart[v];
-                return (
-                  <button
-                    key={v}
-                    className="scrubber__tick"
-                    data-testid="scrubber-tick"
-                    aria-label={`Jump to beat at ${start.toFixed(1)} seconds`}
-                    title={`Beat at ${start.toFixed(1)}s`}
-                    style={{ left: `${(start / previewPeriod) * 100}%` }}
-                    onClick={() => seekTraversal(start)}
-                  />
-                );
-              })}
-          </div>
-          <span className="scrubber__time">
-            {traversalTime.toFixed(1)} / {previewPeriod.toFixed(1)}s
-          </span>
-        </div>
+      {!presenting && (
+        <AnimationControlBar
+          playing={traversalPlaying}
+          running={traversalRunning}
+          time={traversalTime}
+          period={previewPeriod}
+          timeline={previewTimeline}
+          showBeatTicks={showBeatTicks}
+          presets={presets}
+          activeId={activePreset.id}
+          onPlayPause={toggleBarPlayback}
+          onSeek={seekTraversal}
+          onSelectActive={(id) => onSelectActivePreset?.(id)}
+          onOpenSettings={() => onOpenAnimations?.()}
+        />
       )}
       {gifDialogOpen && (
         <div className="modal-backdrop" data-testid="gif-dialog" role="dialog" aria-modal="true" aria-label="Export animated GIF">

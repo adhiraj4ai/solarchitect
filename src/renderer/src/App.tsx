@@ -400,6 +400,9 @@ export default function App() {
               templates={templates.templates}
               showSteps={showSteps}
               traversalPlaying={traversalPlaying}
+              onTraversalPlayingChange={setTraversalPlaying}
+              onSelectActivePreset={selectActivePreset}
+              onOpenAnimations={() => layout.selectPanel('animations')}
               activePreset={activePreset}
               presets={presets}
               presenting={presenting}
