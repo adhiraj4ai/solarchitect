@@ -5,7 +5,7 @@ import { resolveOrder } from '@shared/animation/order';
 import { buildTimeline, presetTiming, animationPeriod } from '@shared/animation/timeline';
 import { stateAt, stateAtByPath, byPathDuration, type AnimationState } from '@shared/animation/state';
 import { enumeratePaths } from '@shared/animation/paths';
-import type { AnimationPreset } from '@shared/animation/presets';
+import { DEFAULT_TOKEN_SIZE, type AnimationPreset } from '@shared/animation/presets';
 import { getArchNodeShapes, getArchClusterShapes, getArchEdgeShapes } from './shapeAdapters';
 
 /** Fully-lit, no-token state — resets the canvas after a capture / on stop. */
@@ -17,10 +17,20 @@ export const LIT_STATE: AnimationState = {
   edgeDirection: {},
 };
 
+/** The active preset's token cosmetics (color/size), applied to every edge's
+ *  flow token. Empty color falls back to the sync accent. */
+export interface TokenCosmetics {
+  tokenColor?: string;
+  tokenSize?: number;
+}
+
 /** Apply a traversal AnimationState to the canvas shapes (opacity build-up +
  *  edge flow token). Missing entries fall back to lit/no-token, so passing
- *  LIT_STATE resets everything. Caller wraps this in mergeRemoteChanges. */
-export function applyTraversalState(editor: Editor, s: AnimationState): void {
+ *  LIT_STATE resets everything. `cosmetics` sets the flow token's color/size from
+ *  the active preset. Caller wraps this in mergeRemoteChanges. */
+export function applyTraversalState(editor: Editor, s: AnimationState, cosmetics: TokenCosmetics = {}): void {
+  const dotColor = cosmetics.tokenColor ?? '';
+  const dotSize = cosmetics.tokenSize ?? DEFAULT_TOKEN_SIZE;
   for (const shape of getArchNodeShapes(editor)) {
     const op = s.nodeOpacity[shape.props.nodeId] ?? 1;
     if (shape.opacity !== op) editor.updateShape({ id: shape.id, type: 'archNode', opacity: op });
@@ -33,8 +43,13 @@ export function applyTraversalState(editor: Editor, s: AnimationState): void {
     const op = s.edgeOpacity[shape.props.edgeId] ?? 1;
     const dot = s.dotPositions[shape.props.edgeId];
     const dotT = dot == null ? -1 : dot;
-    if (shape.opacity !== op || shape.props.dotT !== dotT)
-      editor.updateShape({ id: shape.id, type: 'archEdge', opacity: op, props: { dotT } });
+    if (
+      shape.opacity !== op ||
+      shape.props.dotT !== dotT ||
+      shape.props.dotColor !== dotColor ||
+      shape.props.dotSize !== dotSize
+    )
+      editor.updateShape({ id: shape.id, type: 'archEdge', opacity: op, props: { dotT, dotColor, dotSize } });
   }
 }
 
@@ -117,7 +132,9 @@ export async function captureTraversalGif(
         preset.style === 'end-to-end'
           ? stateAtByPath(diagram, paths, travel, t, preset.travelEasing ?? 'linear')
           : stateAt(diagram, order, timeline, t, preset.style);
-      editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
+      editor.store.mergeRemoteChanges(() =>
+        applyTraversalState(editor, s, { tokenColor: preset.tokenColor, tokenSize: preset.tokenSize }),
+      );
 
       const svg = await editor.getSvgString(ids, { background: true, padding: 8, ...(bounds ? { bounds } : {}) });
       if (!svg) throw new Error('Failed to serialize the diagram.');

@@ -132,6 +132,9 @@ export function edgeToShape(edge: DiagramEdge, nodeById: Map<string, DiagramNode
       order: 0,
       // Traversal-preview token position, driven by the preview loop; idle here.
       dotT: -1,
+      // Token cosmetics, set from the active preset by the preview/capture loop.
+      dotColor: '',
+      dotSize: 5,
       x1: a.x - originX,
       y1: a.y - originY,
       x2: b.x - originX,
