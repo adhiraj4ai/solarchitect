@@ -732,6 +732,13 @@ button { font-family: inherit; }
 .anim-editor .props-input {
   width: 118px;
 }
+.anim-editor .props-range {
+  width: 100%;
+  accent-color: var(--sync);
+}
+.anim-editor .props-range:disabled {
+  opacity: 0.5;
+}
 
 /* Export-animated-GIF dialog. */
 .modal-backdrop {

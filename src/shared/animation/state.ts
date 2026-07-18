@@ -1,11 +1,21 @@
 import type { Diagram, EdgeDirection } from '../ir/types';
 import type { ResolvedOrder } from './order';
 import type { Timeline } from './timeline';
-import type { AnimationStyle } from './presets';
+import type { AnimationStyle, TravelEasing } from './presets';
 import type { DiagramPath } from './paths';
 
-/** Opacity of an element that has not been reached yet. */
+/** Default opacity of an element that has not been reached yet (used when a
+ *  timeline carries no explicit dimOpacity). */
 export const DIM_OPACITY = 0.15;
+
+/** Map a 0..1 travel fraction through the chosen easing curve. Linear is the
+ *  identity; ease-in-out is easeInOutQuad (slow start and end) with the 0 and 1
+ *  endpoints fixed, so the token still starts and ends exactly on the nodes. */
+export function applyEasing(fraction: number, easing: TravelEasing): number {
+  if (easing === 'linear') return fraction;
+  const t = Math.min(1, Math.max(0, fraction));
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
 
 /** The full visual state of the traversal at a moment in time. Pure: the same
  *  (diagram, order, timeline, t) always yields the same state, so it drives
@@ -23,11 +33,11 @@ export interface AnimationState {
 }
 
 /** Cumulative dim→lit level for an element whose beat starts at `beatStart`. */
-function litLevel(beatStart: number, t: number, fadeSeconds: number): number {
-  if (t < beatStart) return DIM_OPACITY;
+function litLevel(beatStart: number, t: number, fadeSeconds: number, dimOpacity: number): number {
+  if (t < beatStart) return dimOpacity;
   if (fadeSeconds <= 0 || t >= beatStart + fadeSeconds) return 1;
   const p = (t - beatStart) / fadeSeconds;
-  return DIM_OPACITY + (1 - DIM_OPACITY) * p;
+  return dimOpacity + (1 - dimOpacity) * p;
 }
 
 /**
@@ -49,9 +59,11 @@ export function stateAt(
   style: AnimationStyle = 'control-flow',
 ): AnimationState {
   const { fadeSeconds, dotTravelSeconds } = timeline.timing;
+  const dimOpacity = timeline.timing.dimOpacity ?? DIM_OPACITY;
+  const easing = timeline.timing.easing ?? 'linear';
   const buildUp = style === 'control-flow';
   const allAtOnce = style === 'all-edges';
-  const opacityFor = (v: number) => (buildUp ? litLevel(timeline.beatStart[v] ?? 0, t, fadeSeconds) : 1);
+  const opacityFor = (v: number) => (buildUp ? litLevel(timeline.beatStart[v] ?? 0, t, fadeSeconds, dimOpacity) : 1);
   // A token's geometric position along from→to, flipped for a reverse edge.
   const geom = (dir: EdgeDirection, flow: number) => (dir === 'reverse' ? 1 - flow : flow);
 
@@ -77,12 +89,13 @@ export function stateAt(
 
     if (allAtOnce) {
       // Every edge flows continuously and in phase, independent of order.
-      dotPositions[e.id] = geom(e.direction, cyclePhase);
+      dotPositions[e.id] = geom(e.direction, applyEasing(cyclePhase, easing));
     } else if (t < start || t > start + dotTravelSeconds || dotTravelSeconds <= 0) {
       // by-order: the token flows only during this edge's beat.
       dotPositions[e.id] = null;
     } else {
-      dotPositions[e.id] = geom(e.direction, Math.min(1, Math.max(0, (t - start) / dotTravelSeconds)));
+      const flow = Math.min(1, Math.max(0, (t - start) / dotTravelSeconds));
+      dotPositions[e.id] = geom(e.direction, applyEasing(flow, easing));
     }
   }
 
@@ -106,6 +119,7 @@ export function stateAtByPath(
   paths: DiagramPath[],
   dotTravelSeconds: number,
   t: number,
+  easing: TravelEasing = 'linear',
 ): AnimationState {
   const nodeOpacity: Record<string, number> = {};
   for (const n of diagram.nodes) nodeOpacity[n.id] = 1;
@@ -141,7 +155,8 @@ export function stateAtByPath(
     acc += p.edgeIds.length;
   }
   if (activeEdgeId !== undefined && activeEdgeId in dotPositions) {
-    dotPositions[activeEdgeId] = edgeDirection[activeEdgeId] === 'reverse' ? 1 - flow : flow;
+    const eased = applyEasing(flow, easing);
+    dotPositions[activeEdgeId] = edgeDirection[activeEdgeId] === 'reverse' ? 1 - eased : eased;
   }
 
   return { nodeOpacity, edgeOpacity, clusterOpacity, dotPositions, edgeDirection };

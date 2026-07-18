@@ -22,6 +22,14 @@ describe('animation presets', () => {
     expect(typeof p?.secondsPerStep).toBe('number');
   });
 
+  it('coerces travelEasing, defaulting to linear for missing or invalid values', () => {
+    expect(coercePreset({ id: 'c', name: 'n', style: 'dataflow' })?.travelEasing).toBe('linear');
+    expect(coercePreset({ id: 'c', name: 'n', style: 'dataflow', travelEasing: 'ease-in-out' })?.travelEasing).toBe(
+      'ease-in-out',
+    );
+    expect(coercePreset({ id: 'c', name: 'n', style: 'dataflow', travelEasing: 'wild' })?.travelEasing).toBe('linear');
+  });
+
   it('rejects presets with a missing id/name or unknown style', () => {
     expect(coercePreset({ name: 'x', style: 'dataflow' })).toBeNull();
     expect(coercePreset({ id: 'x', style: 'dataflow' })).toBeNull();

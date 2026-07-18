@@ -126,6 +126,40 @@ describe('stateAt', () => {
     expect(s1.dotPositions.e2).not.toBeNull();
   });
 
+  it('dims un-reached elements to the timeline dimOpacity, not the hardcoded default', () => {
+    const d = chain();
+    const order = resolveOrder(d);
+    const timeline = buildTimeline(order, { ...TIMING, dimOpacity: 0.4 });
+    // Beat 0 (t=0.5): a is lit; b and c are not reached and dim to 0.4.
+    const s = stateAt(d, order, timeline, 0.5);
+    expect(s.nodeOpacity.a).toBe(1);
+    expect(s.nodeOpacity.b).toBe(0.4);
+    expect(s.nodeOpacity.c).toBe(0.4);
+  });
+
+  it('applies ease-in-out to the token fraction (endpoints unchanged, mid-curve differs)', () => {
+    const d = chain();
+    const order = resolveOrder(d);
+    const linear = buildTimeline(order, TIMING);
+    const eased = buildTimeline(order, { ...TIMING, easing: 'ease-in-out' });
+    // e1 is beat 0, active over [0, dotTravel]. At 1/4 of the travel:
+    const tQuarter = TIMING.dotTravelSeconds * 0.25;
+    expect(stateAt(d, order, linear, tQuarter).dotPositions.e1).toBeCloseTo(0.25, 2);
+    expect(stateAt(d, order, eased, tQuarter).dotPositions.e1).toBeCloseTo(0.125, 2);
+    // Endpoints are identical under any easing: 0 at the start, 1 at full travel.
+    expect(stateAt(d, order, eased, 0).dotPositions.e1).toBeCloseTo(0, 5);
+    expect(stateAt(d, order, eased, TIMING.dotTravelSeconds).dotPositions.e1).toBeCloseTo(1, 5);
+  });
+
+  it('applies easing to the end-to-end path walk', () => {
+    const d = chain();
+    const { paths } = enumeratePaths(d);
+    const travel = 0.9;
+    // First segment (e1), 1/4 through: linear 0.25 vs ease-in-out 0.125.
+    expect(stateAtByPath(d, paths, travel, travel * 0.25, 'linear').dotPositions.e1).toBeCloseTo(0.25, 2);
+    expect(stateAtByPath(d, paths, travel, travel * 0.25, 'ease-in-out').dotPositions.e1).toBeCloseTo(0.125, 2);
+  });
+
   it('lights a cluster with its first member', () => {
     const d: Diagram = {
       nodes: [node('a', { clusterId: 'c1' }), node('b', { clusterId: 'c1' }), node('src')],

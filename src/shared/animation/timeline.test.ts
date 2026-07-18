@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildTimeline, animationPeriod, DEFAULT_TIMING } from './timeline';
+import { buildTimeline, animationPeriod, presetTiming, DEFAULT_TIMING } from './timeline';
+import { coercePreset } from './presets';
 import type { ResolvedOrder } from './order';
 
 const order = (nodeOrder: Record<string, number>, edgeOrder: Record<string, number> = {}): ResolvedOrder => ({
@@ -34,5 +35,19 @@ describe('buildTimeline', () => {
     expect(animationPeriod('all-edges', t)).toBe(0.7); // dotTravelSeconds
     expect(animationPeriod('dataflow', t)).toBe(t.totalSeconds);
     expect(animationPeriod('control-flow', t)).toBe(t.totalSeconds);
+  });
+});
+
+describe('presetTiming', () => {
+  it('carries the preset dimOpacity and travelEasing into engine timing', () => {
+    const p = coercePreset({ id: 'c', name: 'n', style: 'control-flow', dimOpacity: 0.3, travelEasing: 'ease-in-out' })!;
+    const timing = presetTiming(p);
+    expect(timing.dimOpacity).toBe(0.3);
+    expect(timing.easing).toBe('ease-in-out');
+  });
+
+  it('defaults easing to linear when the preset does not set it', () => {
+    const p = coercePreset({ id: 'c', name: 'n', style: 'control-flow' })!;
+    expect(presetTiming(p).easing).toBe('linear');
   });
 });

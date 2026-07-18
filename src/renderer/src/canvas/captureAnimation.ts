@@ -115,7 +115,7 @@ export async function captureTraversalGif(
       const t = i / output.fps;
       const s =
         preset.style === 'end-to-end'
-          ? stateAtByPath(diagram, paths, travel, t)
+          ? stateAtByPath(diagram, paths, travel, t, preset.travelEasing ?? 'linear')
           : stateAt(diagram, order, timeline, t, preset.style);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
 

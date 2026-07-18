@@ -10,6 +10,11 @@ export type AnimationStyle = 'all-edges' | 'dataflow' | 'control-flow' | 'end-to
 
 export const ANIMATION_STYLES: AnimationStyle[] = ['all-edges', 'dataflow', 'control-flow', 'end-to-end'];
 
+/** How the flow token accelerates as it crosses an edge. */
+export type TravelEasing = 'linear' | 'ease-in-out';
+
+export const TRAVEL_EASINGS: TravelEasing[] = ['linear', 'ease-in-out'];
+
 export interface AnimationPreset {
   id: string;
   name: string;
@@ -23,6 +28,8 @@ export interface AnimationPreset {
   /** Opacity of not-yet-reached elements (build-up styles). */
   dimOpacity: number;
   loop: 'once' | 'forever';
+  /** How the flow token accelerates across an edge; absent = linear. */
+  travelEasing?: TravelEasing;
   /** Optional token color; absent uses the sync accent. */
   tokenColor?: string;
 }
@@ -57,6 +64,7 @@ export function coercePreset(input: unknown): AnimationPreset | null {
     dotTravelSeconds: num(o.dotTravelSeconds, 0.9),
     fadeSeconds: num(o.fadeSeconds, 0.35),
     dimOpacity: num(o.dimOpacity, 0.15),
+    travelEasing: o.travelEasing === 'ease-in-out' ? 'ease-in-out' : 'linear',
     loop: o.loop === 'once' || o.loop === 'forever' ? o.loop : 'forever',
     ...(typeof o.tokenColor === 'string' ? { tokenColor: o.tokenColor } : {}),
   };
