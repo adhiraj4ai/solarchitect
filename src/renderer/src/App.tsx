@@ -29,8 +29,11 @@ import { useTemplates } from './hooks/useTemplates';
 import { useGit } from './hooks/useGit';
 import { useWorkspaceLayout } from './hooks/useWorkspaceLayout';
 import { useSettings } from './hooks/useSettings';
+import { DiffReviewView } from './diff/DiffReviewView';
+import { diffDiagrams, type DiagramDiff } from '@shared/diff/diffDiagrams';
+import { parseDiagram } from '@shared/yaml/parse';
 import type { PanelId } from '@shared/shell/panels';
-import type { Diagram } from '@shared/ir/types';
+import { emptyDiagram, type Diagram } from '@shared/ir/types';
 
 /** How the Diagram surface is laid out (only applies to the Diagram surface). */
 type View = 'visual' | 'split' | 'code';
@@ -118,6 +121,30 @@ export default function App() {
   const [presenting, setPresenting] = useState(false);
   const [presentIndex, setPresentIndex] = useState(0);
   const frames = diagram.frames ?? [];
+
+  // Diff/review: compare the open diagram against its last committed version
+  // (working tree vs HEAD). Read-only; opened from the Git panel.
+  const [review, setReview] = useState<{ base: Diagram; next: Diagram; diff: DiagramDiff } | null>(null);
+  const openReview = useCallback(async () => {
+    if (!project.projectDir || !project.currentFile || !isDiagram) return;
+    try {
+      const res = await window.solarchitect.readDocumentAtRef(project.projectDir, project.currentFile, 'HEAD');
+      let base: Diagram = emptyDiagram();
+      if (res.ok) {
+        const parsed = parseDiagram(res.content);
+        if (!parsed.ok) {
+          project.setIoError('Cannot review: the last committed version of this diagram has invalid YAML.');
+          return;
+        }
+        base = parsed.diagram;
+      }
+      setReview({ base, next: diagram, diff: diffDiagrams(base, diagram) });
+    } catch (e) {
+      project.setIoError(`Could not read the last committed version: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [project, isDiagram, diagram]);
+  // Close the review when the open document changes.
+  useEffect(() => setReview(null), [project.currentFile]);
 
   // A shape the Outline/Search panel asked to reveal on the canvas. The nonce
   // makes revealing the same id twice still fire.
@@ -286,7 +313,14 @@ export default function App() {
           />
         );
       case 'git':
-        return <GitPanel projectDir={project.projectDir} git={git} />;
+        return (
+          <GitPanel
+            projectDir={project.projectDir}
+            git={git}
+            canReview={!!project.currentFile && isDiagram && !yamlError}
+            onReviewChanges={openReview}
+          />
+        );
       case 'settings':
         return <SettingsPanel settings={settings} onUpdate={updateSettings} />;
       case 'help':
@@ -368,7 +402,14 @@ export default function App() {
         )}
 
         <main className="stage">
-          {project.projectDir && !project.currentFile ? (
+          {review ? (
+            <DiffReviewView
+              base={review.base}
+              next={review.next}
+              diff={review.diff}
+              onClose={() => setReview(null)}
+            />
+          ) : project.projectDir && !project.currentFile ? (
             <div className="stage__empty" data-testid="no-document">
               <p>No document open.</p>
               <p className="muted">
