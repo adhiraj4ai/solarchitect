@@ -7,4 +7,8 @@ export default defineConfig({
   timeout: 30_000,
   workers: 1,
   fullyParallel: false,
+  // The suite drives a real Electron app under a virtual display in CI, where
+  // rAF-driven animation timing is occasionally slow enough to miss a poll.
+  // Retry in CI so a single timing miss is reported as flaky, not a failure.
+  retries: process.env.CI ? 2 : 0,
 });
