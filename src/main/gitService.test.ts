@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { gitStatus, gitInit, gitSync, gitDetail, gitCommit, gitCreateBranch, gitCheckoutBranch } from './gitService';
+import { gitStatus, gitInit, gitSync, gitDetail, gitCommit, gitCreateBranch, gitCheckoutBranch, gitShow } from './gitService';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -92,5 +92,28 @@ describe('gitService', () => {
     const back = await gitCheckoutBranch(dir, 'feature-x');
     expect(back.ok).toBe(true);
     expect((await gitDetail(dir)).branches).toContain('feature-x');
+  });
+
+  it('gitShow returns a file content at a ref, ignoring later working-tree edits', async () => {
+    await gitInit(dir);
+    await identify(dir);
+    await writeFile(path.join(dir, 'a.yaml'), 'nodes: []\n');
+    await gitCommit(dir, 'init');
+    await writeFile(path.join(dir, 'a.yaml'), 'nodes: [changed]\n'); // uncommitted edit
+
+    const r = await gitShow(dir, 'HEAD', 'a.yaml');
+    expect(r.ok).toBe(true);
+    expect(r.content).toBe('nodes: []\n');
+  });
+
+  it('gitShow reports failure for a path not present at the ref', async () => {
+    await gitInit(dir);
+    await identify(dir);
+    await writeFile(path.join(dir, 'a.yaml'), 'nodes: []\n');
+    await gitCommit(dir, 'init');
+
+    const r = await gitShow(dir, 'HEAD', 'missing.yaml');
+    expect(r.ok).toBe(false);
+    expect(r.content).toBe('');
   });
 });

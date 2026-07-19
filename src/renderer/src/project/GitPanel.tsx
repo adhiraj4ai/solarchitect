@@ -4,7 +4,17 @@ import type { GitState } from '../hooks/useGit';
 /** Full git surface for the open project: branch switch/create, changed files,
  *  commit with a message, push/pull, and recent history. Git state is shared
  *  (via useGit) with the bottom status bar; all git runs in the main process. */
-export function GitPanel({ projectDir, git }: { projectDir: string | null; git: GitState }) {
+export function GitPanel({
+  projectDir,
+  git,
+  canReview,
+  onReviewChanges,
+}: {
+  projectDir: string | null;
+  git: GitState;
+  canReview?: boolean;
+  onReviewChanges?: () => void;
+}) {
   const { detail, busy, status } = git;
   const act = git.run;
   const [commitMsg, setCommitMsg] = useState('');
@@ -83,6 +93,18 @@ export function GitPanel({ projectDir, git }: { projectDir: string | null; git: 
           )}
         </div>
       </div>
+
+      {onReviewChanges && (
+        <button
+          className="btn btn--sm git__review"
+          data-testid="git-review-btn"
+          disabled={!canReview}
+          onClick={onReviewChanges}
+          title={canReview ? 'Review this diagram’s changes since the last commit' : 'Open a diagram to review its changes'}
+        >
+          ◨ Review changes
+        </button>
+      )}
 
       <div className="git__remote">
         {detail.hasRemote ? (

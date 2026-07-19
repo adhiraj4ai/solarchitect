@@ -3,6 +3,7 @@ import path from 'node:path';
 import { serializeDiagram } from '../shared/yaml/serialize';
 import { parseDiagram } from '../shared/yaml/parse';
 import { emptyDiagram } from '../shared/ir/types';
+import { gitShow, type GitShowResult } from './gitService';
 import {
   documentTypeForFile,
   documentExtension,
@@ -61,6 +62,18 @@ export async function listDocuments(projectDir: string): Promise<DocumentEntry[]
 /** Read any document's raw text. */
 export async function readDocument(projectDir: string, fileName: string): Promise<string> {
   return readFile(resolveInProject(projectDir, fileName), 'utf-8');
+}
+
+/** Read a document's content as it was at a git ref (e.g. 'HEAD'), for the
+ *  diff/review view. Kept behind the same path-traversal trust boundary as every
+ *  other file op; the git read itself lives in the git service. */
+export async function readDocumentAtRef(
+  projectDir: string,
+  fileName: string,
+  ref: string,
+): Promise<GitShowResult> {
+  resolveInProject(projectDir, fileName); // trust boundary — throws on traversal
+  return gitShow(projectDir, ref, fileName);
 }
 
 /** Write any document's raw text. */
