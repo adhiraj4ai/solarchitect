@@ -782,7 +782,7 @@ export function CanvasView({
       }
       const s =
         preset.style === 'end-to-end'
-          ? stateAtByPath(diagram, paths, travel, traversalTimeRef.current)
+          ? stateAtByPath(diagram, paths, travel, traversalTimeRef.current, preset.travelEasing ?? 'linear')
           : stateAt(diagram, order, timeline, traversalTimeRef.current, preset.style);
       editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
       raf = requestAnimationFrame(frame);

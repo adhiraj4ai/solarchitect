@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import {
   ANIMATION_STYLES,
+  TRAVEL_EASINGS,
   isBuiltinPreset,
   type AnimationPreset,
   type AnimationStyle,
+  type TravelEasing,
 } from '@shared/animation/presets';
+
+const EASING_LABEL: Record<TravelEasing, string> = {
+  linear: 'Linear',
+  'ease-in-out': 'Ease in-out',
+};
 
 const STYLE_LABEL: Record<AnimationStyle, string> = {
   'all-edges': 'All edges',
@@ -160,6 +167,21 @@ function PresetEditor({
         />
       </label>
       <label className="props-field">
+        <span className="props-field__label">Travel easing</span>
+        <select
+          data-testid="anim-easing"
+          disabled={readOnly}
+          value={draft.travelEasing ?? 'linear'}
+          onChange={(e) => patch({ travelEasing: e.target.value as TravelEasing })}
+        >
+          {TRAVEL_EASINGS.map((s) => (
+            <option key={s} value={s}>
+              {EASING_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="props-field">
         <span className="props-field__label">Fade (s)</span>
         <input
           type="number"
@@ -171,6 +193,32 @@ function PresetEditor({
           onChange={(e) => patch({ fadeSeconds: num(e.target.value, draft.fadeSeconds) })}
         />
       </label>
+      {(() => {
+        // Dim opacity only shapes the build-up (control-flow) style; for the
+        // others every element stays lit, so the control has nothing to affect.
+        const dimApplies = draft.style === 'control-flow';
+        return (
+          <label className="props-field">
+            <span className="props-field__label">Dim opacity</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              data-testid="anim-dim"
+              className="props-range"
+              disabled={readOnly || !dimApplies}
+              value={draft.dimOpacity}
+              onChange={(e) => patch({ dimOpacity: num(e.target.value, draft.dimOpacity) })}
+            />
+            <span className="props-field__hint">
+              {dimApplies
+                ? `Un-reached elements: ${Math.round(draft.dimOpacity * 100)}%`
+                : 'Only affects the Control flow (build-up) style'}
+            </span>
+          </label>
+        );
+      })()}
       <label className="props-field">
         <span className="props-field__label">Loop</span>
         <select

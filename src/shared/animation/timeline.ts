@@ -1,5 +1,5 @@
 import type { ResolvedOrder } from './order';
-import type { AnimationPreset, AnimationStyle } from './presets';
+import type { AnimationPreset, AnimationStyle, TravelEasing } from './presets';
 
 /** Global timing for the traversal animation (set in the export/preview UI). */
 export interface TimingSettings {
@@ -11,6 +11,10 @@ export interface TimingSettings {
   dotTravelSeconds: number;
   /** Seconds to hold the fully-lit diagram at the end. */
   endHoldSeconds: number;
+  /** Opacity of not-yet-reached elements during build-up; absent = engine default. */
+  dimOpacity?: number;
+  /** Token travel easing; absent = linear. */
+  easing?: TravelEasing;
 }
 
 export const DEFAULT_TIMING: TimingSettings = {
@@ -18,6 +22,8 @@ export const DEFAULT_TIMING: TimingSettings = {
   fadeSeconds: 0.35,
   dotTravelSeconds: 0.9,
   endHoldSeconds: 1,
+  dimOpacity: 0.15,
+  easing: 'linear',
 };
 
 /** The finite loop period of a style (seconds), for the scrubber and export.
@@ -35,6 +41,8 @@ export function presetTiming(preset: AnimationPreset): TimingSettings {
     fadeSeconds: preset.fadeSeconds,
     dotTravelSeconds: preset.dotTravelSeconds,
     endHoldSeconds: DEFAULT_TIMING.endHoldSeconds,
+    dimOpacity: preset.dimOpacity,
+    easing: preset.travelEasing ?? 'linear',
   };
 }
 
