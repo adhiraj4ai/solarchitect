@@ -79,8 +79,9 @@ test('shows what changed after editing the open diagram', async () => {
   await expect(canvas().getByText('ReviewedNode')).toBeVisible();
 
   await openReview();
-  // The change list surfaces the relabeled component.
-  await expect(win.locator('[data-testid="diff-review"]').getByText('ReviewedNode')).toBeVisible();
+  // The change list surfaces the relabeled component. Scope to the list: the new
+  // label also renders on the compare canvas, so an unscoped match is ambiguous.
+  await expect(win.locator('[data-testid="diff-list"]').getByText('ReviewedNode')).toBeVisible();
   await expect(win.locator('[data-testid="diff-row"]').first()).toBeVisible();
   // The semantic-only filter is offered.
   await expect(win.locator('[data-testid="diff-semantic-only"]')).toBeVisible();
