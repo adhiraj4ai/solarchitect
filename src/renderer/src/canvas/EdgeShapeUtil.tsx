@@ -17,11 +17,22 @@ function pointAtFraction(d: string, t: number): { x: number; y: number } {
 
 /** The deterministic flow token: a dot at fraction `t` along `d`, driven by the
  *  traversal preview/capture (not SMIL). `t < 0` renders nothing. The geometry
- *  is memoized so live editing doesn't re-measure the path every render. */
-function FlowToken({ d, t }: { d: string; t: number }) {
+ *  is memoized so live editing doesn't re-measure the path every render. Color and
+ *  size come from the active preset (empty color = the sync accent); they are set
+ *  as inline attributes so the live canvas and the exported SVG render alike. */
+function FlowToken({ d, t, color, size }: { d: string; t: number; color: string; size: number }) {
   const pt = useMemo(() => (t < 0 ? null : pointAtFraction(d, t)), [d, t]);
   if (!pt) return null;
-  return <circle className="arch-edge-token-det" cx={pt.x} cy={pt.y} r="5" fill="var(--sync, #d9822b)" stroke="none" />;
+  return (
+    <circle
+      className="arch-edge-token-det"
+      cx={pt.x}
+      cy={pt.y}
+      r={size}
+      fill={color || 'var(--sync, #d9822b)'}
+      stroke="none"
+    />
+  );
 }
 
 // Endpoints are stored local to the shape's (x,y) origin, which the reconciler
@@ -38,6 +49,10 @@ export type ArchEdgeShape = TLBaseShape<
     order: number;
     /** Traversal-preview token position (0..1 along from→to); <0 = no token. */
     dotT: number;
+    /** Flow-token color from the active preset; '' = the sync accent. */
+    dotColor: string;
+    /** Flow-token radius (px) from the active preset. */
+    dotSize: number;
     x1: number;
     y1: number;
     x2: number;
@@ -105,6 +120,8 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
     arrow: T.boolean,
     order: T.number,
     dotT: T.number,
+    dotColor: T.string,
+    dotSize: T.number,
     x1: T.number,
     y1: T.number,
     x2: T.number,
@@ -121,6 +138,8 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
       arrow: true,
       order: 0,
       dotT: -1,
+      dotColor: '',
+      dotSize: 5,
       x1: 0,
       y1: 0,
       x2: 100,
@@ -137,7 +156,8 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
   override canBind = () => false;
 
   component(shape: ArchEdgeShape) {
-    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, order, dotT, edgeId } = shape.props;
+    const { x1, y1, x2, y2, label, direction, shape: kind, lineStyle, arrow, order, dotT, dotColor, dotSize, edgeId } =
+      shape.props;
     const minX = Math.min(x1, x2);
     const minY = Math.min(y1, y2);
     const startId = `arrow-start-${edgeId}`;
@@ -172,7 +192,7 @@ export class EdgeShapeUtil extends ShapeUtil<ArchEdgeShape> {
             markerStart={headStart ? `url(#${startId})` : undefined}
           />
           {/* Deterministic token for the traversal preview/capture. */}
-          <FlowToken d={d} t={dotT} />
+          <FlowToken d={d} t={dotT} color={dotColor} size={dotSize} />
         </svg>
         {label && (
           <div

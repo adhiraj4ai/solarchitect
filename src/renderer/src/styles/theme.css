@@ -757,6 +757,20 @@ button { font-family: inherit; }
 .anim-editor .props-range:disabled {
   opacity: 0.5;
 }
+.anim-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.anim-color input[type='color'] {
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line, #dbe3ec);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
 
 /* Export-animated-GIF dialog. */
 .modal-backdrop {

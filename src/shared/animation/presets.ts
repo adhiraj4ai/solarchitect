@@ -32,7 +32,12 @@ export interface AnimationPreset {
   travelEasing?: TravelEasing;
   /** Optional token color; absent uses the sync accent. */
   tokenColor?: string;
+  /** Flow-token radius in px; absent = default. */
+  tokenSize?: number;
 }
+
+/** Default flow-token radius (px) when a preset does not set one. */
+export const DEFAULT_TOKEN_SIZE = 5;
 
 export const BUILTIN_PRESETS: AnimationPreset[] = [
   { id: 'builtin-all-edges', name: 'All edges', style: 'all-edges', secondsPerStep: 1, dotTravelSeconds: 1.2, fadeSeconds: 0.35, dimOpacity: 0.15, loop: 'forever' },
@@ -66,6 +71,7 @@ export function coercePreset(input: unknown): AnimationPreset | null {
     dimOpacity: num(o.dimOpacity, 0.15),
     travelEasing: o.travelEasing === 'ease-in-out' ? 'ease-in-out' : 'linear',
     loop: o.loop === 'once' || o.loop === 'forever' ? o.loop : 'forever',
+    tokenSize: num(o.tokenSize, DEFAULT_TOKEN_SIZE),
     ...(typeof o.tokenColor === 'string' ? { tokenColor: o.tokenColor } : {}),
   };
 }

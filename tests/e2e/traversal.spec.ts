@@ -70,22 +70,35 @@ test('playing the traversal dims later steps and flows a token, then resets on s
   expect(await tokenVisible()).toBe(false);
 });
 
-test('the animation control bar is visible before Play, switches preset, and opens settings', async () => {
+test('token color and size from the active preset drive the flow token', async () => {
   await editor().fill(CHAIN);
   await expect(canvas().getByText('Alpha')).toBeVisible();
 
-  // The bar is present on a Diagram without pressing Play first.
-  await expect(win.locator('[data-testid="traversal-scrubber"]')).toBeVisible();
+  // Create a custom preset (becomes active) and configure a continuous style so
+  // the token is always on screen, plus a distinctive color and size.
+  await win.locator('[data-testid="activity-animations"]').click();
+  await win.locator('[data-testid="anim-new"]').click();
+  await win.locator('[data-testid="anim-style"]').selectOption('all-edges');
+  await win.locator('[data-testid="anim-size"]').evaluate((el) => {
+    const input = el as HTMLInputElement;
+    input.value = '9';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await win.locator('[data-testid="anim-color"]').evaluate((el) => {
+    const input = el as HTMLInputElement;
+    input.value = '#12ab34';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 
-  // The preset dropdown switches the active preset (reflected in the top-bar Play label).
-  await win.locator('[data-testid="anim-bar-preset"]').selectOption('builtin-dataflow');
-  await expect(win.locator('[data-testid="traversal-toggle"]')).toContainText('Dataflow');
-  await win.locator('[data-testid="anim-bar-preset"]').selectOption('builtin-control-flow');
-  await expect(win.locator('[data-testid="traversal-toggle"]')).toContainText('Control flow');
+  await win.locator('[data-testid="traversal-toggle"]').click();
 
-  // The gear opens the Animations panel (its preset editor becomes visible).
-  await win.locator('[data-testid="anim-bar-gear"]').click();
-  await expect(win.locator('[data-testid="anim-editor"]')).toBeVisible();
+  const tokenAttr = (attr: string) =>
+    win.evaluate((a) => document.querySelector('.arch-edge-token-det')?.getAttribute(a) ?? null, attr);
+
+  await expect.poll(() => tokenAttr('fill')).toBe('#12ab34');
+  await expect.poll(() => tokenAttr('r')).toBe('9');
+
+  await win.locator('[data-testid="traversal-toggle"]').click();
 });
 
 test('the scrubber seeks and holds, and beat ticks jump', async () => {

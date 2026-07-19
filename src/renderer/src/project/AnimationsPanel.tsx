@@ -2,11 +2,16 @@ import { useState } from 'react';
 import {
   ANIMATION_STYLES,
   TRAVEL_EASINGS,
+  DEFAULT_TOKEN_SIZE,
   isBuiltinPreset,
   type AnimationPreset,
   type AnimationStyle,
   type TravelEasing,
 } from '@shared/animation/presets';
+
+/** Accent shown in the color picker when a preset has no explicit token color;
+ *  matches the FlowToken fallback so the swatch reads as "the default". */
+const ACCENT_HEX = '#d9822b';
 
 const EASING_LABEL: Record<TravelEasing, string> = {
   linear: 'Linear',
@@ -180,6 +185,44 @@ function PresetEditor({
             </option>
           ))}
         </select>
+      </label>
+      <label className="props-field">
+        <span className="props-field__label">Token color</span>
+        <span className="anim-color">
+          <input
+            type="color"
+            data-testid="anim-color"
+            disabled={readOnly}
+            value={draft.tokenColor ?? ACCENT_HEX}
+            onChange={(e) => patch({ tokenColor: e.target.value })}
+          />
+          {!readOnly && draft.tokenColor && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              data-testid="anim-color-reset"
+              title="Reset to the app accent"
+              onClick={() => patch({ tokenColor: undefined })}
+            >
+              Accent
+            </button>
+          )}
+        </span>
+      </label>
+      <label className="props-field">
+        <span className="props-field__label">Token size</span>
+        <input
+          type="range"
+          min={2}
+          max={12}
+          step={1}
+          data-testid="anim-size"
+          className="props-range"
+          disabled={readOnly}
+          value={draft.tokenSize ?? DEFAULT_TOKEN_SIZE}
+          onChange={(e) => patch({ tokenSize: num(e.target.value, draft.tokenSize ?? DEFAULT_TOKEN_SIZE) })}
+        />
+        <span className="props-field__hint">{draft.tokenSize ?? DEFAULT_TOKEN_SIZE}px radius</span>
       </label>
       <label className="props-field">
         <span className="props-field__label">Fade (s)</span>

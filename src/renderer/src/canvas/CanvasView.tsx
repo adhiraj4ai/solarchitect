@@ -804,7 +804,9 @@ export function CanvasView({
         preset.style === 'end-to-end'
           ? stateAtByPath(diagram, paths, travel, traversalTimeRef.current, preset.travelEasing ?? 'linear')
           : stateAt(diagram, order, timeline, traversalTimeRef.current, preset.style);
-      editor.store.mergeRemoteChanges(() => applyTraversalState(editor, s));
+      editor.store.mergeRemoteChanges(() =>
+        applyTraversalState(editor, s, { tokenColor: preset.tokenColor, tokenSize: preset.tokenSize }),
+      );
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
