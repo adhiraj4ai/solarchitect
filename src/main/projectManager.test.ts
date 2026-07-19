@@ -7,6 +7,7 @@ import {
   readDocument,
   writeDocument,
   createDocument,
+  readDocumentAtRef,
 } from './projectManager';
 
 const EMPTY_DIAGRAM = 'nodes: []\nedges: []\nclusters: []\n';
@@ -76,6 +77,10 @@ describe('projectManager documents', () => {
     expect(await readDocument(projectDir, md)).toContain('#');
     const dg = await createDocument(projectDir, 'diagram');
     expect(await readDocument(projectDir, dg)).toContain('nodes: []');
+  });
+
+  it('refuses to read a document at a ref that escapes the project (traversal)', async () => {
+    await expect(readDocumentAtRef(projectDir, '../../etc/hosts', 'HEAD')).rejects.toThrow(/outside the project/);
   });
 
   it('refuses to read or write a path that escapes the project (traversal)', async () => {

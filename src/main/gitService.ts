@@ -72,6 +72,24 @@ export async function gitInit(dir: string): Promise<void> {
   await git(dir, ['init']);
 }
 
+export interface GitShowResult {
+  ok: boolean;
+  /** File bytes at the ref (empty string when not ok). */
+  content: string;
+  message?: string;
+}
+
+/** Read a project-relative file's content at a git ref (e.g. 'HEAD'). A path
+ *  absent at that ref (a brand-new, never-committed document) returns ok:false
+ *  rather than throwing, so callers can treat it as "no prior version". */
+export async function gitShow(dir: string, ref: string, relPath: string): Promise<GitShowResult> {
+  const r = await git(dir, ['show', `${ref}:${relPath.replace(/\\/g, '/')}`]);
+  if (r.code !== 0) {
+    return { ok: false, content: '', message: r.stderr.trim().split('\n')[0] || `Could not read ${relPath} at ${ref}` };
+  }
+  return { ok: true, content: r.stdout };
+}
+
 const US = '\x1f'; // unit separator for log parsing
 
 /** Rich status: branch, ahead/behind, changed files, branch list, recent log. */

@@ -4,6 +4,7 @@ import {
   listDocuments,
   readDocument,
   writeDocument,
+  readDocumentAtRef,
   createDocument,
   readTemplates,
   writeTemplates,
@@ -75,6 +76,9 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('project:writeDocument', (_e, projectDir: string, fileName: string, text: string) =>
     writeDocument(projectDir, fileName, text),
+  );
+  ipcMain.handle('project:readDocumentAtRef', (_e, projectDir: string, fileName: string, ref: string) =>
+    readDocumentAtRef(projectDir, fileName, ref),
   );
   ipcMain.handle('project:createDocument', (_e, projectDir: string, type: DocumentType) =>
     createDocument(projectDir, type),

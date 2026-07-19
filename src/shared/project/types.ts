@@ -51,6 +51,15 @@ export interface NewProjectResult {
   dir: string;
 }
 
+/** The content of a document as it was at a git ref. `ok` is false (with an
+ *  empty `content`) when the path did not exist at that ref — e.g. a brand-new,
+ *  never-committed document — which the diff view treats as "no prior version". */
+export interface GitShowResult {
+  ok: boolean;
+  content: string;
+  message?: string;
+}
+
 /**
  * The API the preload bridge exposes on window.solarchitect. Single source of
  * truth: the preload implementation is typed against this, and the renderer's
@@ -64,6 +73,9 @@ export interface SolarchitectApi {
   readDocument(projectDir: string, fileName: string): Promise<string>;
   /** Write any document's raw text. */
   writeDocument(projectDir: string, fileName: string, text: string): Promise<void>;
+  /** Read a document's content as it was at a git ref (e.g. 'HEAD'), for the
+   *  diff/review view. Not-present-at-ref returns ok:false, never throws. */
+  readDocumentAtRef(projectDir: string, fileName: string, ref: string): Promise<GitShowResult>;
   /** Create a new auto-named document of the given type; returns its file name. */
   createDocument(projectDir: string, type: DocumentType): Promise<string>;
   readTemplates(projectDir: string): Promise<string>;
