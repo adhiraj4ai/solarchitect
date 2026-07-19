@@ -1,20 +1,38 @@
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const MAIN = join(process.cwd(), 'out/main/index.js');
 
 let app: ElectronApplication;
 let win: Page;
+let userData: string;
 
 test.beforeAll(async () => {
-  app = await electron.launch({ args: [MAIN] });
+  // Isolated user-data dir so custom animation presets created here don't leak
+  // to/from other specs or prior runs (presets are persisted in settings).
+  userData = await mkdtemp(join(tmpdir(), 'solarchitect-traversal-'));
+  app = await electron.launch({ args: [MAIN, `--user-data-dir=${userData}`] });
   win = await app.firstWindow();
   await win.locator('[data-testid="canvas-drop"]').waitFor({ timeout: 15_000 });
 });
 
 test.afterAll(async () => {
   await app.close();
+  await rm(userData, { recursive: true, force: true });
 });
+
+/** Set a controlled input's value the way React expects, so onChange fires. A
+ *  bare `el.value = x` is swallowed by React's value tracker. */
+async function setReactInput(testId: string, value: string) {
+  await win.locator(`[data-testid="${testId}"]`).evaluate((el, v) => {
+    const input = el as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, v);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, value);
+}
 
 const editor = () => win.locator('textarea[aria-label="Diagram YAML"]');
 const canvas = () => win.locator('[data-testid="canvas-drop"]');
@@ -79,16 +97,8 @@ test('token color and size from the active preset drive the flow token', async (
   await win.locator('[data-testid="activity-animations"]').click();
   await win.locator('[data-testid="anim-new"]').click();
   await win.locator('[data-testid="anim-style"]').selectOption('all-edges');
-  await win.locator('[data-testid="anim-size"]').evaluate((el) => {
-    const input = el as HTMLInputElement;
-    input.value = '9';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await win.locator('[data-testid="anim-color"]').evaluate((el) => {
-    const input = el as HTMLInputElement;
-    input.value = '#12ab34';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await setReactInput('anim-size', '9');
+  await setReactInput('anim-color', '#12ab34');
 
   await win.locator('[data-testid="traversal-toggle"]').click();
 
@@ -104,6 +114,9 @@ test('token color and size from the active preset drive the flow token', async (
 test('the scrubber seeks and holds, and beat ticks jump', async () => {
   await editor().fill(CHAIN);
   await expect(canvas().getByText('Alpha')).toBeVisible();
+  // Pin a build-up preset: the ticks are its per-beat markers. A prior test can
+  // leave a continuous (all-edges) preset active, which has no beats.
+  await win.locator('[data-testid="anim-bar-preset"]').selectOption('builtin-control-flow');
 
   const opacities = () =>
     win.evaluate(() =>
